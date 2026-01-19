@@ -38,7 +38,9 @@ export default function Page() {
       />
       <Button onClick={() => addUser({ name: "Scylla" })}>Add user</Button>
       <div className="mx-auto w-full max-w-sm">
-        {JSON.stringify(users, null, 2)}
+        <pre className="text-sm overflow-auto">
+          {JSON.stringify(users, null, 2)}
+        </pre>
       </div>
     </div>
   );
