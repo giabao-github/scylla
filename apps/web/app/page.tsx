@@ -17,7 +17,7 @@ export default function Page() {
   return (
     <>
       <Authenticated>
-        <div className="flex flex-col gap-y-4 items-center justify-center min-h-svh">
+        <div className="flex flex-col gap-y-4 justify-center items-center min-h-svh">
           <p>Scylla web</p>
           <div className="flex gap-2">
             <UserButton />
@@ -26,13 +26,13 @@ export default function Page() {
             </SignOutButton>
           </div>
           <Button onClick={() => addUser({ name: "Scylla" })}>Add user</Button>
-          <div className="max-w-sm w-full mx-auto">
+          <div className="mx-auto w-full max-w-sm">
             {JSON.stringify(users, null, 2)}
           </div>
         </div>
       </Authenticated>
       <Unauthenticated>
-        <div className="flex flex-col gap-y-4 items-center justify-center min-h-svh">
+        <div className="flex flex-col gap-y-4 justify-center items-center min-h-svh">
           <p>Scylla web</p>
           <p>Please sign in to continue</p>
           <SignInButton>
