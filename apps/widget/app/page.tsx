@@ -11,7 +11,7 @@ export default function Page() {
   return (
     <div className="flex flex-col gap-y-4 items-center justify-center min-h-svh">
       <p>Scylla widget</p>
-      <Button onClick={() => addUser({})}>Add user</Button>
+      <Button onClick={() => addUser({ name: "Scylla" })}>Add user</Button>
       <div className="max-w-sm w-full mx-auto">
         {JSON.stringify(users, null, 2)}
       </div>

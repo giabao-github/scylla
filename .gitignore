@@ -18,6 +18,9 @@ coverage
 # Turbo
 .turbo
 
+# Convex
+.convex-tmp
+
 # Vercel
 .vercel
 

@@ -2,8 +2,8 @@
   "name": "@workspace/backend",
   "type": "module",
   "scripts": {
-    "dev": "cross-env CONVEX_TMPDIR=D:/temp convex dev",
-    "setup": "cross-env CONVEX_TMPDIR=D:/temp convex dev --until-success"
+    "dev": "cross-env CONVEX_TMPDIR=../../.convex-tmp convex dev",
+    "setup": "cross-env CONVEX_TMPDIR=../../.convex-tmp convex dev --until-success"
   },
   "exports": {
     "./convex": "./convex/*.ts"
