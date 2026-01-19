@@ -15,6 +15,7 @@
     "typescript": "latest"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.36.8",
     "convex": "^1.31.5"
   }
 }
