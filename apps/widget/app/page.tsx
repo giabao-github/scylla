@@ -11,13 +11,25 @@ export default function Page() {
     isConnecting,
     isSpeaking,
     transcript,
+    hasError,
   } = useVapi();
+
+  const isStartDisabled = isConnecting || isConnected;
+  const isEndDisabled = !isConnecting && !isConnected;
 
   return (
     <div className="flex flex-col gap-y-4 items-center justify-center min-h-svh max-w-md mx-auto w-full">
       <p>Scylla widget</p>
-      <Button onClick={() => startCall()}>Start call</Button>
-      <Button onClick={() => endCall()} variant="destructive">
+      <Button onClick={startCall} disabled={isStartDisabled}>
+        {isConnected
+          ? "In call"
+          : isConnecting
+            ? "Connecting..."
+            : hasError
+              ? "Try again"
+              : "Start call"}
+      </Button>
+      <Button onClick={endCall} variant="destructive" disabled={isEndDisabled}>
         End call
       </Button>
       <p>isConnected: {isConnected.toString()}</p>
