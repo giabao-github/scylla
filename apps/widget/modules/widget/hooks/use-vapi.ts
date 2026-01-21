@@ -27,36 +27,36 @@ export const useVapi = () => {
     const vapiInstance = new Vapi(apiKey);
     setVapi(vapiInstance);
 
-    vapiInstance.on("call-start", () => {
+    const handleCallStart = () => {
       setIsConnected(true);
       setIsConnecting(false);
       setTranscript([]);
       setHasError(false);
       setError(null);
-    });
+    };
 
-    vapiInstance.on("call-end", () => {
+    const handleCallEnd = () => {
       setIsConnected(false);
       setIsConnecting(false);
       setIsSpeaking(false);
-    });
+    };
 
-    vapiInstance.on("speech-start", () => {
+    const handleSpeechStart = () => {
       setIsSpeaking(true);
-    });
+    };
 
-    vapiInstance.on("speech-end", () => {
+    const handleSpeechEnd = () => {
       setIsSpeaking(false);
-    });
+    };
 
-    vapiInstance.on("error", (error) => {
+    const handleError = (error: any) => {
       setIsConnecting(false);
       setIsConnected(false);
       setHasError(true);
       setError(error.message || "An error occurred");
-    });
+    };
 
-    vapiInstance.on("message", (message) => {
+    const handleMessage = (message: any) => {
       if (message.type === "assistant.started") {
         setIsConnected(true);
         setIsConnecting(false);
@@ -80,14 +80,27 @@ export const useVapi = () => {
           },
         ]);
       }
-    });
+    };
+
+    vapiInstance.on("call-start", handleCallStart);
+    vapiInstance.on("call-end", handleCallEnd);
+    vapiInstance.on("speech-start", handleSpeechStart);
+    vapiInstance.on("speech-end", handleSpeechEnd);
+    vapiInstance.on("error", handleError);
+    vapiInstance.on("message", handleMessage);
 
     return () => {
-      vapiInstance?.stop();
+      vapiInstance.off("call-start", handleCallStart);
+      vapiInstance.off("call-end", handleCallEnd);
+      vapiInstance.off("speech-start", handleSpeechStart);
+      vapiInstance.off("speech-end", handleSpeechEnd);
+      vapiInstance.off("error", handleError);
+      vapiInstance.off("message", handleMessage);
+      vapiInstance.stop();
     };
   }, []);
 
-  const startCall = () => {
+  const startCall = async () => {
     if (!vapi) {
       console.error("Vapi instance not initialized");
       return;
@@ -107,7 +120,7 @@ export const useVapi = () => {
     }
 
     try {
-      vapi.start(assistantId);
+      await vapi.start(assistantId);
     } catch (error: any) {
       setIsConnecting(false);
       setIsConnected(false);
