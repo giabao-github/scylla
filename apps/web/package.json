@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.8",
+    "@clerk/types": "^4.101.11",
+    "@sentry/nextjs": "^10.35.0",
     "@workspace/backend": "workspace:*",
     "@workspace/math": "workspace:*",
     "@workspace/ui": "workspace:*",
