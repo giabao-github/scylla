@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback } from "react";
+
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import {
   Sidebar,
@@ -99,12 +101,15 @@ const SidebarNavGroup = ({
 export const DashboardSidebar = () => {
   const pathname = usePathname();
 
-  const isActive = (url: string) => {
-    if (url === "/") {
-      return pathname === url;
-    }
-    return pathname === url || pathname.startsWith(url + "/");
-  };
+  const isActive = useCallback(
+    (url: string) => {
+      if (url === "/") {
+        return pathname === url;
+      }
+      return pathname === url || pathname.startsWith(url + "/");
+    },
+    [pathname],
+  );
 
   return (
     <Sidebar className="group" collapsible="icon">

@@ -7,13 +7,16 @@ import {
   getDefaultClassNames,
 } from "react-day-picker";
 
-import { Button, buttonVariants } from "@workspace/ui/components/button";
-import { cn } from "@workspace/ui/lib/utils";
 import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react";
+
+import { Button, buttonVariants } from "@workspace/ui/components/button";
+import { cn } from "@workspace/ui/lib/utils";
+
+const defaultClassNames = getDefaultClassNames();
 
 function Calendar({
   className,
@@ -27,8 +30,6 @@ function Calendar({
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"];
 }) {
-  const defaultClassNames = getDefaultClassNames();
-
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -179,8 +180,6 @@ function Calendar({
   );
 }
 
-const defaultClassNames = getDefaultClassNames();
-
 function CalendarDayButton({
   className,
   day,
@@ -197,7 +196,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString()}
+      data-day={day.date.toISOString().split("T")[0]}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

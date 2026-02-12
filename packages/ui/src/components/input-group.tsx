@@ -2,11 +2,12 @@
 
 import * as React from "react";
 
+import { type VariantProps, cva } from "class-variance-authority";
+
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { cn } from "@workspace/ui/lib/utils";
-import { type VariantProps, cva } from "class-variance-authority";
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -72,7 +73,10 @@ function InputGroupAddon({
         if ((e.target as HTMLElement).closest("button")) {
           return;
         }
-        e.currentTarget.parentElement?.querySelector("input")?.focus();
+        const parent = e.currentTarget.parentElement;
+        (
+          parent?.querySelector("input") ?? parent?.querySelector("textarea")
+        )?.focus();
       }}
       {...props}
     />

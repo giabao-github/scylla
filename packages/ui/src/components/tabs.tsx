@@ -35,7 +35,7 @@ const tabsListVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "default", // for overridden default variant
     },
   },
 );

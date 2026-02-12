@@ -2,8 +2,9 @@
 
 import * as React from "react";
 
-import { cn } from "@workspace/ui/lib/utils";
 import * as RechartsPrimitive from "recharts";
+
+import { cn } from "@workspace/ui/lib/utils";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
@@ -71,7 +72,7 @@ function ChartContainer({
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color,
+    ([, itemConfig]) => itemConfig.theme || itemConfig.color,
   );
 
   if (!colorConfig.length) {
