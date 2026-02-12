@@ -64,6 +64,38 @@ const accountItems = [
   },
 ];
 
+const SidebarNavGroup = ({
+  label,
+  items,
+  isActive,
+}: {
+  label: string;
+  items: typeof customerSupportItems;
+  isActive: (url: string) => boolean;
+}) => (
+  <SidebarGroup>
+    <SidebarGroupLabel>{label}</SidebarGroupLabel>
+    <SidebarGroupContent>
+      <SidebarMenu>
+        {items.map((item) => (
+          <SidebarMenuItem key={item.url}>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive(item.url)}
+              tooltip={item.title}
+            >
+              <Link href={item.url}>
+                <item.icon className="size-4" />
+                {item.title}
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    </SidebarGroupContent>
+  </SidebarGroup>
+);
+
 export const DashboardSidebar = () => {
   const pathname = usePathname();
 
@@ -71,7 +103,7 @@ export const DashboardSidebar = () => {
     if (url === "/") {
       return pathname === url;
     }
-    return pathname.startsWith(url);
+    return pathname === url || pathname.startsWith(url + "/");
   };
 
   return (
@@ -104,71 +136,23 @@ export const DashboardSidebar = () => {
       </SidebarHeader>
       <SidebarContent>
         {/* Customer Support */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Customer Support</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {customerSupportItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={item.title}
-                  >
-                    <Link href={item.url}>
-                      <item.icon className="size-4" />
-                      {item.title}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarNavGroup
+          label="Customer Support"
+          items={customerSupportItems}
+          isActive={isActive}
+        />
         {/* Configuration */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Configuration</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {configurationItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={item.title}
-                  >
-                    <Link href={item.url}>
-                      <item.icon className="size-4" />
-                      {item.title}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarNavGroup
+          label="Configuration"
+          items={configurationItems}
+          isActive={isActive}
+        />
         {/* Account */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Account</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {accountItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={item.title}
-                  >
-                    <Link href={item.url}>
-                      <item.icon className="size-4" />
-                      {item.title}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarNavGroup
+          label="Account"
+          items={accountItems}
+          isActive={isActive}
+        />
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>

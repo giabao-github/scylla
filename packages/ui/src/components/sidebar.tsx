@@ -1,12 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
-import { Slot } from "radix-ui";
 
-import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
-import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Separator } from "@workspace/ui/components/separator";
@@ -24,6 +19,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
+import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
+import { cn } from "@workspace/ui/lib/utils";
+import { type VariantProps, cva } from "class-variance-authority";
+import { PanelLeftIcon } from "lucide-react";
+import { Slot } from "radix-ui";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -35,7 +35,7 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
   open: boolean;
-  setOpen: (open: boolean) => void;
+  setOpen: (open: boolean | ((value: boolean) => boolean)) => void;
   openMobile: boolean;
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
@@ -182,15 +182,20 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
         <SheetContent
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-sidebar-mobile p-0 [&>button]:hidden"
+          {...props}
+          className={cn(
+            "bg-sidebar text-sidebar-foreground w-sidebar-mobile p-0 [&>button]:hidden",
+            className,
+          )}
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+              ...props.style,
             } as React.CSSProperties
           }
           side={side}
@@ -529,11 +534,8 @@ function SidebarMenuButton({
     return button;
   }
 
-  if (typeof tooltip === "string") {
-    tooltip = {
-      children: tooltip,
-    };
-  }
+  const tooltipProps =
+    typeof tooltip === "string" ? { children: tooltip } : tooltip;
 
   return (
     <Tooltip>
@@ -542,7 +544,7 @@ function SidebarMenuButton({
         side="right"
         align="center"
         hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
+        {...tooltipProps}
       />
     </Tooltip>
   );
