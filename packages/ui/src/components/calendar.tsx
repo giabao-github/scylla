@@ -11,6 +11,7 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronUpIcon,
 } from "lucide-react";
 
 import { Button, buttonVariants } from "@workspace/ui/components/button";
@@ -156,6 +157,12 @@ function Calendar({
                 className={cn("size-4", className)}
                 {...props}
               />
+            );
+          }
+
+          if (orientation === "up") {
+            return (
+              <ChevronUpIcon className={cn("size-4", className)} {...props} />
             );
           }
 
