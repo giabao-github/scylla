@@ -196,9 +196,9 @@ const dayButtonClassName = [
   "dark:hover:text-accent-foreground",
   "flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal",
   "group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px]",
-  "data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md",
+  "data-[range-end=true]:rounded-md",
   "data-[range-middle=true]:rounded-none",
-  "data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md",
+  "data-[range-start=true]:rounded-md",
   "[&>span]:text-xs [&>span]:opacity-70",
 ].join(" ");
 
