@@ -1,0 +1,21 @@
+{
+  "plugins": ["@trivago/prettier-plugin-sort-imports"],
+  "importOrder": [
+    "^react",
+    "<THIRD_PARTY_MODULES>",
+    "^@workspace/components/(.*)$",
+    "^@workspace/config/(.*)$",
+    "^@workspace/constants/(.*)$",
+    "^@workspace/content/(.*)$",
+    "^@workspace/hooks/(.*)$",
+    "^@workspace/lib/(.*)$",
+    "^@workspace/modules/(.*)$",
+    "^@workspace/styles/(.*)$",
+    "^@workspace/utils/(.*)$",
+    "^@workspace/(.*)$",
+    "^[./]"
+  ],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true,
+  "singleQuote": false
+}
