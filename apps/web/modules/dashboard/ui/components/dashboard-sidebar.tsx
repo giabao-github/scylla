@@ -16,6 +16,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
+import { cn } from "@workspace/ui/lib/utils";
 import {
   CreditCardIcon,
   InboxIcon,
@@ -84,6 +85,10 @@ const SidebarNavGroup = ({
             <SidebarMenuButton
               asChild
               isActive={isActive(item.url)}
+              className={cn(
+                isActive(item.url) &&
+                  "bg-linear-to-b from-sidebar-primary to-[#8b5cf6]! text-sidebar-primary-foreground! hover:to-[#8b5cf6]/90!",
+              )}
               tooltip={item.title}
             >
               <Link href={item.url}>
