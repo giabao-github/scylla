@@ -1,8 +1,7 @@
 "use client";
 
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
-
-import { WidgetHeader } from "../components/widget-header";
+import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 
 interface WidgetViewProps {
   organizationId: string;

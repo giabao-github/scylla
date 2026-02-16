@@ -10,7 +10,7 @@ export const WidgetHeader = ({
   return (
     <header
       className={cn(
-        "flex justify-between items-center p-4 border-t bg-linear-to-b from-primary to-chart-2 text-primary-foreground",
+        "flex justify-between items-center p-4 bg-linear-to-b from-primary to-chart-2 text-primary-foreground",
         className,
       )}
     >
