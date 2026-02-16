@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${fontSans.variable} ${fontMono.variable} font-sans font-medium antialiased `}
+        className={`${fontSans.variable} ${fontMono.variable} font-sans font-medium antialiased`}
       >
         <ClerkProvider>
           <Providers>{children}</Providers>
