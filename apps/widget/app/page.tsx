@@ -1,41 +1,19 @@
 "use client";
 
-import { Button } from "@workspace/ui/components/button";
-import { useVapi } from "@/modules/widget/hooks/use-vapi";
+import { use } from "react";
 
-export default function Page() {
-  const {
-    startCall,
-    endCall,
-    isConnected,
-    isConnecting,
-    isSpeaking,
-    transcript,
-    hasError,
-  } = useVapi();
+import { WidgetView } from "@/modules/widget/ui/views/widget-view";
 
-  const isStartDisabled = isConnecting || isConnected;
-  const isEndDisabled = !isConnecting && !isConnected;
-
-  return (
-    <div className="flex flex-col gap-y-4 items-center justify-center min-h-svh max-w-md mx-auto w-full">
-      <p>Scylla widget</p>
-      <Button onClick={startCall} disabled={isStartDisabled}>
-        {isConnected
-          ? "In call"
-          : isConnecting
-            ? "Connecting..."
-            : hasError
-              ? "Try again"
-              : "Start call"}
-      </Button>
-      <Button onClick={endCall} variant="destructive" disabled={isEndDisabled}>
-        End call
-      </Button>
-      <p>isConnected: {isConnected.toString()}</p>
-      <p>isConnecting: {isConnecting.toString()}</p>
-      <p>isSpeaking: {isSpeaking.toString()}</p>
-      <p>transcript: {transcript.map((t) => t.content).join(" ")}</p>
-    </div>
-  );
+interface Props {
+  searchParams: Promise<{
+    organizationId: string;
+  }>;
 }
+
+const Page = ({ searchParams }: Props) => {
+  const { organizationId } = use(searchParams);
+
+  return <WidgetView organizationId={organizationId} />;
+};
+
+export default Page;

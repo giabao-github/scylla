@@ -121,6 +121,9 @@ importers:
 
   apps/widget:
     dependencies:
+      '@trivago/prettier-plugin-sort-imports':
+        specifier: ^6.0.2
+        version: 6.0.2(prettier@3.8.1)
       '@vapi-ai/web':
         specifier: ^2.5.2
         version: 2.5.2

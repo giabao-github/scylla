@@ -3,15 +3,18 @@
   "importOrder": [
     "^react",
     "<THIRD_PARTY_MODULES>",
+    "^@/backend/(.*)$",
     "^@/components/(.*)$",
     "^@/config/(.*)$",
     "^@/constants/(.*)$",
     "^@/content/(.*)$",
+    "^@/fonts/(.*)$",
     "^@/hooks/(.*)$",
     "^@/lib/(.*)$",
     "^@/modules/(.*)$",
     "^@/styles/(.*)$",
     "^@/utils/(.*)$",
+    "^@/views/(.*)$",
     "^@/(.*)$",
     "^[./]"
   ],

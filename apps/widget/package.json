@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-   "dev": "next dev --turbopack --port 3001",
+    "dev": "next dev --turbopack --port 3001",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
