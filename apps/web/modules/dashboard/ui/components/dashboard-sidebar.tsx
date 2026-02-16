@@ -87,7 +87,7 @@ const SidebarNavGroup = ({
               isActive={isActive(item.url)}
               className={cn(
                 isActive(item.url) &&
-                  "bg-linear-to-b from-sidebar-primary to-[#8b5cf6]! text-sidebar-primary-foreground! hover:to-[#8b5cf6]/90!",
+                  "bg-linear-to-b from-sidebar-primary to-chart-2! text-sidebar-primary-foreground! hover:to-chart-2/90!",
               )}
               tooltip={item.title}
             >
