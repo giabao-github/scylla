@@ -37,7 +37,6 @@ export function validateInput(type: Input = "name", value: string) {
   switch (type) {
     case "name": {
       const trimmed = value.trim();
-
       // Reject consecutive spaces/hyphens
       if (/\s{2,}/.test(trimmed)) {
         return false;
@@ -45,29 +44,35 @@ export function validateInput(type: Input = "name", value: string) {
       if (/-{2,}/.test(trimmed)) {
         return false;
       }
-
       return PATTERNS.name.test(trimmed);
+    }
+
+    case "username": {
+      if (/\s/.test(value)) {
+        return false;
+      }
+      return true;
+    }
+
+    case "phone": {
+      return /^0\d{9,11}$/.test(value.trim());
     }
 
     case "email": {
       const lower = value.trim().toLowerCase();
-
       // Must have exactly one @
       if ((lower.match(/@/g) || []).length !== 1) {
         return false;
       }
-
       // Reject consecutive dots
       if (/\.{2,}/.test(lower)) {
         return false;
       }
-
       // Local part must not start or end with a dot
       const [local] = lower.split("@");
       if (local?.startsWith(".") || local?.endsWith(".")) {
         return false;
       }
-
       return PATTERNS.email.test(lower);
     }
 
@@ -85,6 +90,14 @@ export function sanitizeInput(type: Input = "name", value: string) {
   switch (type) {
     case "input": {
       return value.replace(/\s{2,}/g, " ").trim();
+    }
+
+    case "username": {
+      return value.replace(/\s/g, "");
+    }
+
+    case "phone": {
+      return value.replace(/\D/g, "");
     }
 
     case "name": {

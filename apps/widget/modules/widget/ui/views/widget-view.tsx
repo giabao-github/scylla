@@ -10,7 +10,7 @@ interface WidgetViewProps {
 export const WidgetView = ({ organizationId }: WidgetViewProps) => {
   return (
     <main className="flex overflow-hidden flex-col w-full h-full min-h-screen rounded-xl border bg-muted">
-      <WidgetAuthScreen />
+      <WidgetAuthScreen organizationId={organizationId} />
       <WidgetFooter />
     </main>
   );

@@ -29,4 +29,8 @@ export default defineSchema({
   users: defineTable({
     name: v.string(),
   }),
+  organizations: defineTable({
+    name: v.string(),
+    organizationId: v.string(),
+  }),
 });

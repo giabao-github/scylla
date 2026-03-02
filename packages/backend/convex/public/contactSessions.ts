@@ -29,19 +29,46 @@ export const create = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    // Sanitize inputs
     const sanitizedName = sanitizeInput("name", args.name);
     const sanitizedEmail = sanitizeInput("email", args.email);
 
+    const organization = await ctx.db
+      .query("organizations")
+      .filter((q) => q.eq(q.field("organizationId"), args.organizationId))
+      .first();
+
+    if (!organization) {
+      throw new Error("Organization not found");
+    }
+
     const now = Date.now();
     const expiresAt = now + SESSION_DURATION_MS;
+
+    const sanitizedMetadata = args.metadata
+      ? Object.fromEntries(
+          Object.entries(args.metadata).map(([key, value]) => {
+            if (typeof value === "string") {
+              // Basic XSS sanitization: remove < and >
+              let clean = value.replace(/[<>]/g, "");
+              // Prevent javascript: protocol in URL fields
+              if (key.toLowerCase().includes("url") || key === "referrer") {
+                clean = clean.replace(/^javascript:/i, "");
+                // Strip query parameters and fragments to prevent leaking sensitive tokens
+                clean = clean.split(/[?#]/)[0];
+              }
+              return [key, clean];
+            }
+            return [key, value];
+          }),
+        )
+      : undefined;
 
     const contactSessionId = await ctx.db.insert("contactSessions", {
       name: sanitizedName,
       email: sanitizedEmail,
       organizationId: args.organizationId,
       expiresAt,
-      metadata: args.metadata,
+      metadata: sanitizedMetadata,
     });
 
     return contactSessionId;

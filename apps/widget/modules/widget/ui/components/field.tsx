@@ -93,7 +93,7 @@ export const Field = ({
                   : "border-primary/30 hover:border-primary/80",
             // Focus ring
             focused && !showError && "ring-3 ring-primary/10",
-            focused && showError && "ring-3 ring-rose-400",
+            focused && !!error && "ring-3 ring-rose-400",
           )}
           id={id}
           placeholder={placeholder}

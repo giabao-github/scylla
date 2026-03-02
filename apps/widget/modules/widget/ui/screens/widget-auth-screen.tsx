@@ -27,6 +27,10 @@ interface NavigatorWithUAData extends Navigator {
   brave?: { isBrave: () => Promise<boolean> };
 }
 
+interface WidgetAuthScreenProps {
+  organizationId: string;
+}
+
 const formSchema = z.object({
   name: z
     .string()
@@ -54,10 +58,7 @@ const formSchema = z.object({
 
 type FormSchema = z.infer<typeof formSchema>;
 
-// Temporary organization ID, before the state management is implemented
-const organizationId = "123";
-
-export const WidgetAuthScreen = () => {
+export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -82,12 +83,7 @@ export const WidgetAuthScreen = () => {
       return;
     }
 
-    if (!canSubmit) {
-      return;
-    }
     setSubmitting(true);
-    setSubmitting(false);
-    setDone(true);
 
     try {
       const ua = navigator.userAgent;
@@ -104,7 +100,14 @@ export const WidgetAuthScreen = () => {
         return "Unknown";
       })();
 
-      const isBrave = nav.brave != null;
+      let isBrave = false;
+      if (nav.brave?.isBrave) {
+        try {
+          isBrave = await nav.brave.isBrave();
+        } catch (error) {
+          console.warn("Brave detection failed:", error);
+        }
+      }
 
       const vendor = (() => {
         const brands = nav.userAgentData?.brands;
@@ -156,8 +159,12 @@ export const WidgetAuthScreen = () => {
       });
 
       console.log({ contactSessionId });
+      setDone(true);
     } catch (error) {
       console.error("Fail to create contact session:", error);
+      // TODO: Show error to user via toast or form error
+    } finally {
+      setSubmitting(false);
     }
   };
 
