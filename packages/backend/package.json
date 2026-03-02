@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.37.3",
+    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
+    "@workspace/ui": "workspace:*",
     "convex": "^1.31.7"
   }
 }
