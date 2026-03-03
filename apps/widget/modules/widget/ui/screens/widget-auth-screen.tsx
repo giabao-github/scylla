@@ -16,6 +16,7 @@ import { Form, FormField } from "@workspace/ui/components/form";
 import { cn } from "@workspace/ui/lib/utils";
 import { useMutation } from "convex/react";
 import { ArrowBigRightIcon, MailIcon, UserIcon } from "lucide-react";
+import { toast } from "sonner";
 import z from "zod";
 
 import { Field } from "@/modules/widget/ui/components/field";
@@ -72,6 +73,17 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
 
   const onSubmit = async (values: FormSchema) => {
     if (!organizationId) {
+      toast.error("Organization not found", {
+        description: "Please create an organization to continue",
+        position: "top-center",
+        style: {
+          width: "400px",
+        },
+        action: {
+          label: "Dismiss",
+          onClick: () => toast.dismiss(),
+        },
+      });
       return;
     }
 
@@ -82,6 +94,8 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
 
       const platform = getPlatform(nav, ua);
       const vendor = await getVendor(nav, ua);
+      const current = new URL(window.location.href);
+      const ref = document.referrer ? new URL(document.referrer) : null;
 
       const metadata: Doc<"contactSessions">["metadata"] = {
         userAgent: ua,
@@ -94,8 +108,8 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         timezoneOffset: new Date().getTimezoneOffset(),
         cookieEnabled: navigator.cookieEnabled,
-        referrer: document.referrer || "direct",
-        currentUrl: window.location.href,
+        referrer: ref ? `${ref.origin}${ref.pathname}` : "direct",
+        currentUrl: `${current.origin}${current.pathname}`,
       };
 
       const contactSessionId = await createContactSession({

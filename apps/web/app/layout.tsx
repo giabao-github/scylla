@@ -1,4 +1,5 @@
 import { ClerkProvider } from "@clerk/nextjs";
+import { Toaster } from "@workspace/ui/components/sonner";
 import "@workspace/ui/globals.css";
 import type { Metadata } from "next";
 import { Geist_Mono, Noto_Sans } from "next/font/google";
@@ -35,6 +36,7 @@ export default function RootLayout({
         <ClerkProvider>
           <Providers>{children}</Providers>
         </ClerkProvider>
+        <Toaster />
       </body>
     </html>
   );

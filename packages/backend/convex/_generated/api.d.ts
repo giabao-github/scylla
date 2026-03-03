@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as contactSessionCleanup from "../contactSessionCleanup.js";
+import type * as crons from "../crons.js";
 import type * as public_contactSessions from "../public/contactSessions.js";
 import type * as users from "../users.js";
 
@@ -18,6 +20,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  contactSessionCleanup: typeof contactSessionCleanup;
+  crons: typeof crons;
   "public/contactSessions": typeof public_contactSessions;
   users: typeof users;
 }>;

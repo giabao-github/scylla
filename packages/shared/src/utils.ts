@@ -71,8 +71,8 @@ export function validateInput(type: Input = "name", value: string) {
     }
 
     case "phone": {
-      // Vietnamese phone numbers: start with 0 and have 9-11 digits
-      return /^0\d{9,11}$/.test(value.trim());
+      // Vietnamese phone numbers: start with 0 and have 10-11 digits
+      return /^0\d{9,10}$/.test(value.trim());
     }
 
     default: {
@@ -126,7 +126,7 @@ export function sanitizeInput(type: Input = "name", value: string) {
     }
 
     default: {
-      return value;
+      return value.trim();
     }
   }
 }
@@ -149,11 +149,11 @@ export interface NavigatorWithUAData extends Navigator {
 export function getPlatform(nav: NavigatorWithUAData, ua: string): string {
   if (nav.userAgentData?.platform) return nav.userAgentData.platform;
   if (/Win/i.test(ua)) return "Windows";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
   if (/Mac/i.test(ua)) return "macOS";
   if (/CrOS/i.test(ua)) return "ChromeOS";
   if (/Linux/i.test(ua)) return "Linux";
   if (/Android/i.test(ua)) return "Android";
-  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
   return "Unknown";
 }
 

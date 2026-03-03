@@ -3,9 +3,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@workspace/ui/*": ["../ui/*"],
+      "@workspace/ui/*": ["../ui/src/*"],
       "@workspace/backend/*": ["./convex/*"],
-      "@workspace/shared/*": ["../shared/*"]
+      "@workspace/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["."],

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import { mutation } from "@workspace/backend/_generated/server";
 
-import { sanitizeInput } from "@workspace/shared/utils";
+import { sanitizeInput, validateInput } from "@workspace/shared/utils";
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
@@ -32,9 +32,19 @@ export const create = mutation({
     const sanitizedName = sanitizeInput("name", args.name);
     const sanitizedEmail = sanitizeInput("email", args.email);
 
+    if (!validateInput("name", sanitizedName)) {
+      throw new Error("Invalid name");
+    }
+
+    if (!validateInput("email", sanitizedEmail)) {
+      throw new Error("Invalid email");
+    }
+
     const organization = await ctx.db
       .query("organizations")
-      .filter((q) => q.eq(q.field("organizationId"), args.organizationId))
+      .withIndex("by_organization_id", (q) =>
+        q.eq("organizationId", args.organizationId),
+      )
       .first();
 
     if (!organization) {
@@ -57,6 +67,14 @@ export const create = mutation({
                 clean = clean.split(/[?#]/)[0] ?? "";
               }
               return [key, clean];
+            }
+            if (Array.isArray(value)) {
+              return [
+                key,
+                value.map((item) =>
+                  typeof item === "string" ? item.replace(/[<>]/g, "") : item,
+                ),
+              ];
             }
             return [key, value];
           }),

@@ -96,6 +96,8 @@ export const Field = ({
             focused && !!error && "ring-3 ring-rose-400",
           )}
           id={id}
+          aria-invalid={showError}
+          aria-describedby={showError ? `${id}-error` : undefined}
           placeholder={placeholder}
           type={type}
           value={value}
@@ -122,6 +124,8 @@ export const Field = ({
 
       {/* Error and helper message */}
       <p
+        id={`${id}-error`}
+        role={showError ? "alert" : undefined}
         className={cn(
           "min-h-4 pl-0.5 text-xs transition-colors duration-200",
           showError ? "text-rose-400" : "text-transparent",
