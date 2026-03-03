@@ -10,8 +10,11 @@ import {
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
+import { cn } from "@workspace/ui/lib/utils";
+
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
+  const { toastOptions: userToastOptions, ...restProps } = props;
 
   return (
     <Sonner
@@ -33,11 +36,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
         } as React.CSSProperties
       }
       toastOptions={{
+        ...userToastOptions,
         classNames: {
-          toast: "cn-toast",
+          ...userToastOptions?.classNames,
+          toast: cn("cn-toast", userToastOptions?.classNames?.toast),
         },
       }}
-      {...props}
+      {...restProps}
     />
   );
 };

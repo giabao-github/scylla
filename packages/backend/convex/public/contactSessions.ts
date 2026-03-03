@@ -54,25 +54,31 @@ export const create = mutation({
     const now = Date.now();
     const expiresAt = now + SESSION_DURATION_MS;
 
+    const sanitizeMetadataString = (key: string, raw: string): string => {
+      // Basic XSS sanitization: remove < and >
+      let clean = raw.replace(/[<>]/g, "");
+      // Prevent javascript: protocol in URL fields and strip query/fragment
+      // to avoid leaking sensitive tokens
+      if (key.toLowerCase().includes("url") || key === "referrer") {
+        clean = clean.replace(/^javascript:/i, "");
+        clean = clean.split(/[?#]/)[0] ?? "";
+      }
+      return clean;
+    };
+
     const sanitizedMetadata = args.metadata
       ? Object.fromEntries(
           Object.entries(args.metadata).map(([key, value]) => {
             if (typeof value === "string") {
-              // Basic XSS sanitization: remove < and >
-              let clean = value.replace(/[<>]/g, "");
-              // Prevent javascript: protocol in URL fields
-              if (key.toLowerCase().includes("url") || key === "referrer") {
-                clean = clean.replace(/^javascript:/i, "");
-                // Strip query parameters and fragments to prevent leaking sensitive tokens
-                clean = clean.split(/[?#]/)[0] ?? "";
-              }
-              return [key, clean];
+              return [key, sanitizeMetadataString(key, value)];
             }
             if (Array.isArray(value)) {
               return [
                 key,
                 value.map((item) =>
-                  typeof item === "string" ? item.replace(/[<>]/g, "") : item,
+                  typeof item === "string"
+                    ? sanitizeMetadataString(key, item)
+                    : item,
                 ),
               ];
             }

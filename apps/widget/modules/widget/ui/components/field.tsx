@@ -125,7 +125,8 @@ export const Field = ({
       {/* Error and helper message */}
       <p
         id={`${id}-error`}
-        role={showError ? "alert" : undefined}
+        role="alert"
+        aria-live="assertive"
         className={cn(
           "min-h-4 pl-0.5 text-xs transition-colors duration-200",
           showError ? "text-rose-400" : "text-transparent",

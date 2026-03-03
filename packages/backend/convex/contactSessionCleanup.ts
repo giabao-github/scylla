@@ -11,11 +11,11 @@ export const purgeExpiredContactSessions = internalMutation({
   handler: async (ctx) => {
     const now = Date.now();
 
-    // Efficiently collect every expired session via the index withUpperBound(now) keeps the scan to rows where expiresAt < now.
+    // Efficiently collect every expired session via the index lt(now) keeps the scan to rows where expiresAt < now.
     const expiredSessions = await ctx.db
       .query("contactSessions")
       .withIndex("by_expires_at", (q) => q.lt("expiresAt", now))
-      .collect();
+      .take(100);
 
     // Delete each expired row.
     await Promise.all(
@@ -25,5 +25,7 @@ export const purgeExpiredContactSessions = internalMutation({
     console.log(
       `purgeExpiredContactSessions: deleted ${expiredSessions.length} expired session(s)`,
     );
+
+    return { deleted: expiredSessions.length };
   },
 });
