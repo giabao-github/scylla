@@ -4,28 +4,22 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
+import {
+  NavigatorWithUAData,
+  getPlatform,
+  getVendor,
+  sanitizeInput,
+  validateInput,
+} from "@workspace/shared/utils";
 import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
-import { cn, sanitizeInput, validateInput } from "@workspace/ui/lib/utils";
+import { cn } from "@workspace/ui/lib/utils";
 import { useMutation } from "convex/react";
 import { ArrowBigRightIcon, MailIcon, UserIcon } from "lucide-react";
 import z from "zod";
 
 import { Field } from "@/modules/widget/ui/components/field";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
-
-interface NavigatorUABrandVersion {
-  brand: string;
-  version: string;
-}
-interface NavigatorUAData {
-  platform: string;
-  brands: NavigatorUABrandVersion[];
-}
-interface NavigatorWithUAData extends Navigator {
-  userAgentData?: NavigatorUAData;
-  brave?: { isBrave: () => Promise<boolean> };
-}
 
 interface WidgetAuthScreenProps {
   organizationId: string;
@@ -59,14 +53,7 @@ const formSchema = z.object({
 type FormSchema = z.infer<typeof formSchema>;
 
 export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-
-  const nameValid = validateInput("name", name);
-  const emailValid = validateInput("email", email);
-  const canSubmit = nameValid && emailValid && !submitting;
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -75,6 +62,11 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
       email: "",
     },
   });
+  const name = form.watch("name");
+  const email = form.watch("email");
+
+  const nameValid = validateInput("name", name);
+  const emailValid = validateInput("email", email);
 
   const createContactSession = useMutation(api.public.contactSessions.create);
 
@@ -83,64 +75,18 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
       return;
     }
 
-    setSubmitting(true);
-
     try {
       const ua = navigator.userAgent;
 
       const nav = navigator as NavigatorWithUAData;
 
-      const platform = (() => {
-        if (nav.userAgentData?.platform) return nav.userAgentData.platform;
-        if (/Win/i.test(ua)) return "Windows";
-        if (/Mac/i.test(ua)) return "macOS";
-        if (/Linux/i.test(ua)) return "Linux";
-        if (/Android/i.test(ua)) return "Android";
-        if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
-        return "Unknown";
-      })();
-
-      let isBrave = false;
-      if (nav.brave?.isBrave) {
-        try {
-          isBrave = await nav.brave.isBrave();
-        } catch (error) {
-          console.warn("Brave detection failed:", error);
-        }
-      }
-
-      const vendor = (() => {
-        const brands = nav.userAgentData?.brands;
-        if (brands?.length) {
-          const brand = brands.find(
-            (b: NavigatorUABrandVersion) =>
-              !/(not.a.brand|chromium)/i.test(b.brand),
-          );
-          if (brand && !isBrave) {
-            return `${brand.brand} ${brand.version}`;
-          }
-        }
-
-        // Brave: spoofs as Chrome in UA — must check before Chrome
-        if (isBrave) return "Brave";
-        // These all contain "Chrome" in UA — must come before the Chrome check
-        if (/OPR|Opera/i.test(ua)) return "Opera";
-        if (/YaBrowser/i.test(ua)) return "Yandex";
-        if (/SamsungBrowser/i.test(ua)) return "Samsung Internet";
-        if (/UCBrowser/i.test(ua)) return "UC Browser";
-        if (/Vivaldi/i.test(ua)) return "Vivaldi";
-        // Generic checks
-        if (/Firefox/i.test(ua)) return "Firefox";
-        if (/Edg/i.test(ua)) return "Edge";
-        if (/Chrome/i.test(ua)) return "Chrome";
-        if (/Safari/i.test(ua)) return "Safari";
-        return "Unknown";
-      })();
+      const platform = getPlatform(nav, ua);
+      const vendor = await getVendor(nav, ua);
 
       const metadata: Doc<"contactSessions">["metadata"] = {
         userAgent: ua,
         language: navigator.language,
-        languages: navigator.languages?.join(","),
+        languages: navigator.languages ? [...navigator.languages] : undefined,
         platform,
         vendor,
         screenResolution: `${screen.width}x${screen.height}`,
@@ -159,12 +105,11 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
       });
 
       console.log({ contactSessionId });
+      // TODO: handle success state
       setDone(true);
     } catch (error) {
-      console.error("Fail to create contact session:", error);
+      console.error("Failed to create contact session:", error);
       // TODO: Show error to user via toast or form error
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -198,12 +143,10 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
                 value={field.value}
                 onChange={(value: string) => {
                   field.onChange(value);
-                  setName(value);
                 }}
                 onBlur={(value: string) => {
                   const sanitized = sanitizeInput("input", value);
                   field.onChange(sanitized);
-                  setName(sanitized);
                   field.onBlur();
                 }}
               />
@@ -228,12 +171,10 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
                 value={field.value}
                 onChange={(value: string) => {
                   field.onChange(value);
-                  setEmail(value);
                 }}
                 onBlur={(value: string) => {
                   const sanitized = sanitizeInput("input", value);
                   field.onChange(sanitized);
-                  setEmail(sanitized);
                   field.onBlur();
                 }}
               />

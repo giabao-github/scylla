@@ -11,7 +11,7 @@ export default defineSchema({
       v.object({
         userAgent: v.optional(v.string()),
         language: v.optional(v.string()),
-        languages: v.optional(v.string()),
+        languages: v.optional(v.array(v.string())),
         platform: v.optional(v.string()),
         vendor: v.optional(v.string()),
         screenResolution: v.optional(v.string()),
@@ -25,12 +25,13 @@ export default defineSchema({
     ),
   })
     .index("by_organization_id", ["organizationId"])
-    .index("by_expires_at", ["expiresAt"]),
+    .index("by_expires_at", ["expiresAt"])
+    .index("by_email", ["email"]),
   users: defineTable({
     name: v.string(),
   }),
   organizations: defineTable({
     name: v.string(),
     organizationId: v.string(),
-  }),
+  }).index("by_organization_id", ["organizationId"]),
 });

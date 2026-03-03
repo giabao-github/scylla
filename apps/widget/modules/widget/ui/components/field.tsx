@@ -1,4 +1,4 @@
-import { ComponentType, useState } from "react";
+import { ComponentType, HTMLInputTypeAttribute, useState } from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
 import { CheckIcon, XIcon } from "lucide-react";
@@ -6,7 +6,7 @@ import { CheckIcon, XIcon } from "lucide-react";
 interface FieldProps {
   label: string;
   id: string;
-  type: string;
+  type: HTMLInputTypeAttribute;
   placeholder: string;
   value: string;
   onChange: (value: string) => void;

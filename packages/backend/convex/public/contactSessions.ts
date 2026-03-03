@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import { mutation } from "@workspace/backend/_generated/server";
 
-import { sanitizeInput } from "@workspace/ui/lib/utils";
+import { sanitizeInput } from "@workspace/shared/utils";
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
@@ -15,7 +15,7 @@ export const create = mutation({
       v.object({
         userAgent: v.optional(v.string()),
         language: v.optional(v.string()),
-        languages: v.optional(v.string()),
+        languages: v.optional(v.array(v.string())),
         platform: v.optional(v.string()),
         vendor: v.optional(v.string()),
         screenResolution: v.optional(v.string()),
@@ -54,7 +54,7 @@ export const create = mutation({
               if (key.toLowerCase().includes("url") || key === "referrer") {
                 clean = clean.replace(/^javascript:/i, "");
                 // Strip query parameters and fragments to prevent leaking sensitive tokens
-                clean = clean.split(/[?#]/)[0];
+                clean = clean.split(/[?#]/)[0] ?? "";
               }
               return [key, clean];
             }
