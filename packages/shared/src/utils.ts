@@ -29,7 +29,7 @@ export function validateInput(type: Input = "name", value: string) {
 
   switch (type) {
     case "input": {
-      return value.trim().length > 0;
+      return true;
     }
 
     case "name": {
@@ -150,8 +150,8 @@ export function getPlatform(nav: NavigatorWithUAData, ua: string): string {
   if (nav.userAgentData?.platform) return nav.userAgentData.platform;
   if (/Win/i.test(ua)) return "Windows";
   if (/Mac/i.test(ua)) return "macOS";
-  if (/Linux/i.test(ua)) return "Linux";
   if (/CrOS/i.test(ua)) return "ChromeOS";
+  if (/Linux/i.test(ua)) return "Linux";
   if (/Android/i.test(ua)) return "Android";
   if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
   return "Unknown";
@@ -160,7 +160,11 @@ export function getPlatform(nav: NavigatorWithUAData, ua: string): string {
 export async function getVendor(nav: NavigatorWithUAData, ua: string): Promise<string> {
   let isBrave = false;
   if (nav.brave?.isBrave) {
-    isBrave = await nav.brave.isBrave();
+    try {
+      isBrave = await nav.brave.isBrave();
+    } catch {
+      isBrave = false;
+    }
   }
 
   const brands = nav.userAgentData?.brands;
