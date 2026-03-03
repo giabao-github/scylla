@@ -95,7 +95,14 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
       const platform = getPlatform(nav, ua);
       const vendor = await getVendor(nav, ua);
       const current = new URL(window.location.href);
-      const ref = document.referrer ? new URL(document.referrer) : null;
+      let ref: URL | null = null;
+      if (document.referrer) {
+        try {
+          ref = new URL(document.referrer);
+        } catch {
+          // Malformed referrer, treat as direct
+        }
+      }
 
       const metadata: Doc<"contactSessions">["metadata"] = {
         userAgent: ua,

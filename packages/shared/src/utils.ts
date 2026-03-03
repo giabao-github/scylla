@@ -152,8 +152,8 @@ export function getPlatform(nav: NavigatorWithUAData, ua: string): string {
   if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
   if (/Mac/i.test(ua)) return "macOS";
   if (/CrOS/i.test(ua)) return "ChromeOS";
-  if (/Linux/i.test(ua)) return "Linux";
   if (/Android/i.test(ua)) return "Android";
+  if (/Linux/i.test(ua)) return "Linux";
   return "Unknown";
 }
 
