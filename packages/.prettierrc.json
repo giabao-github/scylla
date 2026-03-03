@@ -3,6 +3,7 @@
   "importOrder": [
     "^react",
     "<THIRD_PARTY_MODULES>",
+    "^@workspace/backend/(.*)$",
     "^@workspace/components/(.*)$",
     "^@workspace/config/(.*)$",
     "^@workspace/constants/(.*)$",
@@ -11,6 +12,7 @@
     "^@workspace/lib/(.*)$",
     "^@workspace/modules/(.*)$",
     "^@workspace/styles/(.*)$",
+    "^@workspace/ui/(.*)$",
     "^@workspace/utils/(.*)$",
     "^@workspace/(.*)$",
     "^[./]"

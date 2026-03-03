@@ -254,3 +254,38 @@
     background: #000;
   }
 }
+
+@keyframes shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer,
+  .spinner {
+    animation: none;
+  }
+}
+
+.spinner {
+  width: 28px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(farthest-side, currentColor 94%, #0000) top/6px 6px
+      no-repeat,
+    conic-gradient(#0000 30%, currentColor);
+  -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - 6px), #000 0);
+  mask: radial-gradient(farthest-side, #0000 calc(100% - 6px), #000 0);
+  animation: spinner-rotate 1s infinite linear;
+}
+@keyframes spinner-rotate {
+  100% {
+    transform: rotate(1turn);
+  }
+}

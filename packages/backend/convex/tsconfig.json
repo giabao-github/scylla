@@ -4,6 +4,12 @@
    * You can modify it, but some settings are required to use Convex.
    */
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/ui/*": ["../../ui/src/*"],
+      "@workspace/backend/*": ["../convex/*"],
+      "@workspace/shared/*": ["../shared/src/*"]
+    },
     /* These settings are not required by Convex and can be modified. */
     "allowJs": true,
     "strict": true,

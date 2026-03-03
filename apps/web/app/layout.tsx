@@ -1,4 +1,5 @@
 import { ClerkProvider } from "@clerk/nextjs";
+import { Toaster } from "@workspace/ui/components/sonner";
 import "@workspace/ui/globals.css";
 import type { Metadata } from "next";
 import { Geist_Mono, Noto_Sans } from "next/font/google";
@@ -33,7 +34,10 @@ export default function RootLayout({
         className={`${fontSans.variable} ${fontMono.variable} font-sans font-medium antialiased`}
       >
         <ClerkProvider>
-          <Providers>{children}</Providers>
+          <Providers>
+            {children}
+            <Toaster />
+          </Providers>
         </ClerkProvider>
       </body>
     </html>

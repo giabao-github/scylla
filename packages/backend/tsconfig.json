@@ -3,7 +3,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@workspace/backend/*": ["./convex/*"]
+      "@workspace/ui/*": ["../ui/src/*"],
+      "@workspace/backend/*": ["./convex/*"],
+      "@workspace/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["."],

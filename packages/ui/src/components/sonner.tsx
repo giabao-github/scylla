@@ -10,8 +10,11 @@ import {
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
+import { cn } from "@workspace/ui/lib/utils";
+
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
+  const { toastOptions: userToastOptions, ...restProps } = props;
 
   return (
     <Sonner
@@ -32,7 +35,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }
-      {...props}
+      toastOptions={{
+        ...userToastOptions,
+        classNames: {
+          ...userToastOptions?.classNames,
+          toast: cn("cn-toast", userToastOptions?.classNames?.toast),
+        },
+      }}
+      {...restProps}
     />
   );
 };

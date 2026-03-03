@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+
 import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ThemeProvider } from "next-themes";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
 if (!convexUrl) {
@@ -10,5 +12,14 @@ if (!convexUrl) {
 const convex = new ConvexReactClient(convexUrl);
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <ConvexProvider client={convex}>{children}</ConvexProvider>;
+  return (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <ConvexProvider client={convex}>{children}</ConvexProvider>
+    </ThemeProvider>
+  );
 }
