@@ -88,8 +88,8 @@ export const Field = ({
                 ref={tooltipButtonRef}
                 onKeyDown={(e) => {
                   if (e.key === "Escape" && tooltipOpen) {
+                    e.preventDefault();
                     setTooltipOpen(false);
-                    tooltipButtonRef.current?.blur();
                   }
                 }}
                 onFocus={() => setTooltipOpen(true)}

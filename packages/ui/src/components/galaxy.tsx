@@ -282,7 +282,7 @@ export default function Galaxy({
           value: new Color(
             gl.canvas.width,
             gl.canvas.height,
-            gl.canvas.width / gl.canvas.height,
+            gl.canvas.width / Math.max(1, gl.canvas.height),
           ),
         },
         uFocal: { value: new Float32Array([focalX, focalY]) },
@@ -339,7 +339,13 @@ export default function Galaxy({
     animateId = requestAnimationFrame(update);
     ctn.appendChild(gl.canvas);
 
+    const mouseInteractionRef = useRef(mouseInteraction);
+    useEffect(() => {
+      mouseInteractionRef.current = mouseInteraction;
+    }, [mouseInteraction]);
+
     function handleMouseMove(e: MouseEvent) {
+      if (!mouseInteractionRef.current) return;
       const rect = ctn.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = 1.0 - (e.clientY - rect.top) / rect.height;

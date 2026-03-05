@@ -70,7 +70,7 @@ export const create = mutation({
     };
 
     const sanitizedMetadata = args.metadata
-      ? Object.fromEntries(
+      ? (Object.fromEntries(
           Object.entries(args.metadata).map(([key, value]) => {
             if (typeof value === "string") {
               return [key, sanitizeMetadataString(key, value)];
@@ -87,7 +87,7 @@ export const create = mutation({
             }
             return [key, value];
           }),
-        )
+        ) as typeof args.metadata)
       : undefined;
 
     const contactSessionId = await ctx.db.insert("contactSessions", {

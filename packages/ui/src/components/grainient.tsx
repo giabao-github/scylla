@@ -185,7 +185,13 @@ const Grainient: React.FC<GrainientProps> = ({
     }
 
     const gl = renderer.gl;
-    if (!(gl instanceof WebGL2RenderingContext)) return;
+    if (
+      typeof WebGL2RenderingContext === "undefined" ||
+      !(gl instanceof WebGL2RenderingContext)
+    ) {
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      return;
+    }
 
     const canvas = gl.canvas as HTMLCanvasElement;
     canvas.style.width = "100%";
@@ -327,21 +333,33 @@ const Grainient: React.FC<GrainientProps> = ({
     centerOffset[0] = centerX;
     centerOffset[1] = centerY;
     (uniforms.uZoom as { value: number }).value = zoom;
-    const color1Arr = (uniforms.uColor1 as { value: Float32Array }).value;
-    const c1 = hexToRgb(color1);
-    color1Arr[0] = c1[0];
-    color1Arr[1] = c1[1];
-    color1Arr[2] = c1[2];
-    const color2Arr = (uniforms.uColor2 as { value: Float32Array }).value;
-    const c2 = hexToRgb(color2);
-    color2Arr[0] = c2[0];
-    color2Arr[1] = c2[1];
-    color2Arr[2] = c2[2];
-    const color3Arr = (uniforms.uColor3 as { value: Float32Array }).value;
-    const c3 = hexToRgb(color3);
-    color3Arr[0] = c3[0];
-    color3Arr[1] = c3[1];
-    color3Arr[2] = c3[2];
+
+    try {
+      let c1: [number, number, number];
+      let c2: [number, number, number];
+      let c3: [number, number, number];
+      try {
+        c1 = hexToRgb(color1);
+        c2 = hexToRgb(color2);
+        c3 = hexToRgb(color3);
+      } catch {
+        return;
+      }
+      const color1Arr = (uniforms.uColor1 as { value: Float32Array }).value;
+      color1Arr[0] = c1[0];
+      color1Arr[1] = c1[1];
+      color1Arr[2] = c1[2];
+      const color2Arr = (uniforms.uColor2 as { value: Float32Array }).value;
+      color2Arr[0] = c2[0];
+      color2Arr[1] = c2[1];
+      color2Arr[2] = c2[2];
+      const color3Arr = (uniforms.uColor3 as { value: Float32Array }).value;
+      color3Arr[0] = c3[0];
+      color3Arr[1] = c3[1];
+      color3Arr[2] = c3[2];
+    } catch (e) {
+      console.warn("Grainient: Invalid color prop", e);
+    }
   }, [
     timeSpeed,
     colorBalance,
