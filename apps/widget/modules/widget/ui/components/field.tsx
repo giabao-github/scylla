@@ -1,7 +1,12 @@
-import { ComponentType, HTMLInputTypeAttribute, useState } from "react";
+import {
+  ComponentType,
+  HTMLInputTypeAttribute,
+  useMemo,
+  useState,
+} from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
-import { CheckIcon, XIcon } from "lucide-react";
+import { CheckIcon, InfoIcon, XIcon } from "lucide-react";
 
 interface FieldProps {
   label: string;
@@ -15,6 +20,7 @@ interface FieldProps {
   isValid?: boolean;
   error?: string;
   hint?: string;
+  tooltips?: string[];
   className?: string;
 }
 
@@ -30,6 +36,7 @@ export const Field = ({
   isValid,
   error,
   hint,
+  tooltips,
   className,
 }: FieldProps) => {
   const [focused, setFocused] = useState(false);
@@ -37,24 +44,75 @@ export const Field = ({
   const hasValue = value.length > 0;
   const showValid = hasValue && isValid === true;
   const showError = !!error && !focused && isValid === false;
+  const totalChars =
+    useMemo(
+      () => tooltips?.reduce((sum, str) => sum + str.length, 0),
+      [tooltips],
+    ) || 0;
 
   return (
     <div className={cn("flex w-full flex-col gap-1.5", className)}>
       {/* Label row */}
       <div className="flex justify-between items-center">
-        <label
-          className={cn(
-            "font-bold tracking-widest uppercase transition-colors duration-200 text-[11px]",
-            showError
-              ? "text-rose-400"
-              : focused
-                ? "text-primary"
-                : "text-muted-foreground",
+        <div className="flex items-center gap-1.5">
+          <label
+            className={cn(
+              "font-bold tracking-widest uppercase transition-colors duration-200 text-[11px]",
+              showError
+                ? "text-rose-400"
+                : showValid
+                  ? "text-emerald-500"
+                  : focused
+                    ? "text-primary"
+                    : "text-muted-foreground",
+            )}
+            htmlFor={id}
+          >
+            {label}
+          </label>
+
+          {/* Info icon + tooltip */}
+          {tooltips && tooltips.length > 0 && (
+            <div className="relative group/tooltip">
+              <InfoIcon
+                className="transition-colors duration-200 cursor-help size-3 text-muted-foreground hover:text-black"
+                strokeWidth={2.5}
+              />
+
+              {/* Tooltip */}
+              <div
+                className={cn(
+                  "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50",
+                  totalChars > 200 ? "w-80" : "w-56",
+                  "rounded-md px-3 py-2.5",
+                  "bg-popover/95 backdrop-blur-sm border border-white/10",
+                  "shadow-[0_8px_24px_rgba(0,0,0,0.2),0_0_0_1px_hsla(0,0%,100%,0.08)_inset]",
+                  "opacity-0 pointer-events-none scale-95 translate-y-1",
+                  "group-hover/tooltip:opacity-100 group-hover/tooltip:scale-100 group-hover/tooltip:translate-y-0",
+                  "transition-all duration-200 ease-out",
+                )}
+              >
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 w-0 h-0 border-t-4 border-r-4 border-l-4 -translate-x-1/2 border-l-transparent border-r-transparent border-t-popover/95" />
+
+                <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground mb-1.5">
+                  Requirements
+                </p>
+                <ul className="flex flex-col gap-1">
+                  {tooltips.map((h, i) => (
+                    <li
+                      key={i}
+                      className="flex gap-2 items-start text-xs text-foreground/80"
+                    >
+                      <span className="mt-1.5 rounded-full size-1 bg-muted-foreground/80 shrink-0" />
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           )}
-          htmlFor={id}
-        >
-          {label}
-        </label>
+        </div>
 
         {hint && (
           <span className="text-[11px] text-muted-foreground/80 cursor-default">
@@ -65,36 +123,38 @@ export const Field = ({
 
       {/* Input wrapper */}
       <div className="relative">
-        {/* Left icon */}
+        {/* Back panel */}
         <span
           className={cn(
-            "pointer-events-none absolute left-3.5 top-1/2 flex -translate-y-1/2 transition-colors duration-200",
+            "absolute inset-0 z-0 rounded-sm transition-colors duration-200",
             showError
-              ? "text-rose-400"
-              : focused
-                ? "text-primary"
-                : "text-muted-foreground/50",
+              ? "bg-rose-400/30"
+              : showValid
+                ? "bg-emerald-500/30"
+                : focused
+                  ? "bg-primary/30"
+                  : "bg-primary/20",
           )}
-        >
-          <Icon className="size-4" />
-        </span>
+          style={{
+            boxShadow: "0 4px 15px rgba(0,0,0,0.15)",
+          }}
+        />
 
+        {/* Glass input */}
         <input
           className={cn(
-            // Base
-            "h-12 w-full rounded-sm border-2 bg-transparent px-11 text-sm font-normal text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/50",
-            // Border states
-            showError
-              ? "border-rose-400 bg-rose-400/5"
-              : showValid
-                ? "border-emerald-500/50 bg-emerald-500/5"
-                : focused
-                  ? "border-primary/50 bg-primary/5"
-                  : "border-primary/30 hover:border-primary/80",
-            // Focus ring
-            focused && !showError && "ring-3 ring-primary/10",
-            focused && !!error && "ring-3 ring-rose-400",
+            "relative z-10 px-11 w-full h-12 text-sm font-normal rounded-sm border backdrop-blur-md transition-all duration-200 outline-none bg-white/10 text-foreground placeholder:text-muted-foreground/70",
+            !focused
+              ? "border-white/30"
+              : showError
+                ? "border-rose-400/50"
+                : showValid
+                  ? "border-emerald-500/50"
+                  : "border-primary/50",
           )}
+          style={{
+            boxShadow: "0 0 0 1px hsla(0, 0%, 100%, 0.2) inset",
+          }}
           id={id}
           aria-invalid={showError}
           aria-describedby={showError ? `${id}-error` : undefined}
@@ -109,14 +169,28 @@ export const Field = ({
           onFocus={() => setFocused(true)}
         />
 
-        {/* Right check icon */}
+        <span
+          className={cn(
+            "pointer-events-none absolute left-3.5 top-1/2 z-20 flex -translate-y-1/2 transition-colors duration-200",
+            showError
+              ? "text-rose-400"
+              : showValid
+                ? "text-emerald-500"
+                : focused
+                  ? "text-primary"
+                  : "text-muted-foreground/50",
+          )}
+        >
+          <Icon className="size-4" />
+        </span>
+
         {showValid && (
-          <span className="animate-in zoom-in-50 absolute right-3.5 top-1/2 flex -translate-y-1/2 text-emerald-500 duration-150">
+          <span className="animate-in zoom-in-50 absolute right-3.5 top-1/2 z-20 flex -translate-y-1/2 text-emerald-500 duration-150">
             <CheckIcon className="size-4" strokeWidth={3} />
           </span>
         )}
         {showError && (
-          <span className="animate-in zoom-in-50 absolute right-3.5 top-1/2 flex -translate-y-1/2 text-rose-400 duration-150">
+          <span className="animate-in zoom-in-50 absolute right-3.5 top-1/2 z-20 flex -translate-y-1/2 text-rose-400 duration-150">
             <XIcon className="size-4" strokeWidth={3} />
           </span>
         )}

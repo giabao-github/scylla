@@ -1,87 +1,192 @@
 const PATTERNS = {
-  // Allows unicode letters, hyphens, apostrophes, and spaces (no digits/symbols)
   name: /^[\p{L}\p{M}'\- ]+$/u,
-
-  // Standard email: local@domain.tld — no special chars except dots/hyphens/underscores/plus in local part
   email: /^[a-zA-Z0-9._+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/,
-
-  // Strips anything not valid in a name
   nameStrip: /[^\p{L}\p{M}'\- ]/gu,
-
-  // Strips anything not valid in an email
   emailStrip: /[^a-zA-Z0-9._+\-@]/g,
-
-  // Emoji ranges
   emoji: /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u,
 };
 
 type Input = "input" | "name" | "username" | "email" | "phone";
 
-export function validateInput(type: Input = "name", value: string) {
-  if (typeof value !== "string" || value.trim() === "") {
-    return false;
+interface ValidationResult {
+  valid: boolean;
+  message: string;
+}
+
+const pass = (): ValidationResult => ({ valid: true, message: "" });
+const fail = (message: string): ValidationResult => ({ valid: false, message });
+
+export function validateInput(type: Input = "name", value: string): ValidationResult {
+  if (typeof value !== "string") {
+    return fail("Value must be a string");
   }
 
-  // Reject emojis for all types
+  if (value.trim() === "") {
+    return fail(`${type.charAt(0).toUpperCase() + type.slice(1)} cannot be empty`);
+  }
+
   if (PATTERNS.emoji.test(value)) {
-    return false;
+    return fail(`${type.charAt(0).toUpperCase() + type.slice(1)} cannot contain emojis`);
   }
 
   switch (type) {
     case "input": {
-      return true;
+      return pass();
     }
 
     case "name": {
       const trimmed = value.trim();
-      // Reject consecutive spaces/hyphens
+
+      if (PATTERNS.emoji.test(trimmed)) {
+        return fail("Name cannot contain emojis");
+      }
+      if (trimmed.length < 2) {
+        return fail("Name must be at least 2 characters");
+      }
+      if (trimmed.length > 50) {
+        return fail("Name must be at most 50 characters");
+      }
       if (/\s{2,}/.test(trimmed)) {
-        return false;
+        return fail("Name cannot contain consecutive spaces");
       }
       if (/-{2,}/.test(trimmed)) {
-        return false;
+        return fail("Name cannot contain consecutive hyphens");
       }
-      return PATTERNS.name.test(trimmed);
+      if (/^[\s\-]/.test(trimmed) || /[\s\-]$/.test(trimmed)) {
+        return fail("Name cannot start or end with a space or hyphen");
+      }
+      if (!PATTERNS.name.test(trimmed)) {
+        return fail("Name can only contain letters, hyphens, apostrophes, and spaces");
+      }
+
+      return pass();
     }
 
     case "username": {
-      // Reject any spaces
-      if (/\s/.test(value)) {
-        return false;
+      if (PATTERNS.emoji.test(value)) {
+        return fail("Username cannot contain emojis");
       }
-      return true;
+      if (value.length < 3) {
+        return fail("Username must be at least 3 characters");
+      }
+      if (value.length > 30) {
+        return fail("Username must be at most 30 characters");
+      }
+      if (/\s/.test(value)) {
+        return fail("Username cannot contain spaces");
+      }
+
+      return pass();
     }
 
     case "email": {
+      if (PATTERNS.emoji.test(value)) {
+        return fail("Email cannot contain emojis");
+      }
+
       const lower = value.trim().toLowerCase();
-      // Must have exactly one @
-      if ((lower.match(/@/g) || []).length !== 1) {
-        return false;
+
+      if (lower.length > 254) {
+        return fail("Email address is too long (max 254 characters)");
       }
-      // Reject consecutive dots
-      if (/\.{2,}/.test(lower)) {
-        return false;
+
+      const atCount = (lower.match(/@/g) || []).length;
+      if (atCount === 0) {
+        return fail("Email must contain an @ symbol");
       }
-      // Local part must not start or end with a dot
-      const [local] = lower.split("@");
-      if (local?.startsWith(".") || local?.endsWith(".")) {
-        return false;
+      if (atCount > 1) {
+        return fail("Email cannot contain more than one @ symbol");
       }
-      return PATTERNS.email.test(lower);
+
+      const [local, domain] = lower.split("@") as [string, string];
+
+      // --- Local part checks ---
+      if (local.length === 0) {
+        return fail("Missing local part before @");
+      }
+      if (local.length > 64) {
+        return fail("Local part before @ cannot exceed 64 characters");
+      }
+      if (local.startsWith(".") || local.endsWith(".")) {
+        return fail("Local part cannot start or end with a dot");
+      }
+      if (/\.{2,}/.test(local)) {
+        return fail("Local part cannot contain consecutive dots");
+      }
+      // Disallow special chars at start/end of local (e.g. +foo@ or foo+@)
+      if (/^[._+\-]/.test(local) || /[._+\-]$/.test(local)) {
+        return fail("Local part cannot start or end with a special character");
+      }
+
+      // --- Domain checks ---
+      if (!domain || domain.length === 0) {
+        return fail("Missing domain part after @");
+      }
+      if (domain.length > 253) {
+        return fail("Domain is too long (max 253 characters)");
+      }
+      if (!domain.includes(".")) {
+        return fail("Domain must include a TLD (e.g. .com)");
+      }
+      if (/\.{2,}/.test(domain)) {
+        return fail("Domain cannot contain consecutive dots");
+      }
+      if (domain.startsWith(".") || domain.endsWith(".")) {
+        return fail("Domain cannot start or end with a dot");
+      }
+
+      const labels = domain.split(".");
+      for (const label of labels) {
+        if (label.length === 0) {
+          return fail("Domain contains an empty label");
+        }
+        if (label.length > 63) {
+          return fail(`Domain label "${label}" exceeds 63 characters`);
+        }
+        if (label.startsWith("-") || label.endsWith("-")) {
+          return fail(`Domain label "${label}" cannot start or end with a hyphen`);
+        }
+        if (!/^[a-z0-9-]+$/.test(label)) {
+          return fail(`Domain label "${label}" contains invalid characters (only letters, numbers, and hyphens are allowed)`);
+        }
+      }
+
+      // TLD must be purely alphabetic, at least 2 chars
+      const tld = labels[labels.length - 1] ?? "";
+      if (!/^[a-z]{2,}$/.test(tld)) {
+        return fail("TLD must contain only letters and be at least 2 characters (e.g. .com, .io)");
+      }
+
+      if (!PATTERNS.email.test(lower)) {
+        return fail("Invalid email address format");
+      }
+
+      return pass();
     }
 
     case "phone": {
-      // Vietnamese phone numbers: start with 0 and have 10-11 digits
-      return /^0\d{9,10}$/.test(value.trim());
+      const trimmed = value.trim();
+
+      if (!/^\d+$/.test(trimmed.replace(/^0/, ""))) {
+        return fail("Phone number can only contain digits");
+      }
+      if (!trimmed.startsWith("0")) {
+        return fail("Phone number must start with 0");
+      }
+      if (!/^0\d{9,10}$/.test(trimmed)) {
+        return fail("Phone number must be 10-11 digits starting with 0");
+      }
+
+      return pass();
     }
 
     default: {
-      return false;
+      return fail("Unknown input type");
     }
   }
 }
 
-export function sanitizeInput(type: Input = "name", value: string) {
+export function sanitizeInput(type: Input = "name", value: string): string {
   if (typeof value !== "string") {
     return "";
   }
@@ -92,37 +197,45 @@ export function sanitizeInput(type: Input = "name", value: string) {
     }
 
     case "username": {
-      return value.replace(/\s/g, "");
+      return value
+        .replace(/\s/g, "")
+        .slice(0, 30);
     }
 
     case "phone": {
-      return value.replace(/\D/g, "");
+      // Keep only digits, ensure leading 0, cap at 11 digits
+      const digits = value.replace(/\D/g, "");
+      const normalized = digits.startsWith("0") ? digits : "0" + digits;
+      return normalized.slice(0, 11);
     }
 
     case "name": {
       return value
-        .replace(PATTERNS.nameStrip, "") // remove disallowed characters and emojis
-        .replace(/\s{2,}/g, " ") // collapse multiple spaces
-        .replace(/-{2,}/g, "-") // collapse multiple hyphens
+        .replace(PATTERNS.nameStrip, "")   // remove disallowed chars and emojis
+        .replace(/\s{2,}/g, " ")           // collapse multiple spaces
+        .replace(/-{2,}/g, "-")            // collapse multiple hyphens
+        .replace(/^[\s\-]+|[\s\-]+$/g, "") // strip leading/trailing spaces or hyphens
+        .slice(0, 50)
         .trim();
     }
 
     case "email": {
       let cleaned = value
-        .replace(PATTERNS.emailStrip, "") // remove disallowed characters and emojis
+        .replace(PATTERNS.emailStrip, "")  // remove disallowed chars and emojis
         .trim()
         .toLowerCase();
 
-      // If multiple @ signs exist, keep only the first
+      // If multiple @ signs, keep only the first and collapse the rest
       const parts = cleaned.split("@");
       if (parts.length > 2) {
-        cleaned = parts[0] + "@" + parts.slice(1).join("").replace(/@/g, "");
+        cleaned = (parts[0] ?? "") + "@" + parts.slice(1).join("").replace(/@/g, "");
       }
 
       // Remove consecutive dots
       cleaned = cleaned.replace(/\.{2,}/g, ".");
 
-      return cleaned;
+      // Cap at max RFC length
+      return cleaned.slice(0, 254);
     }
 
     default: {
