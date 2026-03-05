@@ -14,16 +14,18 @@ import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { cn } from "@workspace/ui/lib/utils";
 import { useMutation } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { ArrowBigRightIcon, MailIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import z from "zod";
 
+import {
+  contactSessionIdAtomFamily,
+  organizationIdAtom,
+  widgetScreenAtom,
+} from "@/modules/widget/atoms/widget-atoms";
 import { Field } from "@/modules/widget/ui/components/field";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
-
-interface WidgetAuthScreenProps {
-  organizationId: string;
-}
 
 const formSchema = z.object({
   name: z
@@ -55,7 +57,13 @@ const shouldShowFieldError = (
   );
 };
 
-export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
+export const WidgetAuthScreen = () => {
+  const organizationId = useAtomValue(organizationIdAtom);
+  const setContactSessionId = useSetAtom(
+    contactSessionIdAtomFamily(organizationId || ""),
+  );
+  const setScreen = useSetAtom(widgetScreenAtom);
+
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -136,7 +144,8 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
         metadata,
       });
 
-      // TODO: handle success state
+      setContactSessionId(contactSessionId);
+      setScreen("selection");
     } catch (error) {
       console.error("Failed to create contact session:", error);
       // TODO: Show error to user via toast or form error

@@ -87,6 +87,7 @@ export const Field = ({
                 aria-label={`${label} requirements`}
                 aria-describedby={`${id}-tooltip`}
                 ref={tooltipButtonRef}
+                tabIndex={-1}
                 onKeyDown={(e) => {
                   if (e.key === "Escape" && tooltipOpen) {
                     e.preventDefault();

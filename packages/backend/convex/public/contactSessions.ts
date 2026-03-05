@@ -43,17 +43,6 @@ export const create = mutation({
       throw new Error(emailValidation.message);
     }
 
-    const organization = await ctx.db
-      .query("organizations")
-      .withIndex("by_organization_id", (q) =>
-        q.eq("organizationId", args.organizationId),
-      )
-      .first();
-
-    if (!organization) {
-      throw new Error("Organization not found");
-    }
-
     const now = Date.now();
     const expiresAt = now + SESSION_DURATION_MS;
 
@@ -99,5 +88,24 @@ export const create = mutation({
     });
 
     return contactSessionId;
+  },
+});
+
+export const validate = mutation({
+  args: {
+    contactSessionId: v.id("contactSessions"),
+  },
+  handler: async (ctx, args) => {
+    const contactSession = await ctx.db.get(args.contactSessionId);
+
+    if (!contactSession) {
+      return { valid: false, reason: "Contact session not found" };
+    }
+
+    if (contactSession.expiresAt < Date.now()) {
+      return { valid: false, reason: "Contact session has expired" };
+    }
+
+    return { valid: true, contactSession };
   },
 });
