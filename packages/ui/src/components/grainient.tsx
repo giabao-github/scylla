@@ -152,6 +152,24 @@ const safeHexToRgb = (
   }
 };
 
+type NumUniform = { value: number };
+type Vec3Uniform = { value: Float32Array };
+
+const setNum = (u: Record<string, unknown>, key: string, v: number) => {
+  (u[key] as NumUniform).value = v;
+};
+
+const setVec3 = (
+  u: Record<string, unknown>,
+  key: string,
+  rgb: [number, number, number],
+) => {
+  const arr = (u[key] as Vec3Uniform).value;
+  arr[0] = rgb[0];
+  arr[1] = rgb[1];
+  arr[2] = rgb[2];
+};
+
 const Grainient: React.FC<GrainientProps> = ({
   timeSpeed = 0.25,
   colorBalance = 0.0,
@@ -321,50 +339,31 @@ const Grainient: React.FC<GrainientProps> = ({
   // Update uniforms when props change
   useEffect(() => {
     if (!programRef.current) return;
-    const uniforms = programRef.current.uniforms;
-    (uniforms.uTimeSpeed as { value: number }).value = timeSpeed;
-    (uniforms.uColorBalance as { value: number }).value = colorBalance;
-    (uniforms.uWarpStrength as { value: number }).value = warpStrength;
-    (uniforms.uWarpFrequency as { value: number }).value = warpFrequency;
-    (uniforms.uWarpSpeed as { value: number }).value = warpSpeed;
-    (uniforms.uWarpAmplitude as { value: number }).value = warpAmplitude;
-    (uniforms.uBlendAngle as { value: number }).value = blendAngle;
-    (uniforms.uBlendSoftness as { value: number }).value = blendSoftness;
-    (uniforms.uRotationAmount as { value: number }).value = rotationAmount;
-    (uniforms.uNoiseScale as { value: number }).value = noiseScale;
-    (uniforms.uGrainAmount as { value: number }).value = grainAmount;
-    (uniforms.uGrainScale as { value: number }).value = grainScale;
-    (uniforms.uGrainAnimated as { value: number }).value = grainAnimated
-      ? 1.0
-      : 0.0;
-    (uniforms.uContrast as { value: number }).value = contrast;
-    (uniforms.uGamma as { value: number }).value = gamma;
-    (uniforms.uSaturation as { value: number }).value = saturation;
+    const uniforms = programRef.current.uniforms as Record<string, unknown>;
+    setNum(uniforms, "uTimeSpeed", timeSpeed);
+    setNum(uniforms, "uColorBalance", colorBalance);
+    setNum(uniforms, "uWarpStrength", warpStrength);
+    setNum(uniforms, "uWarpFrequency", warpFrequency);
+    setNum(uniforms, "uWarpSpeed", warpSpeed);
+    setNum(uniforms, "uWarpAmplitude", warpAmplitude);
+    setNum(uniforms, "uBlendAngle", blendAngle);
+    setNum(uniforms, "uBlendSoftness", blendSoftness);
+    setNum(uniforms, "uRotationAmount", rotationAmount);
+    setNum(uniforms, "uNoiseScale", noiseScale);
+    setNum(uniforms, "uGrainAmount", grainAmount);
+    setNum(uniforms, "uGrainScale", grainScale);
+    setNum(uniforms, "uGrainAnimated", grainAnimated ? 1.0 : 0.0);
+    setNum(uniforms, "uContrast", contrast);
+    setNum(uniforms, "uGamma", gamma);
+    setNum(uniforms, "uSaturation", saturation);
     const centerOffset = (uniforms.uCenterOffset as { value: Float32Array })
       .value;
     centerOffset[0] = centerX;
     centerOffset[1] = centerY;
-    (uniforms.uZoom as { value: number }).value = zoom;
-
-    try {
-      const c1 = hexToRgb(color1);
-      const c2 = hexToRgb(color2);
-      const c3 = hexToRgb(color3);
-      const color1Arr = (uniforms.uColor1 as { value: Float32Array }).value;
-      color1Arr[0] = c1[0];
-      color1Arr[1] = c1[1];
-      color1Arr[2] = c1[2];
-      const color2Arr = (uniforms.uColor2 as { value: Float32Array }).value;
-      color2Arr[0] = c2[0];
-      color2Arr[1] = c2[1];
-      color2Arr[2] = c2[2];
-      const color3Arr = (uniforms.uColor3 as { value: Float32Array }).value;
-      color3Arr[0] = c3[0];
-      color3Arr[1] = c3[1];
-      color3Arr[2] = c3[2];
-    } catch (e) {
-      console.warn("Grainient: Invalid color prop", e);
-    }
+    setNum(uniforms, "uZoom", zoom);
+    setVec3(uniforms, "uColor1", safeHexToRgb(color1, "#FF9FFC"));
+    setVec3(uniforms, "uColor2", safeHexToRgb(color2, "#5227FF"));
+    setVec3(uniforms, "uColor3", safeHexToRgb(color3, "#B19EEF"));
   }, [
     timeSpeed,
     colorBalance,

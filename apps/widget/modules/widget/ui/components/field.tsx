@@ -46,7 +46,8 @@ export const Field = ({
 
   const hasValue = value.length > 0;
   const showValid = hasValue && isValid === true;
-  const showError = !!error && !focused && isValid === false;
+  const hasError = !!error && isValid === false;
+  const showError = hasError && !focused;
   const totalChars =
     useMemo(
       () => tooltips?.reduce((sum, str) => sum + str.length, 0),
@@ -179,8 +180,8 @@ export const Field = ({
             boxShadow: "0 0 0 1px hsla(0, 0%, 100%, 0.2) inset",
           }}
           id={id}
-          aria-invalid={showError}
-          aria-describedby={showError ? `${id}-error` : undefined}
+          aria-invalid={hasError || undefined}
+          aria-describedby={hasError ? `${id}-error` : undefined}
           placeholder={placeholder}
           type={type}
           value={value}

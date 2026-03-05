@@ -248,10 +248,16 @@ export default function Galaxy({
   useEffect(() => {
     if (!ctnDom.current) return;
     const ctn = ctnDom.current;
-    const renderer = new Renderer({
-      alpha: transparent,
-      premultipliedAlpha: false,
-    });
+    let renderer: Renderer;
+    try {
+      renderer = new Renderer({
+        alpha: transparent,
+        premultipliedAlpha: false,
+      });
+    } catch (e) {
+      console.warn("WebGL not supported:", e);
+      return;
+    }
     const gl = renderer.gl;
     rendererRef.current = renderer;
     glRef.current = gl;
@@ -388,8 +394,10 @@ export default function Galaxy({
   useEffect(() => {
     const program = programRef.current;
     if (!program) return;
-    program.uniforms.uFocal.value = new Float32Array([focalX, focalY]);
-    program.uniforms.uRotation.value = new Float32Array([rotationX, rotationY]);
+    program.uniforms.uFocal.value[0] = focalX;
+    program.uniforms.uFocal.value[1] = focalY;
+    program.uniforms.uRotation.value[0] = rotationX;
+    program.uniforms.uRotation.value[1] = rotationY;
     program.uniforms.uDensity.value = density;
     program.uniforms.uHueShift.value = hueShift;
     program.uniforms.uSpeed.value = speed;

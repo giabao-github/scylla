@@ -44,6 +44,17 @@ const formSchema = z.object({
 
 type FormSchema = z.infer<typeof formSchema>;
 
+const shouldShowFieldError = (
+  fieldValue: string,
+  fieldState: { isDirty: boolean; isTouched: boolean },
+  isSubmitted: boolean,
+) => {
+  const hasValue = fieldValue.length > 0;
+  return (
+    (hasValue && (fieldState.isDirty || fieldState.isTouched)) || isSubmitted
+  );
+};
+
 export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -82,6 +93,11 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
       return;
     }
 
+    const sanitizedValues: FormSchema = {
+      name: sanitizeInput("input", values.name),
+      email: sanitizeInput("input", values.email),
+    };
+
     try {
       const ua = navigator.userAgent;
 
@@ -115,7 +131,7 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
       };
 
       const contactSessionId = await createContactSession({
-        ...values,
+        ...sanitizedValues,
         organizationId,
         metadata,
       });
@@ -145,11 +161,11 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
             control={form.control}
             name="name"
             render={({ field, fieldState }) => {
-              const hasValue = field.value.length > 0;
-              const submitted = form.formState.isSubmitted;
-              const showFieldError =
-                (hasValue && (fieldState.isDirty || fieldState.isTouched)) ||
-                submitted;
+              const showFieldError = shouldShowFieldError(
+                field.value,
+                fieldState,
+                form.formState.isSubmitted,
+              );
               return (
                 <Field
                   className="w-full md:w-1/2"
@@ -192,11 +208,11 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
             control={form.control}
             name="email"
             render={({ field, fieldState }) => {
-              const hasValue = field.value.length > 0;
-              const submitted = form.formState.isSubmitted;
-              const showFieldError =
-                (hasValue && (fieldState.isDirty || fieldState.isTouched)) ||
-                submitted;
+              const showFieldError = shouldShowFieldError(
+                field.value,
+                fieldState,
+                form.formState.isSubmitted,
+              );
               return (
                 <Field
                   className="w-full md:w-1/2"
@@ -241,6 +257,7 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
           />
           <Button
             disabled={form.formState.isSubmitting}
+            aria-busy={form.formState.isSubmitting}
             type="submit"
             className={cn(
               "w-full h-12 text-base md:w-1/2 group",
@@ -266,7 +283,10 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
               }}
             >
               {form.formState.isSubmitting ? (
-                <div className="spinner" />
+                <>
+                  <div className="spinner" aria-hidden="true" />
+                  <span className="sr-only">Submitting</span>
+                </>
               ) : (
                 <>
                   Continue
