@@ -42,6 +42,8 @@ export const WidgetFooter = () => {
         return (
           <Button
             key={screen}
+            aria-current={isActive ? "page" : undefined}
+            aria-label={label}
             className={cn(
               "relative z-10 flex-1 h-14 rounded-none flex flex-col items-center justify-center gap-0.5 group",
               "bg-transparent hover:bg-transparent transition-all duration-200",

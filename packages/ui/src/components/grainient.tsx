@@ -29,12 +29,24 @@ interface GrainientProps {
 }
 
 const hexToRgb = (hex: string): [number, number, number] => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return [1, 1, 1];
+  // Normalize 3-digit shorthand: #rgb → #rrggbb
+  const normalized = hex.replace(
+    /^#?([0-9a-f])([0-9a-f])([0-9a-f])$/i,
+    (_, r, g, b) => `#${r}${r}${g}${g}${b}${b}`,
+  );
+
+  const full = normalized.startsWith("#") ? normalized : `#${normalized}`;
+
+  if (!/^#[0-9a-f]{6}$/i.test(full)) {
+    throw new Error(
+      `hexToRgb: invalid hex color "${hex}". Expected a 3-digit (#rgb) or 6-digit (#rrggbb) hex string.`,
+    );
+  }
+
   return [
-    parseInt(result[1] ?? "ff", 16) / 255,
-    parseInt(result[2] ?? "ff", 16) / 255,
-    parseInt(result[3] ?? "ff", 16) / 255,
+    parseInt(full.slice(1, 3), 16) / 255,
+    parseInt(full.slice(3, 5), 16) / 255,
+    parseInt(full.slice(5, 7), 16) / 255,
   ];
 };
 
@@ -160,14 +172,21 @@ const Grainient: React.FC<GrainientProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const renderer = new Renderer({
-      webgl: 2,
-      alpha: true,
-      antialias: false,
-      dpr: Math.min(window.devicePixelRatio || 1, 2),
-    });
+    let renderer: Renderer;
+    try {
+      renderer = new Renderer({
+        webgl: 2,
+        alpha: true,
+        antialias: false,
+        dpr: Math.min(window.devicePixelRatio || 1, 2),
+      });
+    } catch {
+      return;
+    }
 
     const gl = renderer.gl;
+    if (!(gl instanceof WebGL2RenderingContext)) return;
+
     const canvas = gl.canvas as HTMLCanvasElement;
     canvas.style.width = "100%";
     canvas.style.height = "100%";
@@ -266,6 +285,18 @@ const Grainient: React.FC<GrainientProps> = ({
       } catch {
         // Ignore
       }
+
+      // Delete the compiled shader program from the GPU.
+      if (program.program) {
+        gl.deleteProgram(program.program);
+      }
+
+      // Clear the program ref so the uniforms effect becomes a no-op after unmount.
+      programRef.current = null;
+
+      // Ask the browser to immediately reclaim the WebGL context.
+      // OGL does not expose a renderer.dispose(), so this is the canonical way to free the context slot.
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
   }, []);
 
@@ -291,18 +322,26 @@ const Grainient: React.FC<GrainientProps> = ({
     (uniforms.uContrast as { value: number }).value = contrast;
     (uniforms.uGamma as { value: number }).value = gamma;
     (uniforms.uSaturation as { value: number }).value = saturation;
-    (uniforms.uCenterOffset as { value: Float32Array }).value =
-      new Float32Array([centerX, centerY]);
+    const centerOffset = (uniforms.uCenterOffset as { value: Float32Array })
+      .value;
+    centerOffset[0] = centerX;
+    centerOffset[1] = centerY;
     (uniforms.uZoom as { value: number }).value = zoom;
-    (uniforms.uColor1 as { value: Float32Array }).value = new Float32Array(
-      hexToRgb(color1),
-    );
-    (uniforms.uColor2 as { value: Float32Array }).value = new Float32Array(
-      hexToRgb(color2),
-    );
-    (uniforms.uColor3 as { value: Float32Array }).value = new Float32Array(
-      hexToRgb(color3),
-    );
+    const color1Arr = (uniforms.uColor1 as { value: Float32Array }).value;
+    const c1 = hexToRgb(color1);
+    color1Arr[0] = c1[0];
+    color1Arr[1] = c1[1];
+    color1Arr[2] = c1[2];
+    const color2Arr = (uniforms.uColor2 as { value: Float32Array }).value;
+    const c2 = hexToRgb(color2);
+    color2Arr[0] = c2[0];
+    color2Arr[1] = c2[1];
+    color2Arr[2] = c2[2];
+    const color3Arr = (uniforms.uColor3 as { value: Float32Array }).value;
+    const c3 = hexToRgb(color3);
+    color3Arr[0] = c3[0];
+    color3Arr[1] = c3[1];
+    color3Arr[2] = c3[2];
   }, [
     timeSpeed,
     colorBalance,

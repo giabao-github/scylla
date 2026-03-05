@@ -71,13 +71,13 @@ vec3 hsv2rgb(vec3 c) {
 
 float Star(vec2 uv, float flare) {
   float d = length(uv);
-  float m = (0.05 * uGlowIntensity) / d;
+  float m = (0.05 * uGlowIntensity) / max(d, 0.0001);
   float rays = smoothstep(0.0, 1.0, 1.0 - abs(uv.x * uv.y * 1000.0));
   m += rays * flare * uGlowIntensity;
   uv *= MAT45;
   rays = smoothstep(0.0, 1.0, 1.0 - abs(uv.x * uv.y * 1000.0));
   m += rays * 0.3 * flare * uGlowIntensity;
-  m *= smoothstep(1.0, 0.2, d);
+  m *= 1.0 - smoothstep(0.2, 1.0, d);
   return m;
 }
 
@@ -159,7 +159,7 @@ void main() {
   for (float i = 0.0; i < 1.0; i += 1.0 / NUM_LAYER) {
     float depth = fract(i + uStarSpeed * uSpeed);
     float scale = mix(20.0 * uDensity, 0.5 * uDensity, depth);
-    float fade = depth * smoothstep(1.0, 0.9, depth);
+    float fade = depth * (1.0 - smoothstep(0.9, 1.0, depth));
     col += StarLayer(uv * scale + i * 453.32) * fade;
   }
 
@@ -216,10 +216,21 @@ export default function Galaxy({
   ...rest
 }: GalaxyProps) {
   const ctnDom = useRef<HTMLDivElement>(null);
+  const programRef = useRef<Program | null>(null);
   const targetMousePos = useRef({ x: 0.5, y: 0.5 });
   const smoothMousePos = useRef({ x: 0.5, y: 0.5 });
   const targetMouseActive = useRef(0.0);
   const smoothMouseActive = useRef(0.0);
+
+  // Keep loop-read props in refs so the animation closure never goes stale
+  const disableAnimationRef = useRef(disableAnimation);
+  const starSpeedRef = useRef(starSpeed);
+  useEffect(() => {
+    disableAnimationRef.current = disableAnimation;
+  }, [disableAnimation]);
+  useEffect(() => {
+    starSpeedRef.current = starSpeed;
+  }, [starSpeed]);
 
   const [focalX, focalY] = focal;
   const [rotationX, rotationY] = rotation;
@@ -245,14 +256,16 @@ export default function Galaxy({
 
     function resize() {
       const scale = window.devicePixelRatio || 1;
-      renderer.setSize(ctn.offsetWidth * scale, ctn.offsetHeight * scale);
-      gl.canvas.style.width = ctn.offsetWidth + "px";
-      gl.canvas.style.height = ctn.offsetHeight + "px";
+      const width = Math.max(1, ctn.offsetWidth);
+      const height = Math.max(1, ctn.offsetHeight);
+      renderer.setSize(width * scale, height * scale);
+      gl.canvas.style.width = width + "px";
+      gl.canvas.style.height = height + "px";
       if (program) {
         program.uniforms.uResolution.value = new Color(
           gl.canvas.width,
           gl.canvas.height,
-          gl.canvas.width / gl.canvas.height,
+          gl.canvas.width / Math.max(1, gl.canvas.height),
         );
       }
     }
@@ -295,15 +308,17 @@ export default function Galaxy({
         uTransparent: { value: transparent },
       },
     });
+    programRef.current = program;
 
     const mesh = new Mesh(gl, { geometry, program });
     let animateId: number;
 
     function update(t: number) {
       animateId = requestAnimationFrame(update);
-      if (!disableAnimation) {
+      if (!disableAnimationRef.current) {
         program.uniforms.uTime.value = t * 0.001;
-        program.uniforms.uStarSpeed.value = (t * 0.001 * starSpeed) / 10.0;
+        program.uniforms.uStarSpeed.value =
+          (t * 0.001 * starSpeedRef.current) / 10.0;
       }
 
       const lerpFactor = 0.05;
@@ -348,20 +363,38 @@ export default function Galaxy({
         ctn.removeEventListener("mousemove", handleMouseMove);
         ctn.removeEventListener("mouseleave", handleMouseLeave);
       }
+      programRef.current = null;
       ctn.removeChild(gl.canvas);
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Uniform-update effect: hot-patches the live program when props change ──
+  useEffect(() => {
+    const program = programRef.current;
+    if (!program) return;
+    program.uniforms.uFocal.value = new Float32Array([focalX, focalY]);
+    program.uniforms.uRotation.value = new Float32Array([rotationX, rotationY]);
+    program.uniforms.uDensity.value = density;
+    program.uniforms.uHueShift.value = hueShift;
+    program.uniforms.uSpeed.value = speed;
+    program.uniforms.uGlowIntensity.value = glowIntensity;
+    program.uniforms.uSaturation.value = saturation;
+    program.uniforms.uMouseRepulsion.value = mouseRepulsion;
+    program.uniforms.uTwinkleIntensity.value = twinkleIntensity;
+    program.uniforms.uRotationSpeed.value = rotationSpeed;
+    program.uniforms.uRepulsionStrength.value = repulsionStrength;
+    program.uniforms.uAutoCenterRepulsion.value = autoCenterRepulsion;
+    program.uniforms.uTransparent.value = transparent;
   }, [
     focalX,
     focalY,
     rotationX,
     rotationY,
-    starSpeed,
     density,
     hueShift,
-    disableAnimation,
     speed,
-    mouseInteraction,
     glowIntensity,
     saturation,
     mouseRepulsion,

@@ -120,7 +120,6 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
         metadata,
       });
 
-      console.log({ contactSessionId });
       // TODO: handle success state
     } catch (error) {
       console.error("Failed to create contact session:", error);

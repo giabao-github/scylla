@@ -76,7 +76,11 @@ export const Field = ({
 
           {/* Info icon + tooltip */}
           {tooltips && tooltips.length > 0 && (
-            <div className="relative group/tooltip focus-within:*:opacity-100">
+            <div
+              className="relative group/tooltip"
+              onMouseEnter={() => setTooltipOpen(true)}
+              onMouseLeave={() => setTooltipOpen(false)}
+            >
               <button
                 type="button"
                 aria-label={`${label} requirements`}
@@ -105,9 +109,9 @@ export const Field = ({
                   "rounded-md px-3 py-2.5",
                   "bg-popover/95 backdrop-blur-sm border border-white/10",
                   "shadow-[0_8px_24px_rgba(0,0,0,0.2),0_0_0_1px_hsla(0,0%,100%,0.08)_inset]",
-                  "opacity-0 pointer-events-none scale-95 translate-y-1",
-                  "group-hover/tooltip:opacity-100 group-hover/tooltip:scale-100 group-hover/tooltip:translate-y-0",
-                  "group-focus-within/tooltip:opacity-100 group-focus-within/tooltip:scale-100 group-focus-within/tooltip:translate-y-0",
+                  tooltipOpen
+                    ? "opacity-100 scale-100 translate-y-0"
+                    : "opacity-0 pointer-events-none scale-95 translate-y-1",
                   "transition-all duration-200 ease-out",
                 )}
               >

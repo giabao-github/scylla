@@ -29,8 +29,12 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
       return <p>TODO: Chat</p>;
     case "contact":
       return <p>TODO: Contact</p>;
-    default:
-      return <p>Unknown screen</p>;
+    case "library":
+      return <p>TODO: Library</p>;
+    default: {
+      const _exhaustiveCheck: never = screen;
+      return <p>Unknown screen: {_exhaustiveCheck}</p>;
+    }
   }
 };
 
