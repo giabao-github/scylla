@@ -154,9 +154,19 @@ const safeHexToRgb = (
 
 type NumUniform = { value: number };
 type Vec3Uniform = { value: Float32Array };
+type Vec2Uniform = { value: Float32Array };
 
 const setNum = (u: Record<string, unknown>, key: string, v: number) => {
   (u[key] as NumUniform).value = v;
+};
+const setVec2 = (
+  u: Record<string, unknown>,
+  key: string,
+  xy: [number, number],
+) => {
+  const arr = (u[key] as Vec2Uniform).value;
+  arr[0] = xy[0];
+  arr[1] = xy[1];
 };
 
 const setVec3 = (
@@ -356,10 +366,7 @@ const Grainient: React.FC<GrainientProps> = ({
     setNum(uniforms, "uContrast", contrast);
     setNum(uniforms, "uGamma", gamma);
     setNum(uniforms, "uSaturation", saturation);
-    const centerOffset = (uniforms.uCenterOffset as { value: Float32Array })
-      .value;
-    centerOffset[0] = centerX;
-    centerOffset[1] = centerY;
+    setVec2(uniforms, "uCenterOffset", [centerX, centerY]);
     setNum(uniforms, "uZoom", zoom);
     setVec3(uniforms, "uColor1", safeHexToRgb(color1, "#FF9FFC"));
     setVec3(uniforms, "uColor2", safeHexToRgb(color2, "#5227FF"));
