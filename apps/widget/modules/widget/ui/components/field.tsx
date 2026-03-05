@@ -167,13 +167,13 @@ export const Field = ({
         <input
           className={cn(
             "relative z-10 px-11 w-full h-12 text-sm font-normal rounded-sm border backdrop-blur-md transition-all duration-200 outline-none bg-white/10 text-foreground placeholder:text-muted-foreground/70",
-            !focused
-              ? "border-white/30"
-              : showError
-                ? "border-rose-400/50"
-                : showValid
-                  ? "border-emerald-500/50"
-                  : "border-primary/50",
+            showError
+              ? "border-rose-400/50"
+              : showValid
+                ? "border-emerald-500/50"
+                : focused
+                  ? "border-primary/50"
+                  : "border-white/30",
           )}
           style={{
             boxShadow: "0 0 0 1px hsla(0, 0%, 100%, 0.2) inset",

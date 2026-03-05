@@ -145,14 +145,18 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
             control={form.control}
             name="name"
             render={({ field, fieldState }) => {
-              const touched = fieldState.isDirty || fieldState.isTouched;
+              const hasValue = field.value.length > 0;
+              const submitted = form.formState.isSubmitted;
+              const showFieldError =
+                (hasValue && (fieldState.isDirty || fieldState.isTouched)) ||
+                submitted;
               return (
                 <Field
                   className="w-full md:w-1/2"
                   error={
-                    touched
+                    showFieldError
                       ? nameInvalidMessage || fieldState.error?.message
-                      : fieldState.error?.message
+                      : undefined
                   }
                   icon={UserIcon}
                   id="name"
@@ -188,14 +192,18 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
             control={form.control}
             name="email"
             render={({ field, fieldState }) => {
-              const touched = fieldState.isDirty || fieldState.isTouched;
+              const hasValue = field.value.length > 0;
+              const submitted = form.formState.isSubmitted;
+              const showFieldError =
+                (hasValue && (fieldState.isDirty || fieldState.isTouched)) ||
+                submitted;
               return (
                 <Field
                   className="w-full md:w-1/2"
                   error={
-                    touched
+                    showFieldError
                       ? emailInvalidMessage || fieldState.error?.message
-                      : fieldState.error?.message
+                      : undefined
                   }
                   icon={MailIcon}
                   id="email"

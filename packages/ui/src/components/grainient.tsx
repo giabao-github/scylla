@@ -28,28 +28,6 @@ interface GrainientProps {
   className?: string;
 }
 
-const hexToRgb = (hex: string): [number, number, number] => {
-  // Normalize 3-digit shorthand: #rgb → #rrggbb
-  const normalized = hex.replace(
-    /^#?([0-9a-f])([0-9a-f])([0-9a-f])$/i,
-    (_, r, g, b) => `#${r}${r}${g}${g}${b}${b}`,
-  );
-
-  const full = normalized.startsWith("#") ? normalized : `#${normalized}`;
-
-  if (!/^#[0-9a-f]{6}$/i.test(full)) {
-    throw new Error(
-      `hexToRgb: invalid hex color "${hex}". Expected a 3-digit (#rgb) or 6-digit (#rrggbb) hex string.`,
-    );
-  }
-
-  return [
-    parseInt(full.slice(1, 3), 16) / 255,
-    parseInt(full.slice(3, 5), 16) / 255,
-    parseInt(full.slice(5, 7), 16) / 255,
-  ];
-};
-
 const vertex = `#version 300 es
 in vec2 position;
 void main() {
@@ -141,6 +119,39 @@ void main(){
 }
 `;
 
+const hexToRgb = (hex: string): [number, number, number] => {
+  // Normalize 3-digit shorthand: #rgb → #rrggbb
+  const normalized = hex.replace(
+    /^#?([0-9a-f])([0-9a-f])([0-9a-f])$/i,
+    (_, r, g, b) => `#${r}${r}${g}${g}${b}${b}`,
+  );
+
+  const full = normalized.startsWith("#") ? normalized : `#${normalized}`;
+
+  if (!/^#[0-9a-f]{6}$/i.test(full)) {
+    throw new Error(
+      `hexToRgb: invalid hex color "${hex}". Expected a 3-digit (#rgb) or 6-digit (#rrggbb) hex string.`,
+    );
+  }
+
+  return [
+    parseInt(full.slice(1, 3), 16) / 255,
+    parseInt(full.slice(3, 5), 16) / 255,
+    parseInt(full.slice(5, 7), 16) / 255,
+  ];
+};
+
+const safeHexToRgb = (
+  input: string,
+  fallback: string,
+): [number, number, number] => {
+  try {
+    return hexToRgb(input);
+  } catch {
+    return hexToRgb(fallback);
+  }
+};
+
 const Grainient: React.FC<GrainientProps> = ({
   timeSpeed = 0.25,
   colorBalance = 0.0,
@@ -190,6 +201,7 @@ const Grainient: React.FC<GrainientProps> = ({
       !(gl instanceof WebGL2RenderingContext)
     ) {
       gl.getExtension("WEBGL_lose_context")?.loseContext();
+      // Canvas was created but never appended - no DOM cleanup needed
       return;
     }
 
@@ -226,9 +238,9 @@ const Grainient: React.FC<GrainientProps> = ({
         uSaturation: { value: saturation },
         uCenterOffset: { value: new Float32Array([centerX, centerY]) },
         uZoom: { value: zoom },
-        uColor1: { value: new Float32Array(hexToRgb(color1)) },
-        uColor2: { value: new Float32Array(hexToRgb(color2)) },
-        uColor3: { value: new Float32Array(hexToRgb(color3)) },
+        uColor1: { value: new Float32Array(safeHexToRgb(color1, "#FF9FFC")) },
+        uColor2: { value: new Float32Array(safeHexToRgb(color2, "#5227FF")) },
+        uColor3: { value: new Float32Array(safeHexToRgb(color3, "#B19EEF")) },
       },
     });
 
@@ -335,16 +347,9 @@ const Grainient: React.FC<GrainientProps> = ({
     (uniforms.uZoom as { value: number }).value = zoom;
 
     try {
-      let c1: [number, number, number];
-      let c2: [number, number, number];
-      let c3: [number, number, number];
-      try {
-        c1 = hexToRgb(color1);
-        c2 = hexToRgb(color2);
-        c3 = hexToRgb(color3);
-      } catch {
-        return;
-      }
+      const c1 = hexToRgb(color1);
+      const c2 = hexToRgb(color2);
+      const c3 = hexToRgb(color3);
       const color1Arr = (uniforms.uColor1 as { value: Float32Array }).value;
       color1Arr[0] = c1[0];
       color1Arr[1] = c1[1];

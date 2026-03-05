@@ -217,20 +217,30 @@ export default function Galaxy({
 }: GalaxyProps) {
   const ctnDom = useRef<HTMLDivElement>(null);
   const programRef = useRef<Program | null>(null);
+  const glRef = useRef<WebGLRenderingContext | null>(null);
+  const rendererRef = useRef<Renderer | null>(null);
   const targetMousePos = useRef({ x: 0.5, y: 0.5 });
   const smoothMousePos = useRef({ x: 0.5, y: 0.5 });
   const targetMouseActive = useRef(0.0);
   const smoothMouseActive = useRef(0.0);
+  const mouseInteractionRef = useRef(mouseInteraction);
 
   // Keep loop-read props in refs so the animation closure never goes stale
   const disableAnimationRef = useRef(disableAnimation);
   const starSpeedRef = useRef(starSpeed);
+
   useEffect(() => {
     disableAnimationRef.current = disableAnimation;
   }, [disableAnimation]);
+
   useEffect(() => {
     starSpeedRef.current = starSpeed;
   }, [starSpeed]);
+
+  useEffect(() => {
+    mouseInteractionRef.current = mouseInteraction;
+    if (!mouseInteraction) targetMouseActive.current = 0.0;
+  }, [mouseInteraction]);
 
   const [focalX, focalY] = focal;
   const [rotationX, rotationY] = rotation;
@@ -243,6 +253,8 @@ export default function Galaxy({
       premultipliedAlpha: false,
     });
     const gl = renderer.gl;
+    rendererRef.current = renderer;
+    glRef.current = gl;
 
     if (transparent) {
       gl.enable(gl.BLEND);
@@ -339,11 +351,8 @@ export default function Galaxy({
     animateId = requestAnimationFrame(update);
     ctn.appendChild(gl.canvas);
 
-    const mouseInteractionRef = useRef(mouseInteraction);
-    useEffect(() => {
-      mouseInteractionRef.current = mouseInteraction;
-    }, [mouseInteraction]);
-
+    // Always register listeners
+    // The handler gates on mouseInteractionRef so toggling the prop after mount is handled without re-running this effect.
     function handleMouseMove(e: MouseEvent) {
       if (!mouseInteractionRef.current) return;
       const rect = ctn.getBoundingClientRect();
@@ -354,22 +363,21 @@ export default function Galaxy({
     }
 
     function handleMouseLeave() {
+      if (!mouseInteractionRef.current) return;
       targetMouseActive.current = 0.0;
     }
 
-    if (mouseInteraction) {
-      ctn.addEventListener("mousemove", handleMouseMove);
-      ctn.addEventListener("mouseleave", handleMouseLeave);
-    }
+    ctn.addEventListener("mousemove", handleMouseMove);
+    ctn.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
       cancelAnimationFrame(animateId);
       window.removeEventListener("resize", resize);
-      if (mouseInteraction) {
-        ctn.removeEventListener("mousemove", handleMouseMove);
-        ctn.removeEventListener("mouseleave", handleMouseLeave);
-      }
+      ctn.removeEventListener("mousemove", handleMouseMove);
+      ctn.removeEventListener("mouseleave", handleMouseLeave);
       programRef.current = null;
+      rendererRef.current = null;
+      glRef.current = null;
       ctn.removeChild(gl.canvas);
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
@@ -392,7 +400,6 @@ export default function Galaxy({
     program.uniforms.uRotationSpeed.value = rotationSpeed;
     program.uniforms.uRepulsionStrength.value = repulsionStrength;
     program.uniforms.uAutoCenterRepulsion.value = autoCenterRepulsion;
-    program.uniforms.uTransparent.value = transparent;
   }, [
     focalX,
     focalY,
@@ -408,8 +415,24 @@ export default function Galaxy({
     rotationSpeed,
     repulsionStrength,
     autoCenterRepulsion,
-    transparent,
   ]);
+
+  // Transparent-mode effect: surgically syncs GL context state + shader uniform when `transparent` toggles, without tearing down the renderer
+  useEffect(() => {
+    const gl = glRef.current;
+    const program = programRef.current;
+    if (!gl || !program) return;
+
+    if (transparent) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.clearColor(0, 0, 0, 0);
+    } else {
+      gl.disable(gl.BLEND);
+      gl.clearColor(0, 0, 0, 1);
+    }
+    program.uniforms.uTransparent.value = transparent;
+  }, [transparent]);
 
   return <div ref={ctnDom} className="relative w-full h-full" {...rest} />;
 }
