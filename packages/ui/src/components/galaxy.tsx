@@ -131,13 +131,17 @@ void main() {
   
   if (uAutoCenterRepulsion > 0.0) {
     vec2 centerUV = vec2(0.0, 0.0);
-    float centerDist = length(uv - centerUV);
-    vec2 repulsion = normalize(uv - centerUV) * (uAutoCenterRepulsion / (centerDist + 0.1));
+    vec2 centerDelta = uv - centerUV;
+    float centerDist = length(centerDelta);
+    vec2 centerDir = centerDist > 0.0001 ? centerDelta / centerDist : vec2(0.0);
+    vec2 repulsion = centerDir * (uAutoCenterRepulsion / (centerDist + 0.1));
     uv += repulsion * 0.05;
   } else if (uMouseRepulsion) {
     vec2 mousePosUV = (uMouse * uResolution.xy - focalPx) / uResolution.y;
-    float mouseDist = length(uv - mousePosUV);
-    vec2 repulsion = normalize(uv - mousePosUV) * (uRepulsionStrength / (mouseDist + 0.1));
+    vec2 mouseDelta = uv - mousePosUV;
+    float mouseDist = length(mouseDelta);
+    vec2 mouseDir = mouseDist > 0.0001 ? mouseDelta / mouseDist : vec2(0.0);
+    vec2 repulsion = mouseDir * (uRepulsionStrength / (mouseDist + 0.1));
     uv += repulsion * 0.05 * uMouseActiveFactor;
   } else {
     vec2 mouseOffset = mouseNorm * 0.1 * uMouseActiveFactor;
@@ -170,7 +174,7 @@ void main() {
 }
 `;
 
-interface GalaxyProps {
+interface GalaxyProps extends React.HTMLAttributes<HTMLDivElement> {
   focal?: [number, number];
   rotation?: [number, number];
   starSpeed?: number;
@@ -189,9 +193,12 @@ interface GalaxyProps {
   transparent?: boolean;
 }
 
+const DEFAULT_FOCAL: [number, number] = [0.5, 0.5];
+const DEFAULT_ROTATION: [number, number] = [1.0, 0.0];
+
 export default function Galaxy({
-  focal = [0.5, 0.5],
-  rotation = [1.0, 0.0],
+  focal = DEFAULT_FOCAL,
+  rotation = DEFAULT_ROTATION,
   starSpeed = 0.5,
   density = 1,
   hueShift = 140,
@@ -214,6 +221,9 @@ export default function Galaxy({
   const targetMouseActive = useRef(0.0);
   const smoothMouseActive = useRef(0.0);
 
+  const [focalX, focalY] = focal;
+  const [rotationX, rotationY] = rotation;
+
   useEffect(() => {
     if (!ctnDom.current) return;
     const ctn = ctnDom.current;
@@ -234,8 +244,10 @@ export default function Galaxy({
     let program: Program;
 
     function resize() {
-      const scale = 1;
+      const scale = window.devicePixelRatio || 1;
       renderer.setSize(ctn.offsetWidth * scale, ctn.offsetHeight * scale);
+      gl.canvas.style.width = ctn.offsetWidth + "px";
+      gl.canvas.style.height = ctn.offsetHeight + "px";
       if (program) {
         program.uniforms.uResolution.value = new Color(
           gl.canvas.width,
@@ -260,8 +272,8 @@ export default function Galaxy({
             gl.canvas.width / gl.canvas.height,
           ),
         },
-        uFocal: { value: new Float32Array(focal) },
-        uRotation: { value: new Float32Array(rotation) },
+        uFocal: { value: new Float32Array([focalX, focalY]) },
+        uRotation: { value: new Float32Array([rotationX, rotationY]) },
         uStarSpeed: { value: starSpeed },
         uDensity: { value: density },
         uHueShift: { value: hueShift },
@@ -340,8 +352,10 @@ export default function Galaxy({
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
   }, [
-    focal,
-    rotation,
+    focalX,
+    focalY,
+    rotationX,
+    rotationY,
     starSpeed,
     density,
     hueShift,

@@ -1,15 +1,20 @@
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { HomeIcon, InboxIcon, LibraryBigIcon } from "lucide-react";
+import { useAtom } from "jotai";
+import { HomeIcon, InboxIcon, LibraryBigIcon, MailIcon } from "lucide-react";
+
+import { widgetScreenAtom } from "@/modules/widget/atoms/widget-atoms";
+import { WIDGET_SCREENS } from "@/modules/widget/constants";
 
 const footerItems = [
-  { icon: HomeIcon, screen: "selection", label: "Home" },
-  { icon: InboxIcon, screen: "inbox", label: "Inbox" },
-  { icon: LibraryBigIcon, screen: "library", label: "Library" },
+  { icon: HomeIcon, screen: WIDGET_SCREENS.SELECTION, label: "Home" },
+  { icon: MailIcon, screen: WIDGET_SCREENS.AUTH, label: "Authentication" },
+  { icon: InboxIcon, screen: WIDGET_SCREENS.INBOX, label: "Inbox" },
+  { icon: LibraryBigIcon, screen: WIDGET_SCREENS.LIBRARY, label: "Library" },
 ] as const;
 
 export const WidgetFooter = () => {
-  const activeScreen = "selection";
+  const [activeScreen, setActiveScreen] = useAtom(widgetScreenAtom);
 
   return (
     <footer
@@ -20,13 +25,13 @@ export const WidgetFooter = () => {
     >
       {/* Glass base */}
       <span
-        className="absolute inset-0 z-0 rounded-sm transition-colors duration-200 bg-primary/20"
+        className="absolute inset-0 z-0 rounded-sm transition-colors duration-200 pointer-events-none bg-primary/20"
         style={{
           boxShadow: "0 4px 15px rgba(0,0,0,0.15)",
         }}
       />
       <div
-        className="absolute inset-0 border-t backdrop-blur-md bg-white/10 border-white/30"
+        className="absolute inset-0 border-t backdrop-blur-md pointer-events-none bg-white/10 border-white/30"
         style={{
           boxShadow: "0 0 0 1px hsla(0, 0%, 100%, 0.2) inset",
         }}
@@ -42,8 +47,7 @@ export const WidgetFooter = () => {
               "bg-transparent hover:bg-transparent transition-all duration-200",
               "border-none shadow-none",
             )}
-            onClick={() => {}}
-            size="icon"
+            onClick={() => setActiveScreen(screen)}
             variant="ghost"
           >
             {/* Active indicator bar */}

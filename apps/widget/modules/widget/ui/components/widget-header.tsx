@@ -1,4 +1,4 @@
-import Grainient from "@workspace/ui/components/granient";
+import Grainient from "@workspace/ui/components/grainient";
 import { cn } from "@workspace/ui/lib/utils";
 
 export const WidgetHeader = ({
@@ -15,11 +15,7 @@ export const WidgetHeader = ({
         className,
       )}
     >
-      {/* Purple gradient base — matches original header background */}
-      {/* <div className="absolute inset-0 z-0 bg-linear-to-b from-primary to-chart-2" /> */}
-
-      {/* Galaxy renders transparently over the purple gradient */}
-      <div className="absolute inset-0 z-1">
+      <div className="absolute inset-0">
         <Grainient
           color1="#A78BFA"
           color2="#8B5CF6"
@@ -46,8 +42,7 @@ export const WidgetHeader = ({
         />
       </div>
 
-      {/* Content sits above the galaxy */}
-      <div className="relative z-10 w-full">{children}</div>
+      <div className="relative w-full">{children}</div>
     </header>
   );
 };

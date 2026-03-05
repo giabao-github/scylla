@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,15 +55,18 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
   const name = form.watch("name");
   const email = form.watch("email");
 
-  const nameValid = validateInput("name", name).valid;
-  const nameInvalidMessage = validateInput("name", name).message;
-  const emailValid = validateInput("email", email).valid;
-  const emailInvalidMessage = validateInput("email", email).message;
+  const { valid: nameValid, message: nameInvalidMessage } = validateInput(
+    "name",
+    name,
+  );
+  const { valid: emailValid, message: emailInvalidMessage } = validateInput(
+    "email",
+    email,
+  );
 
   const createContactSession = useMutation(api.public.contactSessions.create);
 
   const onSubmit = async (values: FormSchema) => {
-    console.log({ nameInvalidMessage, emailInvalidMessage, email });
     if (!organizationId) {
       toast.error("Organization not found", {
         description: "Please create an organization to continue",
@@ -176,7 +178,6 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
                   }}
                   onBlur={(value: string) => {
                     const sanitized = sanitizeInput("input", value);
-                    validateInput("name", sanitized);
                     field.onChange(sanitized);
                     field.onBlur();
                   }}

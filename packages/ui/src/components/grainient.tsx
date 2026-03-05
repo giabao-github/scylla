@@ -155,6 +155,7 @@ const Grainient: React.FC<GrainientProps> = ({
   className = "",
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const programRef = useRef<Program | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -254,6 +255,7 @@ const Grainient: React.FC<GrainientProps> = ({
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     raf = requestAnimationFrame(loop);
+    programRef.current = program;
 
     return () => {
       cancelAnimationFrame(raf);
@@ -265,6 +267,42 @@ const Grainient: React.FC<GrainientProps> = ({
         // Ignore
       }
     };
+  }, []);
+
+  // Update uniforms when props change
+  useEffect(() => {
+    if (!programRef.current) return;
+    const uniforms = programRef.current.uniforms;
+    (uniforms.uTimeSpeed as { value: number }).value = timeSpeed;
+    (uniforms.uColorBalance as { value: number }).value = colorBalance;
+    (uniforms.uWarpStrength as { value: number }).value = warpStrength;
+    (uniforms.uWarpFrequency as { value: number }).value = warpFrequency;
+    (uniforms.uWarpSpeed as { value: number }).value = warpSpeed;
+    (uniforms.uWarpAmplitude as { value: number }).value = warpAmplitude;
+    (uniforms.uBlendAngle as { value: number }).value = blendAngle;
+    (uniforms.uBlendSoftness as { value: number }).value = blendSoftness;
+    (uniforms.uRotationAmount as { value: number }).value = rotationAmount;
+    (uniforms.uNoiseScale as { value: number }).value = noiseScale;
+    (uniforms.uGrainAmount as { value: number }).value = grainAmount;
+    (uniforms.uGrainScale as { value: number }).value = grainScale;
+    (uniforms.uGrainAnimated as { value: number }).value = grainAnimated
+      ? 1.0
+      : 0.0;
+    (uniforms.uContrast as { value: number }).value = contrast;
+    (uniforms.uGamma as { value: number }).value = gamma;
+    (uniforms.uSaturation as { value: number }).value = saturation;
+    (uniforms.uCenterOffset as { value: Float32Array }).value =
+      new Float32Array([centerX, centerY]);
+    (uniforms.uZoom as { value: number }).value = zoom;
+    (uniforms.uColor1 as { value: Float32Array }).value = new Float32Array(
+      hexToRgb(color1),
+    );
+    (uniforms.uColor2 as { value: Float32Array }).value = new Float32Array(
+      hexToRgb(color2),
+    );
+    (uniforms.uColor3 as { value: Float32Array }).value = new Float32Array(
+      hexToRgb(color3),
+    );
   }, [
     timeSpeed,
     colorBalance,

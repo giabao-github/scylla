@@ -2,6 +2,7 @@ import {
   ComponentType,
   HTMLInputTypeAttribute,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -40,6 +41,8 @@ export const Field = ({
   className,
 }: FieldProps) => {
   const [focused, setFocused] = useState(false);
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const tooltipButtonRef = useRef<HTMLButtonElement>(null);
 
   const hasValue = value.length > 0;
   const showValid = hasValue && isValid === true;
@@ -73,14 +76,29 @@ export const Field = ({
 
           {/* Info icon + tooltip */}
           {tooltips && tooltips.length > 0 && (
-            <div className="relative group/tooltip">
-              <InfoIcon
-                className="transition-colors duration-200 cursor-help size-3 text-muted-foreground hover:text-black"
-                strokeWidth={2.5}
-              />
+            <div className="relative group/tooltip focus-within:*:opacity-100">
+              <button
+                type="button"
+                aria-label={`${label} requirements`}
+                aria-describedby={`${id}-tooltip`}
+                ref={tooltipButtonRef}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && tooltipOpen) {
+                    setTooltipOpen(false);
+                    tooltipButtonRef.current?.blur();
+                  }
+                }}
+                onFocus={() => setTooltipOpen(true)}
+                onBlur={() => setTooltipOpen(false)}
+                className="rounded-sm transition-colors duration-200 cursor-help text-muted-foreground hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              >
+                <InfoIcon className="size-3" strokeWidth={2.5} />
+              </button>
 
               {/* Tooltip */}
               <div
+                id={`${id}-tooltip`}
+                role="tooltip"
                 className={cn(
                   "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50",
                   totalChars > 200 ? "w-80" : "w-56",
@@ -89,6 +107,7 @@ export const Field = ({
                   "shadow-[0_8px_24px_rgba(0,0,0,0.2),0_0_0_1px_hsla(0,0%,100%,0.08)_inset]",
                   "opacity-0 pointer-events-none scale-95 translate-y-1",
                   "group-hover/tooltip:opacity-100 group-hover/tooltip:scale-100 group-hover/tooltip:translate-y-0",
+                  "group-focus-within/tooltip:opacity-100 group-focus-within/tooltip:scale-100 group-focus-within/tooltip:translate-y-0",
                   "transition-all duration-200 ease-out",
                 )}
               >

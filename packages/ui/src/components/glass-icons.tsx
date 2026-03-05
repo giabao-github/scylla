@@ -1,6 +1,7 @@
 import React from "react";
 
 export interface GlassIconsItem {
+  id: string;
   icon: React.ReactElement;
   color: string;
   label: string;
@@ -33,9 +34,9 @@ const GlassIcons: React.FC<GlassIconsProps> = ({ items, className }) => {
     <div
       className={`grid gap-[5em] grid-cols-2 md:grid-cols-3 mx-auto py-[3em] overflow-visible ${className || ""}`}
     >
-      {items.map((item, index) => (
+      {items.map((item) => (
         <button
-          key={index}
+          key={item.id}
           type="button"
           aria-label={item.label}
           className={`relative bg-transparent outline-none border-none cursor-pointer w-[4.5em] h-[4.5em] perspective-[24em] transform-3d [-webkit-tap-highlight-color:transparent] group ${

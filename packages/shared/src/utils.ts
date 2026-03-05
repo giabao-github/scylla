@@ -37,9 +37,6 @@ export function validateInput(type: Input = "name", value: string): ValidationRe
     case "name": {
       const trimmed = value.trim();
 
-      if (PATTERNS.emoji.test(trimmed)) {
-        return fail("Name cannot contain emojis");
-      }
       if (trimmed.length < 2) {
         return fail("Name must be at least 2 characters");
       }
@@ -63,9 +60,6 @@ export function validateInput(type: Input = "name", value: string): ValidationRe
     }
 
     case "username": {
-      if (PATTERNS.emoji.test(value)) {
-        return fail("Username cannot contain emojis");
-      }
       if (value.length < 3) {
         return fail("Username must be at least 3 characters");
       }
@@ -80,10 +74,6 @@ export function validateInput(type: Input = "name", value: string): ValidationRe
     }
 
     case "email": {
-      if (PATTERNS.emoji.test(value)) {
-        return fail("Email cannot contain emojis");
-      }
-
       const lower = value.trim().toLowerCase();
 
       if (lower.length > 254) {
@@ -167,7 +157,7 @@ export function validateInput(type: Input = "name", value: string): ValidationRe
     case "phone": {
       const trimmed = value.trim();
 
-      if (!/^\d+$/.test(trimmed.replace(/^0/, ""))) {
+      if (!/^\d+$/.test(trimmed)) {
         return fail("Phone number can only contain digits");
       }
       if (!trimmed.startsWith("0")) {
@@ -198,6 +188,7 @@ export function sanitizeInput(type: Input = "name", value: string): string {
 
     case "username": {
       return value
+      .replace(PATTERNS.emoji, "")
         .replace(/\s/g, "")
         .slice(0, 30);
     }
@@ -205,6 +196,9 @@ export function sanitizeInput(type: Input = "name", value: string): string {
     case "phone": {
       // Keep only digits, ensure leading 0, cap at 11 digits
       const digits = value.replace(/\D/g, "");
+      if (digits.length === 0) {
+        return "";
+      }
       const normalized = digits.startsWith("0") ? digits : "0" + digits;
       return normalized.slice(0, 11);
     }
@@ -228,7 +222,7 @@ export function sanitizeInput(type: Input = "name", value: string): string {
       // If multiple @ signs, keep only the first and collapse the rest
       const parts = cleaned.split("@");
       if (parts.length > 2) {
-        cleaned = (parts[0] ?? "") + "@" + parts.slice(1).join("").replace(/@/g, "");
+        cleaned = (parts[0] ?? "") + "@" + parts.slice(1).join("");
       }
 
       // Remove consecutive dots
