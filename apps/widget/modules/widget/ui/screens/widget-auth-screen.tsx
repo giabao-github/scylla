@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,31 +30,32 @@ const formSchema = z.object({
     .string()
     .trim()
     .min(1, "Name is required")
-    .refine((value) => value.length >= 2, {
-      message: "Name must be at least 2 characters",
-    })
-    .refine((value) => value.length <= 50, {
-      message: "Name must be at most 50 characters",
-    })
-    .refine((value) => validateInput("name", value), {
-      message:
-        "Name contains invalid characters (numbers, special characters, emojis, etc.)",
+    .refine((value) => validateInput("name", value).valid, {
+      message: "Invalid name",
     }),
   email: z
     .string()
     .trim()
     .min(1, "Email is required")
-    .email("Invalid email address")
-    .refine((value) => validateInput("email", value), {
+    .refine((value) => validateInput("email", value).valid, {
       message: "Invalid email address",
     }),
 });
 
 type FormSchema = z.infer<typeof formSchema>;
 
-export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
-  const [done, setDone] = useState(false);
+const shouldShowFieldError = (
+  fieldValue: string,
+  fieldState: { isDirty: boolean; isTouched: boolean },
+  isSubmitted: boolean,
+) => {
+  const hasValue = fieldValue.length > 0;
+  return (
+    (hasValue && (fieldState.isDirty || fieldState.isTouched)) || isSubmitted
+  );
+};
 
+export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -66,8 +66,14 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
   const name = form.watch("name");
   const email = form.watch("email");
 
-  const nameValid = validateInput("name", name);
-  const emailValid = validateInput("email", email);
+  const { valid: nameValid, message: nameInvalidMessage } = validateInput(
+    "name",
+    name,
+  );
+  const { valid: emailValid, message: emailInvalidMessage } = validateInput(
+    "email",
+    email,
+  );
 
   const createContactSession = useMutation(api.public.contactSessions.create);
 
@@ -86,6 +92,11 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
       });
       return;
     }
+
+    const sanitizedValues: FormSchema = {
+      name: sanitizeInput("input", values.name),
+      email: sanitizeInput("input", values.email),
+    };
 
     try {
       const ua = navigator.userAgent;
@@ -120,14 +131,12 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
       };
 
       const contactSessionId = await createContactSession({
-        ...values,
+        ...sanitizedValues,
         organizationId,
         metadata,
       });
 
-      console.log({ contactSessionId });
       // TODO: handle success state
-      setDone(true);
     } catch (error) {
       console.error("Failed to create contact session:", error);
       // TODO: Show error to user via toast or form error
@@ -142,6 +151,7 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
           <p className="text-lg">Let&apos;s get you started.</p>
         </div>
       </WidgetHeader>
+
       <Form {...form}>
         <form
           className="flex flex-col flex-1 gap-y-4 items-center p-4 mt-12 md:p-6"
@@ -150,79 +160,143 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
           <FormField
             control={form.control}
             name="name"
-            render={({ field, fieldState }) => (
-              <Field
-                className="w-full md:w-1/2"
-                error={fieldState.error?.message}
-                icon={UserIcon}
-                id="name"
-                isValid={fieldState.isDirty && !fieldState.invalid && nameValid}
-                label="Name"
-                hint="Required"
-                placeholder="John Doe"
-                type="text"
-                value={field.value}
-                onChange={(value: string) => {
-                  field.onChange(value);
-                }}
-                onBlur={(value: string) => {
-                  const sanitized = sanitizeInput("input", value);
-                  field.onChange(sanitized);
-                  field.onBlur();
-                }}
-              />
-            )}
+            render={({ field, fieldState }) => {
+              const showFieldError = shouldShowFieldError(
+                field.value,
+                fieldState,
+                form.formState.isSubmitted,
+              );
+              return (
+                <Field
+                  className="w-full md:w-1/2"
+                  error={
+                    showFieldError
+                      ? nameInvalidMessage || fieldState.error?.message
+                      : undefined
+                  }
+                  icon={UserIcon}
+                  id="name"
+                  isValid={
+                    fieldState.isDirty && !fieldState.invalid && nameValid
+                  }
+                  label="Name"
+                  tooltips={[
+                    "At least 2 characters",
+                    "Maximum 50 characters",
+                    "Letters (a-z, A-Z), spaces, hyphens (-), and apostrophes (') only",
+                    "Cannot start or end with a space or hyphen (-)",
+                    "No consecutive spaces or hyphens (-)",
+                    "No numbers (0-9), special characters (!@#$%^&*()_+), or emojis 😊",
+                  ]}
+                  hint="Required"
+                  placeholder="John Doe"
+                  type="text"
+                  value={field.value}
+                  onChange={(value: string) => {
+                    field.onChange(value);
+                  }}
+                  onBlur={(value: string) => {
+                    const sanitized = sanitizeInput("input", value);
+                    field.onChange(sanitized);
+                    field.onBlur();
+                  }}
+                />
+              );
+            }}
           />
           <FormField
             control={form.control}
             name="email"
-            render={({ field, fieldState }) => (
-              <Field
-                className="w-full md:w-1/2"
-                error={fieldState.error?.message}
-                icon={MailIcon}
-                id="email"
-                isValid={
-                  fieldState.isDirty && !fieldState.invalid && emailValid
-                }
-                label="Email"
-                hint="Required"
-                placeholder="john.doe@example.com"
-                type="email"
-                value={field.value}
-                onChange={(value: string) => {
-                  field.onChange(value);
-                }}
-                onBlur={(value: string) => {
-                  const sanitized = sanitizeInput("input", value);
-                  field.onChange(sanitized);
-                  field.onBlur();
-                }}
-              />
-            )}
+            render={({ field, fieldState }) => {
+              const showFieldError = shouldShowFieldError(
+                field.value,
+                fieldState,
+                form.formState.isSubmitted,
+              );
+              return (
+                <Field
+                  className="w-full md:w-1/2"
+                  error={
+                    showFieldError
+                      ? emailInvalidMessage || fieldState.error?.message
+                      : undefined
+                  }
+                  icon={MailIcon}
+                  id="email"
+                  isValid={
+                    fieldState.isDirty && !fieldState.invalid && emailValid
+                  }
+                  label="Email"
+                  hint="Required"
+                  tooltips={[
+                    "Format: <local>@<domain>.<tld>",
+                    "Must contain exactly one @ symbol",
+                    "Local part (before @) max 64 characters",
+                    "Local part cannot start or end with special characters (!@#$%^&*()_+)",
+                    "Domain labels can only contain letters (a-z, A-Z), numbers (0-9), and hyphens (-)",
+                    "Domain labels cannot start or end with a hyphen (-)",
+                    "Top-level domain (TLD) must be letters (a-z, A-Z) only, at least 2 characters (e.g. .com, .io)",
+                    "Max 254 characters total",
+                    "No consecutive dots (.)",
+                    "No spaces or emojis 😊",
+                  ]}
+                  placeholder="john.doe@example.com"
+                  type="text"
+                  value={field.value}
+                  onChange={(value: string) => {
+                    field.onChange(value);
+                  }}
+                  onBlur={(value: string) => {
+                    const sanitized = sanitizeInput("input", value);
+                    field.onChange(sanitized);
+                    field.onBlur();
+                  }}
+                />
+              );
+            }}
           />
           <Button
             disabled={form.formState.isSubmitting}
+            aria-busy={form.formState.isSubmitting}
             type="submit"
             className={cn(
-              "w-full md:w-1/2 h-12 text-base group",
-              "bg-[linear-gradient(135deg,#7c3aed_0%,#a855f7_50%,#7c3aed_100%)]",
-              "bg-size-[200%_auto]",
-              "shadow-[0_4px_24px_rgba(201,169,110,0.25)]",
-              "animate-shimmer",
+              "w-full h-12 text-base md:w-1/2 group",
+              "relative bg-transparent border-none hover:bg-transparent focus:bg-transparent",
+              "mt-2 mb-2",
             )}
           >
-            {form.formState.isSubmitting ? (
-              <div className="spinner"></div>
-            ) : (
-              <>
-                Continue
-                <ArrowBigRightIcon
-                  className="transition-transform size-4 group-hover:translate-x-1"
-                  strokeWidth={2.5}
-                />
-              </>
-            )}
+            {/* Back panel — offset down-right, shifts more on hover */}
+            <span
+              className="absolute inset-0 rounded-[1.25em] transition-all duration-300 ease-[cubic-bezier(0.83,0,0.17,1)] "
+              style={{
+                background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
+                boxShadow: "0 8px 32px rgba(124, 58, 237, 0.5)",
+              }}
+            />
+
+            {/* Front glass panel — frosted, sits perfectly in original position */}
+            <span
+              className="absolute inset-0 rounded-[1.25em] backdrop-blur-md bg-white/10 flex items-center justify-center gap-2 text-white font-semibold tracking-wide transition-all duration-300 group-hover:bg-white/20"
+              style={{
+                boxShadow:
+                  "0 0 0 1.5px hsla(0, 0%, 100%, 0.35) inset, 0 8px 32px rgba(0,0,0,0.2)",
+              }}
+            >
+              {form.formState.isSubmitting ? (
+                <>
+                  <div className="spinner" aria-hidden="true" />
+                  <span className="sr-only">Submitting</span>
+                </>
+              ) : (
+                <>
+                  Continue
+                  <ArrowBigRightIcon
+                    className="transition-transform size-4 group-hover:translate-x-1"
+                    strokeWidth={2.5}
+                  />
+                </>
+              )}
+            </span>
           </Button>
         </form>
       </Form>

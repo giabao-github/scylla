@@ -32,12 +32,15 @@ export const create = mutation({
     const sanitizedName = sanitizeInput("name", args.name);
     const sanitizedEmail = sanitizeInput("email", args.email);
 
-    if (!validateInput("name", sanitizedName)) {
-      throw new Error("Invalid name");
+    const nameValidation = validateInput("name", sanitizedName);
+    const emailValidation = validateInput("email", sanitizedEmail);
+
+    if (!nameValidation.valid) {
+      throw new Error(nameValidation.message);
     }
 
-    if (!validateInput("email", sanitizedEmail)) {
-      throw new Error("Invalid email");
+    if (!emailValidation.valid) {
+      throw new Error(emailValidation.message);
     }
 
     const organization = await ctx.db
@@ -67,7 +70,7 @@ export const create = mutation({
     };
 
     const sanitizedMetadata = args.metadata
-      ? Object.fromEntries(
+      ? (Object.fromEntries(
           Object.entries(args.metadata).map(([key, value]) => {
             if (typeof value === "string") {
               return [key, sanitizeMetadataString(key, value)];
@@ -84,7 +87,7 @@ export const create = mutation({
             }
             return [key, value];
           }),
-        )
+        ) as typeof args.metadata)
       : undefined;
 
     const contactSessionId = await ctx.db.insert("contactSessions", {

@@ -1,3 +1,4 @@
+import Grainient from "@workspace/ui/components/grainient";
 import { cn } from "@workspace/ui/lib/utils";
 
 export const WidgetHeader = ({
@@ -10,11 +11,38 @@ export const WidgetHeader = ({
   return (
     <header
       className={cn(
-        "flex justify-between items-center p-4 bg-linear-to-b from-primary to-chart-2 text-primary-foreground",
+        "flex overflow-hidden relative justify-between items-center p-4 text-primary-foreground",
         className,
       )}
     >
-      {children}
+      <div className="absolute inset-0">
+        <Grainient
+          color1="#A78BFA"
+          color2="#8B5CF6"
+          color3="#7C3AED"
+          timeSpeed={0.9}
+          colorBalance={0}
+          warpStrength={0.7}
+          warpFrequency={1.8}
+          warpSpeed={1.2}
+          warpAmplitude={70}
+          blendAngle={90}
+          blendSoftness={0.18}
+          rotationAmount={40}
+          noiseScale={1.2}
+          grainAmount={0.03}
+          grainScale={2.5}
+          grainAnimated={false}
+          contrast={1.15}
+          gamma={1}
+          saturation={0.95}
+          centerX={0}
+          centerY={0}
+          zoom={1.75}
+        />
+      </div>
+
+      <div className="relative w-full">{children}</div>
     </header>
   );
 };
