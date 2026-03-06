@@ -5,7 +5,7 @@ interface StyledTooltipProps {
 
 const StyledTooltip = ({ title, content }: StyledTooltipProps) => {
   return (
-    <div className="absolute bottom-full left-1/2 invisible mb-3 w-72 opacity-0 transition-all duration-300 ease-out transform -translate-x-1/2 translate-y-2 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0">
+    <div className="absolute bottom-full left-1/2 invisible mb-3 w-72 opacity-0 transition-all duration-300 ease-out transform -translate-x-1/2 translate-y-2 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0">
       <div className="relative p-4 bg-linear-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-md rounded-2xl border border-white/10 shadow-[0_0_30px_rgba(79,70,229,0.15)]">
         <div className="flex gap-3 items-center mb-2">
           <div className="flex justify-center items-center w-8 h-8 rounded-full bg-indigo-500/20">

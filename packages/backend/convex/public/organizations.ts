@@ -3,8 +3,14 @@ import { v } from "convex/values";
 
 import { action } from "@workspace/backend/_generated/server";
 
+const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+
+if (!clerkSecretKey) {
+  throw new Error("CLERK_SECRET_KEY is required");
+}
+
 const clerkClient = createClerkClient({
-  secretKey: process.env.CLERK_SECRET_KEY || "",
+  secretKey: clerkSecretKey,
 });
 
 export const validate = action({

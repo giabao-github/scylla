@@ -17,7 +17,11 @@ export const WidgetErrorScreen = () => {
           <p className="text-lg">Let&apos;s get you started.</p>
         </div>
       </WidgetHeader>
-      <div className="flex flex-col flex-1 gap-y-4 justify-center items-center p-4 text-muted-foreground">
+      <div
+        className="flex flex-col flex-1 gap-y-4 justify-center items-center p-4 text-muted-foreground"
+        role="alert"
+        aria-live="assertive"
+      >
         <AlertTriangleIcon className="size-12" />
         <p className="text-sm">
           {errorMessage || "Something went wrong. Please try again later."}

@@ -15,7 +15,12 @@ const DotLoader = ({
 
   return (
     <StyledWrapper $size={sizeValue} $color={color} $activeColor={activeColor}>
-      <section className="dots-container">
+      <section
+        className="dots-container"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading"
+      >
         <div className="dot" />
         <div className="dot" />
         <div className="dot" />

@@ -33,7 +33,8 @@ export default function GradientText({
   const elapsedRef = useRef(0);
   const lastTimeRef = useRef<number | null>(null);
 
-  const animationDuration = animationSpeed * 1000;
+  const safeSpeed = Math.max(animationSpeed, 0.1);
+  const animationDuration = safeSpeed * 1000;
 
   useAnimationFrame((time) => {
     if (isPaused) {
@@ -98,7 +99,9 @@ export default function GradientText({
         ? "to bottom"
         : "to bottom right";
   // Duplicate first color at the end for seamless looping
-  const gradientColors = [...colors, colors[0]].join(", ");
+  const safeColors =
+    colors.length > 0 ? colors : ["#5227FF", "#FF9FFC", "#B19EEF"];
+  const gradientColors = [...safeColors, safeColors[0]].join(", ");
 
   const gradientStyle = {
     backgroundImage: `linear-gradient(${gradientAngle}, ${gradientColors})`,

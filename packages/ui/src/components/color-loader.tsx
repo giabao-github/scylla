@@ -65,6 +65,12 @@ const StyledWrapper = styled.div`
     animation: ringA 2s linear infinite;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .pl__ring {
+      animation: none;
+    }
+  }
+
   .pl__ring--a {
     stroke: #f42f25;
   }

@@ -43,6 +43,7 @@ export const WidgetLoadingScreen = ({
       return;
     }
 
+    let cancelled = false;
     setLoadingMessage("Finding organization ID...");
 
     if (!organizationId) {
@@ -55,6 +56,9 @@ export const WidgetLoadingScreen = ({
 
     validateOrganization({ organizationId })
       .then((result) => {
+        if (cancelled) {
+          return;
+        }
         if (result.valid) {
           setOrganizationId(organizationId);
           setStep("session");
@@ -64,9 +68,16 @@ export const WidgetLoadingScreen = ({
         }
       })
       .catch(() => {
+        if (cancelled) {
+          return;
+        }
         setErrorMessage("Unable to verify organization");
         setScreen("error");
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     step,
     organizationId,
@@ -88,6 +99,7 @@ export const WidgetLoadingScreen = ({
       return;
     }
 
+    let cancelled = false;
     setLoadingMessage("Finding contact session ID...");
 
     if (!contactSessionId) {
@@ -100,13 +112,23 @@ export const WidgetLoadingScreen = ({
 
     validateContactSession({ contactSessionId })
       .then((result) => {
+        if (cancelled) {
+          return;
+        }
         setSessionValid(result.valid);
         setStep("done");
       })
       .catch(() => {
+        if (cancelled) {
+          return;
+        }
         setSessionValid(false);
         setStep("done");
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [step, contactSessionId, validateContactSession, setLoadingMessage]);
 
   useEffect(() => {
@@ -128,7 +150,7 @@ export const WidgetLoadingScreen = ({
       </WidgetHeader>
 
       <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
-        <div className="text-red-500 loader"></div>
+        <div className="loader"></div>
         <p>{loadingMessage || "Loading..."}</p>
       </div>
     </>
