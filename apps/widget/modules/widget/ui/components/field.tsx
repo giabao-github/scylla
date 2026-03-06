@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 
+import StyledTooltip from "@workspace/ui/components/styled-tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import { CheckIcon, InfoIcon, XIcon } from "lucide-react";
 
@@ -102,39 +103,26 @@ export const Field = ({
               </button>
 
               {/* Tooltip */}
-              <div
-                id={`${id}-tooltip`}
-                role="tooltip"
-                className={cn(
-                  "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50",
-                  totalChars > 200 ? "w-80" : "w-56",
-                  "rounded-md px-3 py-2.5",
-                  "bg-popover/95 backdrop-blur-sm border border-white/10",
-                  "shadow-[0_8px_24px_rgba(0,0,0,0.2),0_0_0_1px_hsla(0,0%,100%,0.08)_inset]",
-                  tooltipOpen
-                    ? "opacity-100 scale-100 translate-y-0"
-                    : "opacity-0 pointer-events-none scale-95 translate-y-1",
-                  "transition-all duration-200 ease-out",
-                )}
-              >
-                {/* Arrow */}
-                <div className="absolute top-full left-1/2 w-0 h-0 border-t-4 border-r-4 border-l-4 -translate-x-1/2 border-l-transparent border-r-transparent border-t-popover/95" />
 
-                <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground mb-1.5">
-                  Requirements
-                </p>
-                <ul className="flex flex-col gap-1">
-                  {tooltips.map((h, i) => (
-                    <li
-                      key={i}
-                      className="flex gap-2 items-start text-xs text-foreground/80"
-                    >
-                      <span className="mt-1.5 rounded-full size-1 bg-muted-foreground/80 shrink-0" />
-                      {h}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <StyledTooltip
+                open={tooltipOpen}
+                title="Requirements"
+                content={tooltips}
+                tint="#1a1035"
+                tintOpacity={0.72}
+                glow="#8e51f0"
+                glowOpacity={0.3}
+                highlight="#fff"
+                highlightOpacity={0.55}
+                blur={0}
+                distortion={0}
+                radius={18}
+                titleColor="#fff"
+                contentColor="#fff"
+                bulletColor="#fff"
+                iconColor="#fff"
+                iconBadgeColor="#fff"
+              />
             </div>
           )}
         </div>

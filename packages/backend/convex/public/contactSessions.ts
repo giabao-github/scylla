@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 
-import { mutation } from "@workspace/backend/_generated/server";
+import { mutation, query } from "@workspace/backend/_generated/server";
 
 import { sanitizeInput, validateInput } from "@workspace/shared/utils";
 
@@ -91,7 +91,7 @@ export const create = mutation({
   },
 });
 
-export const validate = mutation({
+export const validate = query({
   args: {
     contactSessionId: v.id("contactSessions"),
   },
@@ -99,7 +99,7 @@ export const validate = mutation({
     const contactSession = await ctx.db.get(args.contactSessionId);
 
     if (!contactSession) {
-      return { valid: false, reason: "Contact session not found" };
+      return { valid: false, reason: "Contact session is not found" };
     }
 
     if (contactSession.expiresAt <= Date.now()) {

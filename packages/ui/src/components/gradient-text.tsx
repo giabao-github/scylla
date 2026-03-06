@@ -16,6 +16,7 @@ interface GradientTextProps {
   direction?: "horizontal" | "vertical" | "diagonal";
   pauseOnHover?: boolean;
   yoyo?: boolean;
+  borderBackground?: string;
 }
 
 export default function GradientText({
@@ -27,6 +28,7 @@ export default function GradientText({
   direction = "horizontal",
   pauseOnHover = false,
   yoyo = true,
+  borderBackground = "bg-black",
 }: GradientTextProps) {
   const [isPaused, setIsPaused] = useState(false);
   const progress = useMotionValue(0);
@@ -63,15 +65,15 @@ export default function GradientText({
         );
       }
     } else {
-      // Continuously increase position for seamless looping
-      progress.set((elapsedRef.current / animationDuration) * 100);
+      const wrappedElapsed = elapsedRef.current % animationDuration;
+      progress.set((wrappedElapsed / animationDuration) * 100);
     }
   });
 
   useEffect(() => {
     elapsedRef.current = 0;
     progress.set(0);
-  }, [animationSpeed, yoyo]);
+  }, [animationSpeed, yoyo, progress]);
 
   const backgroundPosition = useTransform(progress, (p) => {
     if (direction === "horizontal") {
@@ -126,13 +128,14 @@ export default function GradientText({
           style={{ ...gradientStyle, backgroundPosition }}
         >
           <div
-            className="absolute bg-black rounded-[1.25rem] z-[-1]"
+            className="absolute rounded-[1.25rem] bg-background z-[-1]"
             style={{
               width: "calc(100% - 2px)",
               height: "calc(100% - 2px)",
               left: "50%",
               top: "50%",
               transform: "translate(-50%, -50%)",
+              backgroundColor: borderBackground ?? "black",
             }}
           />
         </motion.div>

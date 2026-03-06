@@ -7,11 +7,13 @@ import {
   NavigatorWithUAData,
   getPlatform,
   getVendor,
+  hexToRgba,
   sanitizeInput,
   validateInput,
 } from "@workspace/shared/utils";
 import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
+import FrostLens from "@workspace/ui/components/frost-lens";
 import { cn } from "@workspace/ui/lib/utils";
 import { useMutation } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -21,11 +23,28 @@ import z from "zod";
 
 import {
   contactSessionIdAtomFamily,
+  errorMessageAtom,
   organizationIdAtom,
   widgetScreenAtom,
 } from "@/modules/widget/atoms/widget-atoms";
 import { Field } from "@/modules/widget/ui/components/field";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
+
+const GLASS_PRESET = {
+  tint: "#8e51f0",
+  tintOpacity: 0.72,
+  glow: "#818cf8",
+  glowOpacity: 0.3,
+  highlight: "#fff",
+  highlightOpacity: 0.35,
+};
+
+const tintRgba = hexToRgba(GLASS_PRESET.tint, GLASS_PRESET.tintOpacity);
+const glowRgba = hexToRgba(GLASS_PRESET.glow, GLASS_PRESET.glowOpacity);
+const highlightRgba = hexToRgba(
+  GLASS_PRESET.highlight,
+  GLASS_PRESET.highlightOpacity,
+);
 
 const formSchema = z.object({
   name: z
@@ -59,10 +78,18 @@ const shouldShowFieldError = (
 
 export const WidgetAuthScreen = () => {
   const organizationId = useAtomValue(organizationIdAtom);
-  const setContactSessionId = useSetAtom(
-    contactSessionIdAtomFamily(organizationId || ""),
-  );
+  const setErrorMessage = useSetAtom(errorMessageAtom);
   const setScreen = useSetAtom(widgetScreenAtom);
+
+  if (!organizationId) {
+    setErrorMessage("Organization is not found");
+    setScreen("error");
+    return;
+  }
+
+  const setContactSessionId = useSetAtom(
+    contactSessionIdAtomFamily(organizationId),
+  );
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -87,7 +114,7 @@ export const WidgetAuthScreen = () => {
 
   const onSubmit = async (values: FormSchema) => {
     if (!organizationId) {
-      toast.error("Organization not found", {
+      toast.error("Organization is not found", {
         description: "Please create an organization to continue",
         position: "top-center",
         style: {
@@ -240,7 +267,7 @@ export const WidgetAuthScreen = () => {
                   tooltips={[
                     "Format: <local>@<domain>.<tld>",
                     "Must contain exactly one @ symbol",
-                    "Local part (before @) max 64 characters",
+                    "Local part (before @) at most 64 characters",
                     "Local part cannot start or end with special characters (!@#$%^&*()_+)",
                     "Domain labels can only contain letters (a-z, A-Z), numbers (0-9), and hyphens (-)",
                     "Domain labels cannot start or end with a hyphen (-)",

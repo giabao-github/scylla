@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useConvex } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 
 import {
@@ -90,9 +90,7 @@ export const WidgetLoadingScreen = ({
   ]);
 
   // Step 2: Validate session (if exists)
-  const validateContactSession = useMutation(
-    api.public.contactSessions.validate,
-  );
+  const convex = useConvex();
 
   useEffect(() => {
     if (step !== "session") {
@@ -110,7 +108,8 @@ export const WidgetLoadingScreen = ({
 
     setLoadingMessage("Validating session...");
 
-    validateContactSession({ contactSessionId })
+    convex
+      .query(api.public.contactSessions.validate, { contactSessionId })
       .then((result) => {
         if (cancelled) {
           return;
@@ -129,7 +128,7 @@ export const WidgetLoadingScreen = ({
     return () => {
       cancelled = true;
     };
-  }, [step, contactSessionId, validateContactSession, setLoadingMessage]);
+  }, [step, contactSessionId, convex, setLoadingMessage]);
 
   useEffect(() => {
     if (step !== "done") {

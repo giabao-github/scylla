@@ -3,7 +3,16 @@ import styled from "styled-components";
 const ColorLoader = () => {
   return (
     <StyledWrapper>
-      <svg className="pl" width={240} height={240} viewBox="0 0 240 240">
+      <svg
+        className="pl"
+        width={240}
+        height={240}
+        viewBox="0 0 240 240"
+        role="status"
+        aria-label="Loading"
+        aria-hidden="true"
+        focusable="false"
+      >
         <circle
           className="pl__ring pl__ring--a"
           cx={120}

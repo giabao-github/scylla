@@ -73,6 +73,14 @@ const StyledWrapper = styled.div<{
     animation-delay: 0.1s;
   }
 
+  .dot:nth-child(4) {
+    animation-delay: 0.3s;
+  }
+
+  .dot:nth-child(5) {
+    animation-delay: 0.5s;
+  }
+
   @keyframes pulse {
     0% {
       transform: scale(0.8);
@@ -93,6 +101,12 @@ const StyledWrapper = styled.div<{
       background-color: var(--loader-color);
       box-shadow: 0 0 0 0
         color-mix(in srgb, var(--loader-color) 70%, transparent);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot {
+      animation: none;
     }
   }
 `;

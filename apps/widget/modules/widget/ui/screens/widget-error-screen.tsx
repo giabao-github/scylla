@@ -22,7 +22,7 @@ export const WidgetErrorScreen = () => {
         role="alert"
         aria-live="assertive"
       >
-        <AlertTriangleIcon className="size-12" />
+        <AlertTriangleIcon className="size-12" aria-hidden="true" />
         <p className="text-sm">
           {errorMessage || "Something went wrong. Please try again later."}
         </p>

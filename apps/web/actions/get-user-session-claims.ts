@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
 import type { JwtPayload } from "@clerk/types";
+import { NextResponse } from "next/server";
 
 export async function getUserSessionClaims(): Promise<
   JwtPayload | NextResponse<{ error: string }>
@@ -13,7 +13,7 @@ export async function getUserSessionClaims(): Promise<
 
   if (!sessionClaims) {
     return NextResponse.json(
-      { error: "Session claims not found" },
+      { error: "Session claims are not found" },
       { status: 401 },
     );
   }
