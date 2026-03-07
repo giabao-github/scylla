@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { cn } from "@workspace/ui/lib/utils";
+
 interface GlassButtonProps {
   className?: string;
   ariaLabel?: string;
@@ -17,6 +19,8 @@ interface GlassButtonProps {
 }
 
 export const GlassButton = ({
+  className,
+  ariaLabel,
   disabled,
   onClick,
   children,
@@ -34,13 +38,20 @@ export const GlassButton = ({
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
       disabled={disabled}
       onClick={onClick}
       onMouseEnter={() => setActive(true)}
       onMouseLeave={() => setActive(false)}
       onFocus={() => setActive(true)}
       onBlur={() => setActive(false)}
-      className="flex isolate overflow-hidden relative justify-between items-center px-4 w-full h-16 rounded-xl transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      className={cn(
+        "flex isolate overflow-hidden relative justify-between items-center",
+        "px-4 w-full h-16 rounded-xl",
+        "transition-all duration-300 cursor-pointer",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
+        className,
+      )}
       style={{
         background: active
           ? `rgba(${tintRgb},${hoverAlpha})`

@@ -47,7 +47,7 @@ export const WidgetSelectionScreen = () => {
     disabled: isPending,
   };
 
-  const handleNewConversation = async () => {
+  const handleNewConversation = async (mode: "chat" | "voice" | "audio") => {
     if (!organizationId) {
       setScreen("error");
       setErrorMessage("Missing organization ID");
@@ -64,6 +64,7 @@ export const WidgetSelectionScreen = () => {
       const conversationId = await createConversation({
         organizationId,
         contactSessionId,
+        // TODO: pass mode to backend when supported
       });
 
       setConversationId(conversationId);
@@ -94,13 +95,13 @@ export const WidgetSelectionScreen = () => {
           <GlassButton
             key={mode}
             {...sharedButtonProps}
-            onClick={() => handleNewConversation()}
+            onClick={() => handleNewConversation(mode)}
           >
-            <div className="flex gap-x-3 items-center text-black">
+            <div className="flex gap-x-3 items-center text-black dark:text-foreground">
               <Icon className="size-4" strokeWidth={2.5} />
               <span>{label}</span>
             </div>
-            <ChevronRightIcon className="text-black" />
+            <ChevronRightIcon className="text-black dark:text-foreground" />
           </GlassButton>
         ))}
       </div>

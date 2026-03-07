@@ -10,14 +10,12 @@ import { ArrowLeftIcon, MenuIcon } from "lucide-react";
 import {
   contactSessionIdAtom,
   conversationIdAtom,
-  organizationIdAtom,
   widgetScreenAtom,
 } from "@/modules/widget/atoms/widget-atoms";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 
 export const WidgetChatScreen = () => {
   const conversationId = useAtomValue(conversationIdAtom);
-  const organizationId = useAtomValue(organizationIdAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
 
   const setScreen = useSetAtom(widgetScreenAtom);

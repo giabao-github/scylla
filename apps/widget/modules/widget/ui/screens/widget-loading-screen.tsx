@@ -7,7 +7,7 @@ import { useAction, useConvex } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 
 import {
-  contactSessionIdAtomFamily,
+  contactSessionIdAtom,
   errorMessageAtom,
   loadingMessageAtom,
   organizationIdAtom,
@@ -31,9 +31,7 @@ export const WidgetLoadingScreen = ({
   const setErrorMessage = useSetAtom(errorMessageAtom);
   const setScreen = useSetAtom(widgetScreenAtom);
 
-  const contactSessionId = useAtomValue(
-    contactSessionIdAtomFamily(organizationId || ""),
-  );
+  const contactSessionId = useAtomValue(contactSessionIdAtom);
 
   // Step 1: Validate organization
   const validateOrganization = useAction(api.public.organizations.validate);
