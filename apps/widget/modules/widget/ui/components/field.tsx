@@ -1,14 +1,10 @@
-import {
-  ComponentType,
-  HTMLInputTypeAttribute,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { ComponentType, HTMLInputTypeAttribute, useRef, useState } from "react";
 
 import StyledTooltip from "@workspace/ui/components/styled-tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import { CheckIcon, InfoIcon, XIcon } from "lucide-react";
+
+import { TOOLTIP_THEME } from "@/modules/widget/constants";
 
 interface FieldProps {
   label: string;
@@ -49,11 +45,6 @@ export const Field = ({
   const showValid = hasValue && isValid === true;
   const hasError = !!error && isValid === false;
   const showError = hasError && !focused;
-  const totalChars =
-    useMemo(
-      () => tooltips?.reduce((sum, str) => sum + str.length, 0),
-      [tooltips],
-    ) || 0;
 
   return (
     <div className={cn("flex w-full flex-col gap-1.5", className)}>
@@ -103,25 +94,12 @@ export const Field = ({
               </button>
 
               {/* Tooltip */}
-
               <StyledTooltip
                 open={tooltipOpen}
+                id={`${id}-tooltip`}
                 title="Requirements"
                 content={tooltips}
-                tint="#1a1035"
-                tintOpacity={0.72}
-                glow="#8e51f0"
-                glowOpacity={0.3}
-                highlight="#fff"
-                highlightOpacity={0.55}
-                blur={0}
-                distortion={0}
-                radius={18}
-                titleColor="#fff"
-                contentColor="#fff"
-                bulletColor="#fff"
-                iconColor="#fff"
-                iconBadgeColor="#fff"
+                {...TOOLTIP_THEME}
               />
             </div>
           )}

@@ -24,7 +24,14 @@ export const validate = action({
       });
       return { valid: true };
     } catch (error) {
-      return { valid: false, reason: "Organization is not found" };
+      if (
+        error instanceof Error &&
+        "status" in error &&
+        (error as any).status === 404
+      ) {
+        return { valid: false, reason: "Organization not found" };
+      }
+      throw error;
     }
   },
 });

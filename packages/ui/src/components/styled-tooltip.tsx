@@ -1,55 +1,44 @@
 import { useEffect, useRef, useState } from "react";
 
+import { hexToRgba } from "@workspace/shared/utils";
+
 import { FrostLens } from "@workspace/ui/components/frost-lens";
 import { cn } from "@workspace/ui/lib/utils";
-
-import { hexToRgba } from "@workspace/shared/utils";
 
 interface StyledTooltipProps {
   open?: boolean;
   id?: string;
   title?: string;
   content?: string[];
-  /**
-   * Base tint color of the glass surface (hex).
-   * Controls the dominant color seen through the lens.
-   */
+
+  //Base tint color of the glass surface (hex).
   tint?: string;
-  /**
-   * Opacity of the tint layer (0–1).
-   * Lower = more transparent, higher = more opaque/readable.
-   */
+
+  // Opacity of the tint layer (0–1).
   tintOpacity?: number;
-  /**
-   * Outer glow color emitted around the tooltip edges (hex).
-   * Adds depth and lifts the tooltip off the background.
-   */
+
+  // Outer glow color emitted around the tooltip edges (hex). Adds depth and lifts the tooltip off the background.
   glow?: string;
-  /**
-   * Opacity of the outer glow (0–1).
-   */
+
+  // Opacity of the outer glow (0–1).
   glowOpacity?: number;
-  /**
-   * Inner edge highlight color — the bright rim along the glass border (hex).
-   * Use white or near-white for a realistic lit-glass look.
-   */
+
+  // Inner edge highlight color — the bright rim along the glass border (hex).
+  // Use white or near-white for a realistic lit-glass look.
   highlight?: string;
-  /**
-   * Opacity of the inner highlight (0–1).
-   */
+
+  // Opacity of the inner highlight (0–1).
   highlightOpacity?: number;
-  /**
-   * Backdrop blur strength in pixels.
-   * Higher = creamier/softer frosted look. Lower = sharper/more transparent.
-   */
+
+  // Backdrop blur strength in pixels.
   blur?: number;
-  /**
-   * SVG displacement map scale — controls how much the glass warps content behind it.
-   * 0 = no distortion, 10–30 = subtle liquid, 50+ = dramatic warp.
-   */
+
+  // SVG displacement map scale — controls how much the glass warps content behind it.
   distortion?: number;
+
   // Border radius of the tooltip panel in pixels.
   radius?: number;
+
   iconColor?: string;
   iconBadgeColor?: string;
   titleColor?: string;
@@ -85,11 +74,18 @@ const StyledTooltip = ({
 
   useEffect(() => {
     if (!open || !ref.current) return;
-    const trigger = ref.current.parentElement;
-    if (!trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    const spaceRight = window.innerWidth - rect.right;
-    setSide(spaceRight >= TOOLTIP_WIDTH + OFFSET ? "right" : "left");
+
+    const updateSide = () => {
+      const trigger = ref.current?.parentElement;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const spaceRight = window.innerWidth - rect.right;
+      setSide(spaceRight >= TOOLTIP_WIDTH + OFFSET ? "right" : "left");
+    };
+
+    updateSide();
+    window.addEventListener("resize", updateSide);
+    return () => window.removeEventListener("resize", updateSide);
   }, [open]);
 
   const tintRgba = hexToRgba(tint, tintOpacity);
@@ -175,54 +171,51 @@ const StyledTooltip = ({
           ) : null}
 
           {/* Content list */}
-          <ul className="space-y-1.5">
-            {content?.map((item, index) => (
-              <li key={index} className="flex gap-2 items-baseline">
-                <span
-                  className="w-1 h-1 rounded-full -translate-y-px shrink-0"
-                  style={{ backgroundColor: bulletColor }}
-                />
-                <p
-                  className="leading-relaxed text-[11px]"
-                  style={{
-                    color: contentColor,
-                    textShadow: "0 1px 3px rgba(0,0,0,0.4)",
-                  }}
-                >
-                  {item}
-                </p>
-              </li>
-            ))}
-          </ul>
+          {content && content.length > 0 && (
+            <ul className="space-y-1.5">
+              {content.map((item, index) => (
+                <li key={index} className="flex gap-2 items-baseline">
+                  <span
+                    className="w-1 h-1 rounded-full -translate-y-px shrink-0"
+                    style={{ backgroundColor: bulletColor }}
+                  />
+                  <p
+                    className="leading-relaxed text-[11px]"
+                    style={{
+                      color: contentColor,
+                      textShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {item}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </FrostLens>
 
       {/* Arrow */}
-      {side === "right" ? (
-        <div
-          className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45"
-          style={{
-            background: tintRgba,
-            backdropFilter: `blur(${blur}px)`,
-            WebkitBackdropFilter: `blur(${blur}px)`,
-            borderLeft: "1px solid rgba(255,255,255,0.1)",
-            borderBottom: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: `inset 0 0 6px -1px ${highlightRgba}`,
-          }}
-        />
-      ) : (
-        <div
-          className="absolute -right-[5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45"
-          style={{
-            background: tintRgba,
-            backdropFilter: `blur(${blur}px)`,
-            WebkitBackdropFilter: `blur(${blur}px)`,
-            borderRight: "1px solid rgba(255,255,255,0.1)",
-            borderTop: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: `inset 0 0 6px -1px ${highlightRgba}`,
-          }}
-        />
-      )}
+      <div
+        className={cn(
+          "absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45",
+          side === "right" ? "-left-[5px]" : "-right-[5px]",
+        )}
+        style={{
+          background: tintRgba,
+          backdropFilter: `blur(${blur}px)`,
+          WebkitBackdropFilter: `blur(${blur}px)`,
+          borderLeft:
+            side === "right" ? "1px solid rgba(255,255,255,0.1)" : undefined,
+          borderBottom:
+            side === "right" ? "1px solid rgba(255,255,255,0.1)" : undefined,
+          borderRight:
+            side === "left" ? "1px solid rgba(255,255,255,0.1)" : undefined,
+          borderTop:
+            side === "left" ? "1px solid rgba(255,255,255,0.1)" : undefined,
+          boxShadow: `inset 0 0 6px -1px ${highlightRgba}`,
+        }}
+      />
     </div>
   );
 };

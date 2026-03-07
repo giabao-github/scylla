@@ -16,17 +16,24 @@ interface ValidationResult {
 const pass = (): ValidationResult => ({ valid: true, message: "" });
 const fail = (message: string): ValidationResult => ({ valid: false, message });
 
-export function validateInput(type: Input = "name", value: string): ValidationResult {
+export function validateInput(
+  type: Input = "name",
+  value: string,
+): ValidationResult {
   if (typeof value !== "string") {
     return fail("Value must be a string");
   }
 
   if (value.trim() === "") {
-    return fail(`${type.charAt(0).toUpperCase() + type.slice(1)} cannot be empty`);
+    return fail(
+      `${type.charAt(0).toUpperCase() + type.slice(1)} cannot be empty`,
+    );
   }
 
   if (PATTERNS.emoji.test(value)) {
-    return fail(`${type.charAt(0).toUpperCase() + type.slice(1)} cannot contain emojis`);
+    return fail(
+      `${type.charAt(0).toUpperCase() + type.slice(1)} cannot contain emojis`,
+    );
   }
 
   switch (type) {
@@ -53,7 +60,9 @@ export function validateInput(type: Input = "name", value: string): ValidationRe
         return fail("Name cannot start or end with a space or hyphen");
       }
       if (!PATTERNS.name.test(trimmed)) {
-        return fail("Name can only contain letters, hyphens, apostrophes, and spaces");
+        return fail(
+          "Name can only contain letters, hyphens, apostrophes, and spaces",
+        );
       }
 
       return pass();
@@ -134,17 +143,23 @@ export function validateInput(type: Input = "name", value: string): ValidationRe
           return fail(`Domain label "${label}" exceeds 63 characters`);
         }
         if (label.startsWith("-") || label.endsWith("-")) {
-          return fail(`Domain label "${label}" cannot start or end with a hyphen`);
+          return fail(
+            `Domain label "${label}" cannot start or end with a hyphen`,
+          );
         }
         if (!/^[a-z0-9-]+$/.test(label)) {
-          return fail(`Domain label "${label}" contains invalid characters (only letters, numbers, and hyphens are allowed)`);
+          return fail(
+            `Domain label "${label}" contains invalid characters (only letters, numbers, and hyphens are allowed)`,
+          );
         }
       }
 
       // TLD must be purely alphabetic, at least 2 chars
       const tld = labels[labels.length - 1] ?? "";
       if (!/^[a-z]{2,}$/.test(tld)) {
-        return fail("TLD must contain only letters and be at least 2 characters (e.g. .com, .io)");
+        return fail(
+          "TLD must contain only letters and be at least 2 characters (e.g. .com, .io)",
+        );
       }
 
       if (!PATTERNS.email.test(lower)) {
@@ -187,10 +202,7 @@ export function sanitizeInput(type: Input = "name", value: string): string {
     }
 
     case "username": {
-      return value
-      .replace(PATTERNS.emoji, "")
-        .replace(/\s/g, "")
-        .slice(0, 30);
+      return value.replace(PATTERNS.emoji, "").replace(/\s/g, "").slice(0, 30);
     }
 
     case "phone": {
@@ -205,9 +217,9 @@ export function sanitizeInput(type: Input = "name", value: string): string {
 
     case "name": {
       return value
-        .replace(PATTERNS.nameStrip, "")   // remove disallowed chars and emojis
-        .replace(/\s{2,}/g, " ")           // collapse multiple spaces
-        .replace(/-{2,}/g, "-")            // collapse multiple hyphens
+        .replace(PATTERNS.nameStrip, "") // remove disallowed chars and emojis
+        .replace(/\s{2,}/g, " ") // collapse multiple spaces
+        .replace(/-{2,}/g, "-") // collapse multiple hyphens
         .replace(/^[\s\-]+|[\s\-]+$/g, "") // strip leading/trailing spaces or hyphens
         .slice(0, 50)
         .trim();
@@ -215,7 +227,7 @@ export function sanitizeInput(type: Input = "name", value: string): string {
 
     case "email": {
       let cleaned = value
-        .replace(PATTERNS.emailStrip, "")  // remove disallowed chars and emojis
+        .replace(PATTERNS.emailStrip, "") // remove disallowed chars and emojis
         .trim()
         .toLowerCase();
 
@@ -264,7 +276,10 @@ export function getPlatform(nav: NavigatorWithUAData, ua: string): string {
   return "Unknown";
 }
 
-export async function getVendor(nav: NavigatorWithUAData, ua: string): Promise<string> {
+export async function getVendor(
+  nav: NavigatorWithUAData,
+  ua: string,
+): Promise<string> {
   let isBrave = false;
   if (nav.brave?.isBrave) {
     try {
@@ -277,12 +292,11 @@ export async function getVendor(nav: NavigatorWithUAData, ua: string): Promise<s
   const brands = nav.userAgentData?.brands;
   if (brands?.length) {
     const brand = brands.find(
-      (b: NavigatorUABrandVersion) =>
-        !/(not.a.brand|chromium)/i.test(b.brand),
+      (b: NavigatorUABrandVersion) => !/(not.a.brand|chromium)/i.test(b.brand),
     );
     if (brand && !isBrave) {
       return brand.brand;
-    } 
+    }
   }
 
   // Brave: spoofs as Chrome in UA — must check before Chrome
@@ -310,8 +324,11 @@ export function hexToRgba(hex: string, alpha: number): string {
           .map((c) => c + c)
           .join("")
       : h;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) {
+    return `rgba(0, 0, 0, ${Math.max(0, Math.min(1, alpha))})`;
+  }
   const r = parseInt(full.slice(0, 2), 16);
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+}

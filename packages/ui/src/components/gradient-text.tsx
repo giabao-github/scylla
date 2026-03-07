@@ -28,7 +28,7 @@ export default function GradientText({
   direction = "horizontal",
   pauseOnHover = false,
   yoyo = true,
-  borderBackground = "bg-black",
+  borderBackground = "black",
 }: GradientTextProps) {
   const [isPaused, setIsPaused] = useState(false);
   const progress = useMotionValue(0);

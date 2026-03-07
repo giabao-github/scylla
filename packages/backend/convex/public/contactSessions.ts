@@ -99,7 +99,7 @@ export const validate = query({
     const contactSession = await ctx.db.get(args.contactSessionId);
 
     if (!contactSession) {
-      return { valid: false, reason: "Contact session is not found" };
+      return { valid: false, reason: "Contact session not found" };
     }
 
     if (contactSession.expiresAt <= Date.now()) {

@@ -2,7 +2,7 @@ import React from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
 
-interface FrostLensProps {
+export interface FrostLensProps {
   children?: React.ReactNode;
   className?: string;
   radius?: number;
@@ -34,7 +34,19 @@ export const FrostLens = ({
 
   return (
     <div
-      className={cn("relative cursor-pointer", className)}
+      className={cn("relative", onClick && "cursor-pointer", className)}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       style={{
         borderRadius: br,
         isolation: "isolate",
@@ -79,31 +91,33 @@ export const FrostLens = ({
       <div className="relative z-10 w-full h-full">{children}</div>
 
       {/* Inline SVG Filter mapping */}
-      <svg
-        className="absolute invisible pointer-events-none"
-        style={{ width: 0, height: 0 }}
-        aria-hidden="true"
-      >
-        <defs>
-          <filter id={filterId} x="0%" y="0%" width="100%" height="100%">
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="0.01 0.01"
-              numOctaves="2"
-              seed="92"
-              result="noise"
-            />
-            <feGaussianBlur in="noise" stdDeviation="2" result="blurred" />
-            <feDisplacementMap
-              in="SourceGraphic"
-              in2="blurred"
-              scale={distortion}
-              xChannelSelector="R"
-              yChannelSelector="G"
-            />
-          </filter>
-        </defs>
-      </svg>
+      {distortion > 0 && (
+        <svg
+          className="absolute invisible pointer-events-none"
+          style={{ width: 0, height: 0 }}
+          aria-hidden="true"
+        >
+          <defs>
+            <filter id={filterId} x="0%" y="0%" width="100%" height="100%">
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.01 0.01"
+                numOctaves="2"
+                seed="92"
+                result="noise"
+              />
+              <feGaussianBlur in="noise" stdDeviation="2" result="blurred" />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="blurred"
+                scale={distortion}
+                xChannelSelector="R"
+                yChannelSelector="G"
+              />
+            </filter>
+          </defs>
+        </svg>
+      )}
     </div>
   );
 };

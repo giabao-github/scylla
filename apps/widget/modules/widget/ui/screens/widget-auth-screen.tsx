@@ -80,16 +80,15 @@ export const WidgetAuthScreen = () => {
   const organizationId = useAtomValue(organizationIdAtom);
   const setErrorMessage = useSetAtom(errorMessageAtom);
   const setScreen = useSetAtom(widgetScreenAtom);
+  const setContactSessionId = useSetAtom(
+    contactSessionIdAtomFamily(organizationId ?? ""),
+  );
 
   if (!organizationId) {
     setErrorMessage("Organization is not found");
     setScreen("error");
     return;
   }
-
-  const setContactSessionId = useSetAtom(
-    contactSessionIdAtomFamily(organizationId),
-  );
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -175,7 +174,16 @@ export const WidgetAuthScreen = () => {
       setScreen("selection");
     } catch (error) {
       console.error("Failed to create contact session:", error);
-      // TODO: Show error to user via toast or form error
+      toast.error("An error has occurred. Please try again!", {
+        position: "top-center",
+        style: {
+          width: "400px",
+        },
+        action: {
+          label: "Dismiss",
+          onClick: () => toast.dismiss(),
+        },
+      });
     }
   };
 
