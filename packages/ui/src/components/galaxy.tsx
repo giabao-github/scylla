@@ -196,7 +196,7 @@ interface GalaxyProps extends React.HTMLAttributes<HTMLDivElement> {
 const DEFAULT_FOCAL: [number, number] = [0.5, 0.5];
 const DEFAULT_ROTATION: [number, number] = [1.0, 0.0];
 
-export default function Galaxy({
+export const Galaxy = ({
   focal = DEFAULT_FOCAL,
   rotation = DEFAULT_ROTATION,
   starSpeed = 0.5,
@@ -214,7 +214,7 @@ export default function Galaxy({
   autoCenterRepulsion = 0,
   transparent = true,
   ...rest
-}: GalaxyProps) {
+}: GalaxyProps) => {
   const ctnDom = useRef<HTMLDivElement>(null);
   const programRef = useRef<Program | null>(null);
   const glRef = useRef<WebGLRenderingContext | null>(null);
@@ -443,4 +443,4 @@ export default function Galaxy({
   }, [transparent]);
 
   return <div ref={ctnDom} className="relative w-full h-full" {...rest} />;
-}
+};

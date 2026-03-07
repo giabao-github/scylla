@@ -9,6 +9,7 @@ import { WidgetScreen } from "@/modules/widget/types";
 // Basic widget state atoms
 export const widgetScreenAtom = atom<WidgetScreen>("loading");
 export const organizationIdAtom = atom<string | null>(null);
+export const conversationIdAtom = atom<Id<"conversations"> | null>(null);
 
 // Organization-scoped contact session atom
 export const contactSessionIdAtomFamily = atomFamily((organizationId: string) =>

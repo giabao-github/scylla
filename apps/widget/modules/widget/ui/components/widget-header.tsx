@@ -4,9 +4,17 @@ import { cn } from "@workspace/ui/lib/utils";
 export const WidgetHeader = ({
   children,
   className,
+  timeSpeed = 0.9,
+  color1 = "#A78BFA",
+  color2 = "#8B5CF6",
+  color3 = "#7C3AED",
 }: {
   children: React.ReactNode;
   className?: string;
+  timeSpeed?: number;
+  color1?: string;
+  color2?: string;
+  color3?: string;
 }) => {
   return (
     <header
@@ -17,10 +25,10 @@ export const WidgetHeader = ({
     >
       <div className="absolute inset-0">
         <Grainient
-          color1="#A78BFA"
-          color2="#8B5CF6"
-          color3="#7C3AED"
-          timeSpeed={0.9}
+          color1={color1}
+          color2={color2}
+          color3={color3}
+          timeSpeed={timeSpeed}
           colorBalance={0}
           warpStrength={0.7}
           warpFrequency={1.8}
