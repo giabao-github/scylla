@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,13 +8,11 @@ import {
   NavigatorWithUAData,
   getPlatform,
   getVendor,
-  hexToRgba,
   sanitizeInput,
   validateInput,
 } from "@workspace/shared/utils";
 import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
-import FrostLens from "@workspace/ui/components/frost-lens";
 import { cn } from "@workspace/ui/lib/utils";
 import { useMutation } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -29,22 +28,6 @@ import {
 } from "@/modules/widget/atoms/widget-atoms";
 import { Field } from "@/modules/widget/ui/components/field";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
-
-const GLASS_PRESET = {
-  tint: "#8e51f0",
-  tintOpacity: 0.72,
-  glow: "#818cf8",
-  glowOpacity: 0.3,
-  highlight: "#fff",
-  highlightOpacity: 0.35,
-};
-
-const tintRgba = hexToRgba(GLASS_PRESET.tint, GLASS_PRESET.tintOpacity);
-const glowRgba = hexToRgba(GLASS_PRESET.glow, GLASS_PRESET.glowOpacity);
-const highlightRgba = hexToRgba(
-  GLASS_PRESET.highlight,
-  GLASS_PRESET.highlightOpacity,
-);
 
 const formSchema = z.object({
   name: z
@@ -84,12 +67,6 @@ export const WidgetAuthScreen = () => {
     contactSessionIdAtomFamily(organizationId ?? ""),
   );
 
-  if (!organizationId) {
-    setErrorMessage("Organization is not found");
-    setScreen("error");
-    return;
-  }
-
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -110,6 +87,17 @@ export const WidgetAuthScreen = () => {
   );
 
   const createContactSession = useMutation(api.public.contactSessions.create);
+
+  useEffect(() => {
+    if (!organizationId) {
+      setErrorMessage("Organization is not found");
+      setScreen("error");
+    }
+  }, [organizationId, setErrorMessage, setScreen]);
+
+  if (!organizationId) {
+    return null;
+  }
 
   const onSubmit = async (values: FormSchema) => {
     if (!organizationId) {

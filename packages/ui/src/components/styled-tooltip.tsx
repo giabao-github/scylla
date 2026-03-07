@@ -72,6 +72,17 @@ const StyledTooltip = ({
   const ref = useRef<HTMLDivElement>(null);
   const [side, setSide] = useState<"left" | "right">("right");
 
+  const throttle = (fn: () => void, delay: number) => {
+    let lastCall = 0;
+    return () => {
+      const now = Date.now();
+      if (now - lastCall >= delay) {
+        lastCall = now;
+        fn();
+      }
+    };
+  };
+
   useEffect(() => {
     if (!open || !ref.current) return;
 
@@ -83,9 +94,11 @@ const StyledTooltip = ({
       setSide(spaceRight >= TOOLTIP_WIDTH + OFFSET ? "right" : "left");
     };
 
+    const throttledUpdate = throttle(updateSide, 100);
     updateSide();
-    window.addEventListener("resize", updateSide);
-    return () => window.removeEventListener("resize", updateSide);
+
+    window.addEventListener("resize", throttledUpdate);
+    return () => window.removeEventListener("resize", throttledUpdate);
   }, [open]);
 
   const tintRgba = hexToRgba(tint, tintOpacity);

@@ -128,7 +128,7 @@ export default function GradientText({
           style={{ ...gradientStyle, backgroundPosition }}
         >
           <div
-            className="absolute rounded-[1.25rem] bg-background z-[-1]"
+            className="absolute rounded-[1.25rem] z-[-1]"
             style={{
               width: "calc(100% - 2px)",
               height: "calc(100% - 2px)",
