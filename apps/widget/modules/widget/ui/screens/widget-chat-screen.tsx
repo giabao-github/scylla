@@ -8,9 +8,8 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { ArrowLeftIcon, MenuIcon } from "lucide-react";
 
 import {
-  contactSessionIdAtomFamily,
+  contactSessionIdAtom,
   conversationIdAtom,
-  errorMessageAtom,
   organizationIdAtom,
   widgetScreenAtom,
 } from "@/modules/widget/atoms/widget-atoms";
@@ -19,10 +18,7 @@ import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 export const WidgetChatScreen = () => {
   const conversationId = useAtomValue(conversationIdAtom);
   const organizationId = useAtomValue(organizationIdAtom);
-  const contactSessionId = useAtomValue(
-    contactSessionIdAtomFamily(organizationId || ""),
-  );
-  const errorMessage = useAtomValue(errorMessageAtom);
+  const contactSessionId = useAtomValue(contactSessionIdAtom);
 
   const setScreen = useSetAtom(widgetScreenAtom);
   const setConversationId = useSetAtom(conversationIdAtom);
@@ -65,6 +61,7 @@ export const WidgetChatScreen = () => {
             <Button
               variant="transparent"
               className="size-10 hover:bg-primary/40"
+              onClick={() => {}}
             >
               <MenuIcon strokeWidth={3} />
             </Button>
@@ -72,6 +69,7 @@ export const WidgetChatScreen = () => {
         </div>
       </WidgetHeader>
       <div className="flex flex-col flex-1 gap-y-4 p-4">
+        {/* TODO: implement actual chat UI */}
         <p className="text-sm">{JSON.stringify(conversation)}</p>
       </div>
     </>

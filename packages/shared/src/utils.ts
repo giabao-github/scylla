@@ -332,3 +332,11 @@ export function hexToRgba(hex: string, alpha: number): string {
   const b = parseInt(full.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
 }
+
+export const isUnauthorizedError = (error: unknown): boolean => {
+  return (
+    error instanceof Error &&
+    typeof (error as any).data === "object" &&
+    (error as any).data?.code === "UNAUTHORIZED"
+  );
+};

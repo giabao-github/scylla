@@ -11,14 +11,31 @@ export const widgetScreenAtom = atom<WidgetScreen>("loading");
 export const organizationIdAtom = atom<string | null>(null);
 export const conversationIdAtom = atom<Id<"conversations"> | null>(null);
 
-// Organization-scoped contact session atom
-export const contactSessionIdAtomFamily = atomFamily((organizationId: string) =>
+// Basic widget message atoms
+export const errorMessageAtom = atom<string | null>(null);
+export const loadingMessageAtom = atom<string | null>(null);
+
+// Contact session
+const contactSessionIdAtomFamily = atomFamily((organizationId: string) =>
   atomWithStorage<Id<"contactSessions"> | null>(
     `${CONTACT_SESSION_KEY}_${organizationId}`,
     null,
   ),
 );
 
-// Basic widget message atoms
-export const errorMessageAtom = atom<string | null>(null);
-export const loadingMessageAtom = atom<string | null>(null);
+export const contactSessionIdAtom = atom(
+  (get) => {
+    const organizationId = get(organizationIdAtom);
+    if (!organizationId) {
+      return null;
+    }
+    return get(contactSessionIdAtomFamily(organizationId));
+  },
+  (get, set, value: Id<"contactSessions"> | null) => {
+    const organizationId = get(organizationIdAtom);
+    if (!organizationId) {
+      return;
+    }
+    set(contactSessionIdAtomFamily(organizationId), value);
+  },
+);

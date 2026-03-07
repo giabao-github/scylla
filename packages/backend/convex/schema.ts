@@ -11,11 +11,14 @@ export default defineSchema({
       v.literal("escalated"),
       v.literal("resolved"),
     ),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_organization_id", ["organizationId"])
     .index("by_contact_session_id", ["contactSessionId"])
     .index("by_thread_id", ["threadId"])
-    .index("by_status_and_organization_id", ["status", "organizationId"]),
+    .index("by_organization_id_and_status", ["organizationId", "status"])
+    .index("by_updated_at", ["updatedAt"]),
   contactSessions: defineTable({
     name: v.string(),
     email: v.string(),

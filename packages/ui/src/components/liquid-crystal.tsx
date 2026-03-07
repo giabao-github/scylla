@@ -1,5 +1,7 @@
 import { type CSSProperties, type ReactNode, useId } from "react";
 
+import { cn } from "@workspace/ui/lib/utils";
+
 export interface LiquidCrystalProps {
   children?: ReactNode;
   className?: string;
@@ -10,6 +12,7 @@ export interface LiquidCrystalProps {
   distortionScale?: number;
   noiseBlur?: number;
   backdropBlur?: number;
+  seed?: number;
   tintColor?: string;
   glowColor?: string;
 }
@@ -24,6 +27,7 @@ export const LiquidCrystal = ({
   distortionScale = 50,
   noiseBlur = 2,
   backdropBlur = 0,
+  seed = 92,
   tintColor = "rgba(255,255,255,0)",
   glowColor = "rgba(255,255,255,0.3)",
 }: LiquidCrystalProps) => {
@@ -45,17 +49,17 @@ export const LiquidCrystal = ({
         <defs>
           <filter
             id={filterId}
-            x="0%"
-            y="0%"
-            width="100%"
-            height="100%"
+            x="-25%"
+            y="-25%"
+            width="150%"
+            height="150%"
             colorInterpolationFilters="sRGB"
           >
             <feTurbulence
               type="fractalNoise"
               baseFrequency={turbulenceFrequency}
               numOctaves={2}
-              seed={92}
+              seed={seed}
               result="noise"
             />
             <feGaussianBlur
@@ -76,7 +80,7 @@ export const LiquidCrystal = ({
 
       {/* Card shell */}
       <div
-        className={`isolate relative cursor-pointer ${className}`}
+        className={cn("isolate relative", className)}
         style={{
           width,
           height,
@@ -105,7 +109,6 @@ export const LiquidCrystal = ({
             backdropFilter: `blur(${backdropBlur}px)`,
             WebkitBackdropFilter: `blur(${backdropBlur}px)`,
             filter: `url(#${filterId})`,
-            // @ts-ignore – vendor prefix not in CSSProperties
             WebkitFilter: `url(#${filterId})`,
           }}
         />

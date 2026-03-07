@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
+import { isUnauthorizedError } from "@workspace/shared/utils";
 import { GlassButton } from "@workspace/ui/components/glass-button";
 import { useMutation } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -14,7 +15,7 @@ import {
 } from "lucide-react";
 
 import {
-  contactSessionIdAtomFamily,
+  contactSessionIdAtom,
   conversationIdAtom,
   errorMessageAtom,
   organizationIdAtom,
@@ -28,12 +29,23 @@ export const WidgetSelectionScreen = () => {
   const setConversationId = useSetAtom(conversationIdAtom);
 
   const organizationId = useAtomValue(organizationIdAtom);
-  const contactSessionId = useAtomValue(
-    contactSessionIdAtomFamily(organizationId || ""),
-  );
+  const contactSessionId = useAtomValue(contactSessionIdAtom);
 
   const createConversation = useMutation(api.public.conversations.create);
   const [isPending, setIsPending] = useState(false);
+
+  const buttonOptions = [
+    { icon: MessageCircleIcon, label: "Start chat", mode: "chat" as const },
+    { icon: MicIcon, label: "Start voice chat", mode: "voice" as const },
+    { icon: PhoneIcon, label: "Start audio call", mode: "audio" as const },
+  ];
+
+  const sharedButtonProps = {
+    idleAlpha: 0.06,
+    hoverAlpha: 0.2,
+    glowAlpha: 0.15,
+    disabled: isPending,
+  };
 
   const handleNewConversation = async () => {
     if (!organizationId) {
@@ -56,8 +68,14 @@ export const WidgetSelectionScreen = () => {
 
       setConversationId(conversationId);
       setScreen("chat");
-    } catch {
-      setScreen("auth");
+    } catch (error) {
+      // Check if it is an auth error
+      if (isUnauthorizedError(error)) {
+        setScreen("auth");
+      } else {
+        setErrorMessage("Failed to create conversation. Please try again.");
+        setScreen("error");
+      }
     } finally {
       setIsPending(false);
     }
@@ -72,45 +90,19 @@ export const WidgetSelectionScreen = () => {
         </div>
       </WidgetHeader>
       <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4">
-        <GlassButton
-          idleAlpha={0.06}
-          hoverAlpha={0.2}
-          glowAlpha={0.15}
-          disabled={isPending}
-          onClick={handleNewConversation}
-        >
-          <div className="flex gap-x-3 items-center text-black">
-            <MessageCircleIcon className="size-4" strokeWidth={2.5} />
-            <span>Start chat</span>
-          </div>
-          <ChevronRightIcon className="text-black" />
-        </GlassButton>
-        <GlassButton
-          idleAlpha={0.06}
-          hoverAlpha={0.2}
-          glowAlpha={0.15}
-          disabled={isPending}
-          onClick={handleNewConversation}
-        >
-          <div className="flex gap-x-3 items-center text-black">
-            <MicIcon className="size-4" strokeWidth={2.5} />
-            <span>Start voice chat</span>
-          </div>
-          <ChevronRightIcon className="text-black" />
-        </GlassButton>
-        <GlassButton
-          idleAlpha={0.06}
-          hoverAlpha={0.2}
-          glowAlpha={0.15}
-          disabled={isPending}
-          onClick={handleNewConversation}
-        >
-          <div className="flex gap-x-3 items-center text-black">
-            <PhoneIcon className="size-4" strokeWidth={2.5} />
-            <span>Start audio call</span>
-          </div>
-          <ChevronRightIcon className="text-black" />
-        </GlassButton>
+        {buttonOptions.map(({ icon: Icon, label, mode }) => (
+          <GlassButton
+            key={mode}
+            {...sharedButtonProps}
+            onClick={() => handleNewConversation()}
+          >
+            <div className="flex gap-x-3 items-center text-black">
+              <Icon className="size-4" strokeWidth={2.5} />
+              <span>{label}</span>
+            </div>
+            <ChevronRightIcon className="text-black" />
+          </GlassButton>
+        ))}
       </div>
     </>
   );

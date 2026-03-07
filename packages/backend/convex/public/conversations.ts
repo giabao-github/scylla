@@ -17,14 +17,22 @@ export const create = mutation({
       });
     }
 
+    if (session.organizationId !== args.organizationId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Organization mismatch",
+      });
+    }
+
     // Replace once functionality for thread creation is implemented
     const threadId = "123";
 
     const conversationId = await ctx.db.insert("conversations", {
       contactSessionId: session._id,
       status: "unresolved",
-      organizationId: args.organizationId,
+      organizationId: session.organizationId,
       threadId,
+      createdAt: Date.now(),
     });
 
     return conversationId;
@@ -52,11 +60,11 @@ export const getOne = query({
       return null;
     }
 
-    if (conversation.contactSessionId !== args.contactSessionId) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Access denied",
-      });
+    if (
+      conversation.contactSessionId !== args.contactSessionId ||
+      conversation.organizationId !== session.organizationId
+    ) {
+      return null;
     }
 
     return {
