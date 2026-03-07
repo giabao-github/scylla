@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
-
 import { useAtomValue } from "jotai";
 
-import {
-  contactSessionIdAtomFamily,
-  widgetScreenAtom,
-} from "@/modules/widget/atoms/widget-atoms";
+import { widgetScreenAtom } from "@/modules/widget/atoms/widget-atoms";
 import { WidgetScreen } from "@/modules/widget/types";
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 import { WidgetAuthScreen } from "@/modules/widget/ui/screens/widget-auth-screen";
+import { WidgetChatScreen } from "@/modules/widget/ui/screens/widget-chat-screen";
 import { WidgetErrorScreen } from "@/modules/widget/ui/screens/widget-error-screen";
 import { WidgetLoadingScreen } from "@/modules/widget/ui/screens/widget-loading-screen";
+import { WidgetSelectionScreen } from "@/modules/widget/ui/screens/widget-selection-screen";
 
 interface WidgetViewProps {
   organizationId: string;
@@ -31,9 +28,9 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
     case "inbox":
       return <p>TODO: Inbox</p>;
     case "selection":
-      return <p>TODO: Selection</p>;
+      return <WidgetSelectionScreen />;
     case "chat":
-      return <p>TODO: Chat</p>;
+      return <WidgetChatScreen />;
     case "contact":
       return <p>TODO: Contact</p>;
     case "library":
@@ -47,12 +44,6 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
 
 export const WidgetView = ({ organizationId }: WidgetViewProps) => {
   const screen = useAtomValue(widgetScreenAtom);
-
-  useEffect(() => {
-    return () => {
-      contactSessionIdAtomFamily.remove(organizationId);
-    };
-  }, [organizationId]);
 
   return (
     <main className="flex overflow-hidden flex-col w-full h-full min-h-screen rounded-xl border bg-muted">

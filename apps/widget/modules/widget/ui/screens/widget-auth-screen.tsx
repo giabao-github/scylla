@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import z from "zod";
 
 import {
-  contactSessionIdAtomFamily,
+  contactSessionIdAtom,
   errorMessageAtom,
   organizationIdAtom,
   widgetScreenAtom,
@@ -63,9 +63,7 @@ export const WidgetAuthScreen = () => {
   const organizationId = useAtomValue(organizationIdAtom);
   const setErrorMessage = useSetAtom(errorMessageAtom);
   const setScreen = useSetAtom(widgetScreenAtom);
-  const setContactSessionId = useSetAtom(
-    contactSessionIdAtomFamily(organizationId ?? ""),
-  );
+  const setContactSessionId = useSetAtom(contactSessionIdAtom);
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
