@@ -11,6 +11,7 @@
     "^@workspace/hooks/(.*)$",
     "^@workspace/lib/(.*)$",
     "^@workspace/modules/(.*)$",
+    "^@workspace/shared/(.*)$",
     "^@workspace/styles/(.*)$",
     "^@workspace/ui/(.*)$",
     "^@workspace/utils/(.*)$",

@@ -1,21 +1,31 @@
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
 import type { JwtPayload } from "@clerk/types";
 
-export async function getUserSessionClaims(): Promise<
-  JwtPayload | NextResponse<{ error: string }>
-> {
+export class UnauthorizedError extends Error {
+  constructor(message = "Unauthorized") {
+    super(message);
+    this.name = "UnauthorizedError";
+    Object.setPrototypeOf(this, UnauthorizedError.prototype);
+  }
+}
+
+export class SessionClaimsNotFoundError extends Error {
+  constructor(message = "Session claims are not found") {
+    super(message);
+    this.name = "SessionClaimsNotFoundError";
+    Object.setPrototypeOf(this, SessionClaimsNotFoundError.prototype);
+  }
+}
+
+export async function getUserSessionClaims(): Promise<JwtPayload> {
   const { isAuthenticated, sessionClaims } = await auth();
 
   if (!isAuthenticated) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    throw new UnauthorizedError();
   }
 
   if (!sessionClaims) {
-    return NextResponse.json(
-      { error: "Session claims not found" },
-      { status: 401 },
-    );
+    throw new SessionClaimsNotFoundError();
   }
 
   return sessionClaims;

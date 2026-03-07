@@ -1,13 +1,10 @@
-import {
-  ComponentType,
-  HTMLInputTypeAttribute,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { ComponentType, HTMLInputTypeAttribute, useRef, useState } from "react";
 
+import StyledTooltip from "@workspace/ui/components/styled-tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import { CheckIcon, InfoIcon, XIcon } from "lucide-react";
+
+import { TOOLTIP_THEME } from "@/modules/widget/constants";
 
 interface FieldProps {
   label: string;
@@ -48,11 +45,6 @@ export const Field = ({
   const showValid = hasValue && isValid === true;
   const hasError = !!error && isValid === false;
   const showError = hasError && !focused;
-  const totalChars =
-    useMemo(
-      () => tooltips?.reduce((sum, str) => sum + str.length, 0),
-      [tooltips],
-    ) || 0;
 
   return (
     <div className={cn("flex w-full flex-col gap-1.5", className)}>
@@ -87,6 +79,7 @@ export const Field = ({
                 aria-label={`${label} requirements`}
                 aria-describedby={`${id}-tooltip`}
                 ref={tooltipButtonRef}
+                tabIndex={-1}
                 onKeyDown={(e) => {
                   if (e.key === "Escape" && tooltipOpen) {
                     e.preventDefault();
@@ -101,39 +94,13 @@ export const Field = ({
               </button>
 
               {/* Tooltip */}
-              <div
+              <StyledTooltip
+                open={tooltipOpen}
                 id={`${id}-tooltip`}
-                role="tooltip"
-                className={cn(
-                  "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50",
-                  totalChars > 200 ? "w-80" : "w-56",
-                  "rounded-md px-3 py-2.5",
-                  "bg-popover/95 backdrop-blur-sm border border-white/10",
-                  "shadow-[0_8px_24px_rgba(0,0,0,0.2),0_0_0_1px_hsla(0,0%,100%,0.08)_inset]",
-                  tooltipOpen
-                    ? "opacity-100 scale-100 translate-y-0"
-                    : "opacity-0 pointer-events-none scale-95 translate-y-1",
-                  "transition-all duration-200 ease-out",
-                )}
-              >
-                {/* Arrow */}
-                <div className="absolute top-full left-1/2 w-0 h-0 border-t-4 border-r-4 border-l-4 -translate-x-1/2 border-l-transparent border-r-transparent border-t-popover/95" />
-
-                <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground mb-1.5">
-                  Requirements
-                </p>
-                <ul className="flex flex-col gap-1">
-                  {tooltips.map((h, i) => (
-                    <li
-                      key={i}
-                      className="flex gap-2 items-start text-xs text-foreground/80"
-                    >
-                      <span className="mt-1.5 rounded-full size-1 bg-muted-foreground/80 shrink-0" />
-                      {h}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                title="Requirements"
+                content={tooltips}
+                {...TOOLTIP_THEME}
+              />
             </div>
           )}
         </div>

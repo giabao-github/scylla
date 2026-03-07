@@ -16,6 +16,7 @@
     "typescript": "latest"
   },
   "dependencies": {
+    "@clerk/backend": "^3.0.1",
     "@clerk/nextjs": "^6.37.3",
     "@workspace/shared": "workspace:*",
     "@workspace/ui": "workspace:*",

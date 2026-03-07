@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,16 +15,19 @@ import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { cn } from "@workspace/ui/lib/utils";
 import { useMutation } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { ArrowBigRightIcon, MailIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import z from "zod";
 
+import {
+  contactSessionIdAtomFamily,
+  errorMessageAtom,
+  organizationIdAtom,
+  widgetScreenAtom,
+} from "@/modules/widget/atoms/widget-atoms";
 import { Field } from "@/modules/widget/ui/components/field";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
-
-interface WidgetAuthScreenProps {
-  organizationId: string;
-}
 
 const formSchema = z.object({
   name: z
@@ -55,7 +59,14 @@ const shouldShowFieldError = (
   );
 };
 
-export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
+export const WidgetAuthScreen = () => {
+  const organizationId = useAtomValue(organizationIdAtom);
+  const setErrorMessage = useSetAtom(errorMessageAtom);
+  const setScreen = useSetAtom(widgetScreenAtom);
+  const setContactSessionId = useSetAtom(
+    contactSessionIdAtomFamily(organizationId ?? ""),
+  );
+
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -77,9 +88,20 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
 
   const createContactSession = useMutation(api.public.contactSessions.create);
 
+  useEffect(() => {
+    if (!organizationId) {
+      setErrorMessage("Organization is not found");
+      setScreen("error");
+    }
+  }, [organizationId, setErrorMessage, setScreen]);
+
+  if (!organizationId) {
+    return null;
+  }
+
   const onSubmit = async (values: FormSchema) => {
     if (!organizationId) {
-      toast.error("Organization not found", {
+      toast.error("Organization is not found", {
         description: "Please create an organization to continue",
         position: "top-center",
         style: {
@@ -136,10 +158,20 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
         metadata,
       });
 
-      // TODO: handle success state
+      setContactSessionId(contactSessionId);
+      setScreen("selection");
     } catch (error) {
       console.error("Failed to create contact session:", error);
-      // TODO: Show error to user via toast or form error
+      toast.error("An error has occurred. Please try again!", {
+        position: "top-center",
+        style: {
+          width: "400px",
+        },
+        action: {
+          label: "Dismiss",
+          onClick: () => toast.dismiss(),
+        },
+      });
     }
   };
 
@@ -231,7 +263,7 @@ export const WidgetAuthScreen = ({ organizationId }: WidgetAuthScreenProps) => {
                   tooltips={[
                     "Format: <local>@<domain>.<tld>",
                     "Must contain exactly one @ symbol",
-                    "Local part (before @) max 64 characters",
+                    "Local part (before @) at most 64 characters",
                     "Local part cannot start or end with special characters (!@#$%^&*()_+)",
                     "Domain labels can only contain letters (a-z, A-Z), numbers (0-9), and hyphens (-)",
                     "Domain labels cannot start or end with a hyphen (-)",
