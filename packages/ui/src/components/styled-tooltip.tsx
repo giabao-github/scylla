@@ -49,6 +49,32 @@ interface StyledTooltipProps {
 const TOOLTIP_WIDTH = 300;
 const OFFSET = 12;
 
+const throttle = (fn: () => void, delay: number) => {
+  let lastCall = 0;
+  let trailingTimer: ReturnType<typeof setTimeout> | null = null;
+  return () => {
+    const now = Date.now();
+    const remaining = delay - (now - lastCall);
+    if (remaining <= 0) {
+      // Leading edge — fire immediately and cancel any pending trailing call
+      if (trailingTimer !== null) {
+        clearTimeout(trailingTimer);
+        trailingTimer = null;
+      }
+      lastCall = now;
+      fn();
+    } else {
+      // Schedule a trailing call so the final resize state is always captured
+      if (trailingTimer !== null) clearTimeout(trailingTimer);
+      trailingTimer = setTimeout(() => {
+        lastCall = Date.now();
+        trailingTimer = null;
+        fn();
+      }, remaining);
+    }
+  };
+};
+
 const StyledTooltip = ({
   open,
   id,
@@ -71,17 +97,6 @@ const StyledTooltip = ({
 }: StyledTooltipProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const [side, setSide] = useState<"left" | "right">("right");
-
-  const throttle = (fn: () => void, delay: number) => {
-    let lastCall = 0;
-    return () => {
-      const now = Date.now();
-      if (now - lastCall >= delay) {
-        lastCall = now;
-        fn();
-      }
-    };
-  };
 
   useEffect(() => {
     if (!open || !ref.current) return;

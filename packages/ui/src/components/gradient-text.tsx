@@ -28,9 +28,24 @@ export default function GradientText({
   direction = "horizontal",
   pauseOnHover = false,
   yoyo = true,
-  borderBackground = "black",
+  borderBackground = "var(--background, black)",
 }: GradientTextProps) {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setPrefersReducedMotion(mediaQuery.matches);
+    setIsPaused(mediaQuery.matches);
+
+    const handler = (e: MediaQueryListEvent) => {
+      setPrefersReducedMotion(e.matches);
+      setIsPaused(e.matches);
+    };
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+
   const progress = useMotionValue(0);
   const elapsedRef = useRef(0);
   const lastTimeRef = useRef<number | null>(null);
@@ -76,23 +91,18 @@ export default function GradientText({
   }, [animationSpeed, yoyo, progress]);
 
   const backgroundPosition = useTransform(progress, (p) => {
-    if (direction === "horizontal") {
-      return `${p}% 50%`;
-    } else if (direction === "vertical") {
-      return `50% ${p}%`;
-    } else {
-      // For diagonal, move only horizontally to avoid interference patterns
-      return `${p}% 50%`;
-    }
+    if (direction === "horizontal") return `${p}% 50%`;
+    if (direction === "vertical") return `50% ${p}%`;
+    return `${p}% 50%`;
   });
 
   const handleMouseEnter = useCallback(() => {
-    if (pauseOnHover) setIsPaused(true);
-  }, [pauseOnHover]);
+    if (pauseOnHover && !prefersReducedMotion) setIsPaused(true);
+  }, [pauseOnHover, prefersReducedMotion]);
 
   const handleMouseLeave = useCallback(() => {
-    if (pauseOnHover) setIsPaused(false);
-  }, [pauseOnHover]);
+    if (pauseOnHover && !prefersReducedMotion) setIsPaused(false);
+  }, [pauseOnHover, prefersReducedMotion]);
 
   const gradientAngle =
     direction === "horizontal"
@@ -100,7 +110,7 @@ export default function GradientText({
       : direction === "vertical"
         ? "to bottom"
         : "to bottom right";
-  // Duplicate first color at the end for seamless looping
+
   const safeColors =
     colors.length > 0 ? colors : ["#5227FF", "#FF9FFC", "#B19EEF"];
   const gradientColors = [...safeColors, safeColors[0]].join(", ");
@@ -135,7 +145,7 @@ export default function GradientText({
               left: "50%",
               top: "50%",
               transform: "translate(-50%, -50%)",
-              backgroundColor: borderBackground ?? "black",
+              backgroundColor: borderBackground,
             }}
           />
         </motion.div>
