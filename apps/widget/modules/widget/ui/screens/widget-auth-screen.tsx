@@ -27,6 +27,7 @@ import {
   widgetScreenAtom,
 } from "@/modules/widget/atoms/widget-atoms";
 import { Field } from "@/modules/widget/ui/components/field";
+import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 
 const formSchema = z.object({
@@ -330,6 +331,7 @@ export const WidgetAuthScreen = () => {
           </Button>
         </form>
       </Form>
+      <WidgetFooter />
     </>
   );
 };

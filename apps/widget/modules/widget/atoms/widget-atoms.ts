@@ -39,3 +39,6 @@ export const contactSessionIdAtom = atom(
     set(contactSessionIdAtomFamily(organizationId), value);
   },
 );
+
+// Agent atoms
+export const selectedModelAtom = atom<string>("gemini-3.1-flash-lite-preview");

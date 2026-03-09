@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import { isUnauthorizedError } from "@workspace/shared/utils";
-import { GlassButton } from "@workspace/ui/components/glass-button";
+import { GlassButton } from "@workspace/ui/components/glass/glass-button";
 import { useMutation } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import {

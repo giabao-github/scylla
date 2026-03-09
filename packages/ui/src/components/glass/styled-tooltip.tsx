@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { hexToRgba } from "@workspace/shared/utils";
 
-import { FrostLens } from "@workspace/ui/components/frost-lens";
+import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
 import { cn } from "@workspace/ui/lib/utils";
 
 interface StyledTooltipProps {
@@ -75,7 +75,7 @@ const throttle = (fn: () => void, delay: number) => {
   };
 };
 
-const StyledTooltip = ({
+export const StyledTooltip = ({
   open,
   id,
   title,
@@ -247,5 +247,3 @@ const StyledTooltip = ({
     </div>
   );
 };
-
-export default StyledTooltip;
