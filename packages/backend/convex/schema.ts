@@ -46,7 +46,8 @@ export default defineSchema({
     .index("by_email", ["email"]),
   users: defineTable({
     name: v.string(),
-  }),
+    tokenIdentifier: v.string(),
+  }).index("by_token_identifier", ["tokenIdentifier"]),
   organizations: defineTable({
     name: v.string(),
     organizationId: v.string(),

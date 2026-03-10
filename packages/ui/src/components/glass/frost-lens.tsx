@@ -39,7 +39,7 @@ export const FrostLens = ({
       className={cn("relative", onClick && "cursor-pointer", className)}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
-      aria-label={ariaLabel}
+      aria-label={onClick ? ariaLabel : undefined}
       onKeyDown={
         onClick
           ? (e: React.KeyboardEvent) => {

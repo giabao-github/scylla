@@ -378,10 +378,7 @@ export type PromptInputProps = Omit<
   // e.g., "image/*" or leave undefined for any
   accept?: string;
   multiple?: boolean;
-  // When true, accepts drops anywhere on document. Default false (opt-in).
   globalDrop?: boolean;
-  // Render a hidden input with given name and keep it in sync for native form posts. Default false.
-  syncHiddenInput?: boolean;
   // Minimal constraints
   maxFiles?: number;
   // bytes
@@ -401,7 +398,6 @@ export const PromptInput = ({
   accept,
   multiple,
   globalDrop,
-  syncHiddenInput,
   maxFiles,
   maxFileSize,
   onError,
@@ -417,11 +413,11 @@ export const PromptInput = ({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  // ----- Local attachments (only used when no provider)
+  // Local attachments (only used when no provider)
   const [items, setItems] = useState<(FileUIPart & { id: string })[]>([]);
   const files = usingProvider ? controller.attachments.files : items;
 
-  // ----- Local referenced sources (always local to PromptInput)
+  // Local referenced sources (always local to PromptInput)
   const [referencedSources, setReferencedSources] = useState<
     (SourceDocumentUIPart & { id: string })[]
   >([]);
@@ -485,9 +481,11 @@ export const PromptInput = ({
         return null;
       }
       const capacity =
-        typeof maxFiles === "number"
-          ? Math.max(0, maxFiles - currentCount)
-          : undefined;
+        multiple === false
+          ? Math.max(0, 1 - currentCount)
+          : typeof maxFiles === "number"
+            ? Math.max(0, maxFiles - currentCount)
+            : undefined;
       const capped =
         typeof capacity === "number" ? sized.slice(0, capacity) : sized;
       if (typeof capacity === "number" && sized.length > capacity) {
@@ -498,16 +496,14 @@ export const PromptInput = ({
       }
       return { valid: sized, capped };
     },
-    [matchesAccept, maxFileSize, maxFiles, onError],
+    [matchesAccept, maxFileSize, maxFiles, multiple, onError],
   );
 
   const addLocal = useCallback(
     (fileList: File[] | FileList) => {
       setItems((prev) => {
         const result = validateFiles(fileList, prev.length);
-        if (!result || result.capped.length === 0) {
-          return prev;
-        }
+        if (!result || result.capped.length === 0) return prev;
 
         const next: (FileUIPart & { id: string })[] = result.capped.map(
           (file) => ({
@@ -586,14 +582,6 @@ export const PromptInput = ({
     }
     controller.__registerFileInput(inputRef, () => inputRef.current?.click());
   }, [usingProvider, controller]);
-
-  // Note: File input cannot be programmatically set for security reasons
-  // The syncHiddenInput prop is no longer functional
-  useEffect(() => {
-    if (syncHiddenInput && inputRef.current && files.length === 0) {
-      inputRef.current.value = "";
-    }
-  }, [files, syncHiddenInput]);
 
   // Attach drop handlers on nearest form and document (opt-in)
   useEffect(() => {
@@ -942,7 +930,7 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
       placeholder={placeholder}
-      {...props}
+      {...rest}
       {...controlledProps}
     />
   );

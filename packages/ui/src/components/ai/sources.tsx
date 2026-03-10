@@ -11,7 +11,7 @@ import {
 } from "@workspace/ui/components/collapsible";
 import { cn } from "@workspace/ui/lib/utils";
 
-export type SourcesProps = ComponentProps<"div">;
+export type SourcesProps = ComponentProps<typeof Collapsible>;
 
 export const Sources = ({ className, ...props }: SourcesProps) => (
   <Collapsible
@@ -63,13 +63,19 @@ export const SourcesContent = ({
 
 export type SourceProps = ComponentProps<"a">;
 
-export const Source = ({ href, title, children, ...props }: SourceProps) => (
+export const Source = ({
+  href,
+  title,
+  children,
+  className,
+  ...props
+}: SourceProps) => (
   <a
-    className="flex gap-2 items-center"
+    {...props}
+    className={cn("flex gap-2 items-center", className)}
     href={href}
     rel="noreferrer"
     target="_blank"
-    {...props}
   >
     {children ?? (
       <>

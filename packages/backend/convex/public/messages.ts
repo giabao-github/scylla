@@ -8,11 +8,15 @@ import { ConvexError, v } from "convex/values";
 import { components, internal } from "@workspace/backend/_generated/api";
 import { action, query } from "@workspace/backend/_generated/server";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
+import { getThreadById } from "@workspace/backend/system/conversations";
 
 const resolveModel = (modelId: string): LanguageModel => {
   if (modelId.startsWith("gpt-")) return openai.chat(modelId);
   if (modelId.startsWith("gemini-")) return google.chat(modelId);
-  return google.chat("gemini-3.1-flash-lite-preview");
+  throw new ConvexError({
+    code: "BAD_REQUEST",
+    message: `Unsupported model ID: ${modelId}`,
+  });
 };
 
 const agentForModel = (modelId: string | undefined): typeof supportAgent =>
@@ -30,7 +34,10 @@ export const create = action({
     prompt: v.string(),
     modelId: v.optional(v.string()),
   },
-  handler: async (ctx, { threadId, contactSessionId, prompt, modelId }) => {
+  handler: async (
+    ctx,
+    { threadId, contactSessionId, prompt, modelId },
+  ): Promise<void> => {
     const contactSession = await ctx.runQuery(
       internal.system.contactSessions.getOne,
       { contactSessionId },
@@ -44,7 +51,7 @@ export const create = action({
     }
 
     const conversation = await ctx.runQuery(
-      internal.system.conversations.getThreadById,
+      internal.system.conversations.getThreadByIdQuery,
       { threadId },
     );
 
@@ -100,10 +107,7 @@ export const getMany = query({
       });
     }
 
-    const conversation = await ctx.runQuery(
-      internal.system.conversations.getThreadById,
-      { threadId: args.threadId },
-    );
+    const conversation = await getThreadById(ctx, args.threadId);
 
     if (!conversation) {
       throw new ConvexError({

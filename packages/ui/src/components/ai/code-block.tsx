@@ -328,10 +328,10 @@ export const highlightCode = (
 export const cancelHighlightCode = (
   code: string,
   language: BundledLanguage,
-  callback: (result: TokenizedCode) => void,
+  onResult: (result: TokenizedCode) => void,
 ) => {
   const tokensCacheKey = getTokensCacheKey(code, language);
-  subscribers.remove(tokensCacheKey, callback);
+  subscribers.remove(tokensCacheKey, onResult);
 };
 
 // Line number styles using CSS counters

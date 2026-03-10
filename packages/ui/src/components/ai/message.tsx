@@ -104,7 +104,7 @@ export const MessageAction = ({
   const button = (
     <Button size={size} type="button" variant={variant} {...props}>
       {children}
-      <span className="sr-only">{accessibleLabel}</span>
+      {accessibleLabel && <span className="sr-only">{accessibleLabel}</span>}
     </Button>
   );
 
@@ -165,8 +165,14 @@ export const MessageBranch = ({
 
   // Sync with external defaultBranch changes
   useEffect(() => {
-    setCurrentBranch(defaultBranch);
-  }, [defaultBranch]);
+    setCurrentBranch((prev) => {
+      // Only update if within valid bounds, or if branches not yet populated
+      if (branches.length === 0 || defaultBranch < branches.length) {
+        return defaultBranch;
+      }
+      return prev;
+    });
+  }, [defaultBranch, branches.length]);
 
   const handleBranchChange = useCallback(
     (newBranch: number) => {

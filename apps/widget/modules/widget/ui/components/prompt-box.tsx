@@ -351,6 +351,9 @@ export const PromptBox = ({
     // eslint-disable-next-line no-console
     console.log("Submitting message:", message);
 
+    // Clear any existing timeouts before creating new ones
+    timeoutsRef.current.forEach(clearTimeout);
+
     timeoutsRef.current = [
       setTimeout(() => setStatus("streaming"), SUBMITTING_TIMEOUT),
       setTimeout(() => setStatus("ready"), STREAMING_TIMEOUT),

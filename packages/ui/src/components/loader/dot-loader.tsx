@@ -10,7 +10,7 @@ export interface LoaderProps {
 const CSS_COLOR_RE =
   /^(#[\da-f]{3,8}|rgba?\(\s*[\d.,%\s]+\)|hsla?\(\s*[\d.,%\s]+\)|[a-z]{2,30})$/i;
 
-const CSS_SIZE_RE = /^[\d.]+(px|rem|em|vh|vw|%)$/;
+const CSS_SIZE_RE = /^\d+(?:\.\d+)?(px|rem|em|vh|vw|%)$/;
 
 const sanitizeColor = (value: string, fallback: string): string =>
   CSS_COLOR_RE.test(value.trim()) ? value.trim() : fallback;

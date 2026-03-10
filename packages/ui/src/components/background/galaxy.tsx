@@ -343,7 +343,7 @@ export const Galaxy = ({
           (t * 0.001 * starSpeedRef.current) / 10.0;
       }
 
-      const lerpFactor = 1 - Math.pow(0.05, deltaTime * 60);
+      const lerpFactor = 1 - Math.pow(0.95, deltaTime * 60);
       smoothMousePos.current.x +=
         (targetMousePos.current.x - smoothMousePos.current.x) * lerpFactor;
       smoothMousePos.current.y +=

@@ -98,16 +98,18 @@ const renderAttachmentImage = (
       alt={filename || "Image"}
       className="object-cover size-full"
       height={96}
-      src={url}
       width={96}
+      src={url}
+      loading="lazy"
     />
   ) : (
     <img
       alt={filename || "Image"}
       className="object-cover rounded size-full"
       height={20}
-      src={url}
       width={20}
+      src={url}
+      loading="lazy"
     />
   );
 

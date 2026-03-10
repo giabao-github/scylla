@@ -11,6 +11,7 @@ export const WIDGET_SCREENS = {
 } as const;
 
 export const CONTACT_SESSION_KEY = "scylla_contact_session";
+export const SELECTED_MODEL_KEY = "scylla_selected_model";
 
 export const TOOLTIP_THEME = {
   tint: "#1a1035",

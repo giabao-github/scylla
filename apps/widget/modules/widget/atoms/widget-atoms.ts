@@ -3,7 +3,10 @@ import { atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { atomWithStorage } from "jotai/utils";
 
-import { CONTACT_SESSION_KEY } from "@/modules/widget/constants";
+import {
+  CONTACT_SESSION_KEY,
+  SELECTED_MODEL_KEY,
+} from "@/modules/widget/constants";
 import {
   DEFAULT_MODEL_ID,
   ModelId,
@@ -46,6 +49,6 @@ export const contactSessionIdAtom = atom(
 
 // Agent atoms
 export const selectedModelAtom = atomWithStorage<ModelId>(
-  "selected_model",
+  SELECTED_MODEL_KEY,
   DEFAULT_MODEL_ID,
 );

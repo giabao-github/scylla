@@ -65,20 +65,25 @@ const ThinkingEllipsis = () => (
 const ErrorMessage = ({
   message,
   onRetry,
+  disabled,
 }: {
   message: string;
   onRetry?: () => void;
+  disabled?: boolean;
 }) => (
   <div className="flex gap-x-2">
     <span className="text-xs text-rose-400">{message}</span>
     {onRetry && (
       <button
         onClick={onRetry}
+        disabled={disabled}
         aria-label="Retry sending message"
         className={cn(
           "flex gap-1 items-center ml-1 text-xs text-rose-400",
           "underline-offset-2 hover:underline hover:text-rose-300",
           "transition-colors shrink-0",
+          disabled &&
+            "opacity-50 cursor-not-allowed hover:no-underline hover:text-rose-400",
         )}
       >
         <RefreshCwIcon className="size-3" />
@@ -93,6 +98,11 @@ const formSchema = z.object({
 });
 
 type FormSchema = z.infer<typeof formSchema>;
+
+const ensureTrailingPeriod = (str: string): string => {
+  const trimmed = str.trim();
+  return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
+};
 
 export const WidgetChatScreen = () => {
   const conversationId = useAtomValue(conversationIdAtom);
@@ -140,11 +150,6 @@ export const WidgetChatScreen = () => {
     },
   });
   const message = form.watch("message");
-
-  const ensureTrailingPeriod = (str: string): string => {
-    const trimmed = str.trim();
-    return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
-  };
 
   const parseErrorMessage = (err: unknown): string => {
     const raw = err instanceof Error ? err.message : "Something went wrong.";
@@ -323,6 +328,7 @@ export const WidgetChatScreen = () => {
                         <ErrorMessage
                           message={generationError || "Something went wrong."}
                           onRetry={handleRetry}
+                          disabled={isGenerating}
                         />
                       )}
                       {!isEmpty && (

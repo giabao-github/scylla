@@ -19,8 +19,18 @@ export const add = mutation({
       throw new Error("User is not authenticated");
     }
 
+    const existingUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
+      .first();
+
+    if (existingUser) {
+      throw new Error("User already exists");
+    }
+
     const userId = await ctx.db.insert("users", {
       name: args.name,
+      tokenIdentifier: identity.tokenIdentifier,
     });
 
     return userId;

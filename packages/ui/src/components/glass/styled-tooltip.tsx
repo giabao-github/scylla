@@ -145,7 +145,7 @@ export const StyledTooltip = ({
       ref={ref}
       id={id}
       role="tooltip"
-      aria-hidden={!open}
+      aria-hidden={!open || undefined}
       style={{ width: TOOLTIP_WIDTH, transform: "translateZ(0)" }}
       className={cn(
         "absolute z-50",
@@ -215,8 +215,8 @@ export const StyledTooltip = ({
           {/* Content list */}
           {content && content.length > 0 && (
             <ul className="space-y-1.5">
-              {content.map((item) => (
-                <li key={item} className="flex gap-2 items-baseline">
+              {content.map((item, index) => (
+                <li key={index} className="flex gap-2 items-baseline">
                   <span
                     className="w-1 h-1 rounded-full -translate-y-px shrink-0"
                     style={{ backgroundColor: bulletColor }}
