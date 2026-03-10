@@ -16,8 +16,8 @@
     "typescript": "latest"
   },
   "dependencies": {
-    "@ai-sdk/google": "3.0.43",
-    "@ai-sdk/openai": "3.0.41",
+    "@ai-sdk/google": "^3.0.43",
+    "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/provider-utils": "^4.0.19",
     "@clerk/backend": "^3.0.1",
     "@clerk/nextjs": "^6.37.3",

@@ -60,7 +60,7 @@ export const getOne = query({
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.contactSessionId);
 
-    if (!session || session.expiresAt < Date.now()) {
+    if (!session) {
       throw new ConvexError({
         code: "UNAUTHORIZED",
         message: "Invalid session",
@@ -97,6 +97,7 @@ export const getOne = query({
       _id: conversation._id,
       status: conversation.status,
       threadId: conversation.threadId,
+      createdAt: conversation.createdAt,
     };
   },
 });

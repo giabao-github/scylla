@@ -82,6 +82,9 @@ import { cn } from "@workspace/ui/lib/utils";
 const convertBlobUrlToDataUrl = async (url: string): Promise<string | null> => {
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      return null;
+    }
     const blob = await response.blob();
     // FileReader uses callback-based API, wrapping in Promise is necessary
     // oxlint-disable-next-line eslint-plugin-promise(avoid-new)
@@ -261,7 +264,11 @@ export const PromptInputProvider = ({
 
   const __registerFileInput = useCallback(
     (ref: RefObject<HTMLInputElement | null>, open: () => void) => {
-      fileInputRef.current = ref.current;
+      // Store the ref object to always read the latest .current value
+      Object.defineProperty(fileInputRef, "current", {
+        get: () => ref.current,
+        configurable: true,
+      });
       openRef.current = open;
     },
     [],
@@ -453,8 +460,11 @@ export const PromptInput = ({
     [accept],
   );
 
-  const addLocal = useCallback(
-    (fileList: File[] | FileList) => {
+  const validateFiles = useCallback(
+    (
+      fileList: File[] | FileList,
+      currentCount: number,
+    ): { valid: File[]; capped: File[] } | null => {
       const incoming = [...fileList];
       const accepted = incoming.filter((f) => matchesAccept(f));
       if (incoming.length && accepted.length === 0) {
@@ -462,7 +472,7 @@ export const PromptInput = ({
           code: "accept",
           message: "No files match the accepted types.",
         });
-        return;
+        return null;
       }
       const withinSize = (f: File) =>
         maxFileSize ? f.size <= maxFileSize : true;
@@ -472,36 +482,47 @@ export const PromptInput = ({
           code: "max_file_size",
           message: "All files exceed the maximum size.",
         });
-        return;
+        return null;
       }
+      const capacity =
+        typeof maxFiles === "number"
+          ? Math.max(0, maxFiles - currentCount)
+          : undefined;
+      const capped =
+        typeof capacity === "number" ? sized.slice(0, capacity) : sized;
+      if (typeof capacity === "number" && sized.length > capacity) {
+        onError?.({
+          code: "max_files",
+          message: "Too many files. Some were not added.",
+        });
+      }
+      return { valid: sized, capped };
+    },
+    [matchesAccept, maxFileSize, maxFiles, onError],
+  );
 
+  const addLocal = useCallback(
+    (fileList: File[] | FileList) => {
       setItems((prev) => {
-        const capacity =
-          typeof maxFiles === "number"
-            ? Math.max(0, maxFiles - prev.length)
-            : undefined;
-        const capped =
-          typeof capacity === "number" ? sized.slice(0, capacity) : sized;
-        if (typeof capacity === "number" && sized.length > capacity) {
-          onError?.({
-            code: "max_files",
-            message: "Too many files. Some were not added.",
-          });
+        const result = validateFiles(fileList, prev.length);
+        if (!result || result.capped.length === 0) {
+          return prev;
         }
-        const next: (FileUIPart & { id: string })[] = [];
-        for (const file of capped) {
-          next.push({
+
+        const next: (FileUIPart & { id: string })[] = result.capped.map(
+          (file) => ({
             filename: file.name,
             id: nanoid(),
             mediaType: file.type,
             type: "file",
             url: URL.createObjectURL(file),
-          });
-        }
+          }),
+        );
+
         return [...prev, ...next];
       });
     },
-    [matchesAccept, maxFiles, maxFileSize, onError],
+    [validateFiles],
   );
 
   const removeLocal = useCallback(
@@ -519,45 +540,12 @@ export const PromptInput = ({
   // Wrapper that validates files before calling provider's add
   const addWithProviderValidation = useCallback(
     (fileList: File[] | FileList) => {
-      const incoming = [...fileList];
-      const accepted = incoming.filter((f) => matchesAccept(f));
-      if (incoming.length && accepted.length === 0) {
-        onError?.({
-          code: "accept",
-          message: "No files match the accepted types.",
-        });
-        return;
-      }
-      const withinSize = (f: File) =>
-        maxFileSize ? f.size <= maxFileSize : true;
-      const sized = accepted.filter(withinSize);
-      if (accepted.length > 0 && sized.length === 0) {
-        onError?.({
-          code: "max_file_size",
-          message: "All files exceed the maximum size.",
-        });
-        return;
-      }
-
-      const currentCount = files.length;
-      const capacity =
-        typeof maxFiles === "number"
-          ? Math.max(0, maxFiles - currentCount)
-          : undefined;
-      const capped =
-        typeof capacity === "number" ? sized.slice(0, capacity) : sized;
-      if (typeof capacity === "number" && sized.length > capacity) {
-        onError?.({
-          code: "max_files",
-          message: "Too many files. Some were not added.",
-        });
-      }
-
-      if (capped.length > 0) {
-        controller?.attachments.add(capped);
+      const result = validateFiles(fileList, files.length);
+      if (result && result.capped.length > 0) {
+        controller?.attachments.add(result.capped);
       }
     },
-    [matchesAccept, maxFileSize, maxFiles, onError, files.length, controller],
+    [validateFiles, files.length, controller],
   );
 
   const clearAttachments = useCallback(
@@ -624,10 +612,8 @@ export const PromptInput = ({
       }
     };
     const onDrop = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes("Files")) {
-        e.preventDefault();
-      }
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+        e.preventDefault();
         add(e.dataTransfer.files);
       }
     };
@@ -732,12 +718,6 @@ export const PromptInput = ({
             return (formData.get("message") as string) || "";
           })();
 
-      // Reset form immediately after capturing text to avoid race condition
-      // where user input during async blob conversion would be lost
-      if (!usingProvider) {
-        form.reset();
-      }
-
       try {
         // Convert blob URLs to data URLs asynchronously
         const convertedFiles: FileUIPart[] = await Promise.all(
@@ -763,6 +743,8 @@ export const PromptInput = ({
             clear();
             if (usingProvider) {
               controller.textInput.clear();
+            } else {
+              form.reset();
             }
           } catch {
             // Don't clear on error - user may want to retry
@@ -772,6 +754,8 @@ export const PromptInput = ({
           clear();
           if (usingProvider) {
             controller.textInput.clear();
+          } else {
+            form.reset();
           }
         }
       } catch {
@@ -830,7 +814,9 @@ export const PromptInputBody = ({
 
 export type PromptInputTextareaProps = ComponentProps<
   typeof InputGroupTextarea
->;
+> & {
+  value?: string;
+};
 
 export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
   const {
@@ -838,17 +824,22 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
     onKeyDown,
     className,
     placeholder = "What would you like to know?",
+    value,
+    ...rest
   } = props;
   const controller = useOptionalPromptInputController();
   const attachments = usePromptInputAttachments();
   const [isComposing, setIsComposing] = useState(false);
 
   useEffect(() => {
-    const val = (props as any).value;
-    if (controller && val !== undefined && val !== controller.textInput.value) {
-      controller.textInput.setInput(String(val));
+    if (
+      controller &&
+      value !== undefined &&
+      value !== controller.textInput.value
+    ) {
+      controller.textInput.setInput(String(value));
     }
-  }, [props, controller]);
+  }, [value, controller]);
 
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = useCallback(
     (e) => {
@@ -933,10 +924,7 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
           controller.textInput.setInput(e.currentTarget.value);
           onChange?.(e);
         },
-        value:
-          (props as any).value !== undefined
-            ? (props as any).value
-            : controller.textInput.value,
+        value: value !== undefined ? value : controller.textInput.value,
       }
     : {
         onChange,
@@ -1014,6 +1002,7 @@ export type PromptInputButtonTooltip =
 
 export type PromptInputButtonProps = ComponentProps<typeof InputGroupButton> & {
   tooltip?: PromptInputButtonTooltip;
+  iconOnly?: boolean;
 };
 
 export const PromptInputButton = ({
@@ -1021,10 +1010,18 @@ export const PromptInputButton = ({
   className,
   size,
   tooltip,
+  iconOnly,
   ...props
 }: PromptInputButtonProps) => {
   const newSize =
-    size ?? (Children.count(props.children) > 1 ? "sm" : "icon-sm");
+    size ??
+    (iconOnly !== undefined
+      ? iconOnly
+        ? "icon-sm"
+        : "sm"
+      : Children.count(props.children) > 1
+        ? "sm"
+        : "icon-sm");
 
   const button = (
     <InputGroupButton

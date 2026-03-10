@@ -22,14 +22,9 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@workspace/ui/components/ai/prompt-input";
-import {
-  Suggestion,
-  Suggestions,
-} from "@workspace/ui/components/ai/suggestion";
 import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
-import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAction, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -79,6 +74,7 @@ const ErrorMessage = ({
     {onRetry && (
       <button
         onClick={onRetry}
+        aria-label="Retry sending message"
         className={cn(
           "flex gap-1 items-center ml-1 text-xs text-rose-400",
           "underline-offset-2 hover:underline hover:text-rose-300",
@@ -145,6 +141,34 @@ export const WidgetChatScreen = () => {
   });
   const message = form.watch("message");
 
+  const ensureTrailingPeriod = (str: string): string => {
+    const trimmed = str.trim();
+    return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
+  };
+
+  const parseErrorMessage = (err: unknown): string => {
+    const raw = err instanceof Error ? err.message : "Something went wrong.";
+
+    const retryMatch = raw.match(/Last error:\s*(.+?)(?:\.\s*For more|$)/);
+    if (retryMatch?.[1]) {
+      return ensureTrailingPeriod(retryMatch[1]);
+    }
+
+    const uncaughtMatch = raw.match(
+      /Uncaught\s+\w+:\s*(.+?)(?:\.\s*Called by|$)/,
+    );
+    if (uncaughtMatch?.[1]) {
+      return ensureTrailingPeriod(uncaughtMatch[1]);
+    }
+
+    const convexMatch = raw.match(/Server Error\s+(.+?)(?:\s*Called by|$)/);
+    if (convexMatch?.[1]) {
+      return ensureTrailingPeriod(convexMatch[1]);
+    }
+
+    return "Something went wrong.";
+  };
+
   const createMessage = useAction(api.public.messages.create);
   const submitIds = useRef<Set<string>>(new Set());
 
@@ -174,18 +198,16 @@ export const WidgetChatScreen = () => {
       });
       setUserMessage(null);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Something went wrong.";
-      setGenerationError(message);
+      setGenerationError(parseErrorMessage(err));
       setUserMessage(null);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleRetry = () => {
+  const handleRetry = async () => {
     if (lastPrompt) {
-      handleSubmit(lastPrompt);
+      await handleSubmit(lastPrompt);
     }
   };
 
@@ -259,7 +281,7 @@ export const WidgetChatScreen = () => {
 
       <Conversation>
         <ConversationContent className="gap-5 px-4 py-6">
-          {displayMessages.map((message, idx) => {
+          {displayMessages.map((message) => {
             const isUser = message.role === "user";
             const isEmpty = !message.text;
 
@@ -278,9 +300,8 @@ export const WidgetChatScreen = () => {
                         "shrink-0 flex items-center justify-center",
                         "size-7 rounded-full mt-0.5",
                         "border-2 transition-colors",
-                        isThinking &&
-                          "animate-pulse bg-primary/10 border-primary/20",
-                        !isThinking && "bg-primary/10 border-primary/20",
+                        "bg-primary/10 border-primary/20",
+                        isThinking && "animate-pulse",
                       )}
                     >
                       <BotIcon
@@ -300,7 +321,7 @@ export const WidgetChatScreen = () => {
                       {isEmpty && isGenerating && <ThinkingEllipsis />}
                       {isEmpty && !isGenerating && (
                         <ErrorMessage
-                          message="Something went wrong."
+                          message={generationError || "Something went wrong."}
                           onRetry={handleRetry}
                         />
                       )}

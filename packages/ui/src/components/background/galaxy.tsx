@@ -251,7 +251,7 @@ export const Galaxy = ({
     let renderer: Renderer;
     try {
       renderer = new Renderer({
-        alpha: transparent,
+        alpha: true,
         premultipliedAlpha: false,
       });
     } catch (e) {
@@ -331,15 +331,19 @@ export const Galaxy = ({
     const mesh = new Mesh(gl, { geometry, program });
     let animateId: number;
 
+    let lastTime = 0;
     function update(t: number) {
       animateId = requestAnimationFrame(update);
+      const deltaTime = lastTime ? (t - lastTime) / 1000 : 0.016;
+      lastTime = t;
+
       if (!disableAnimationRef.current) {
         program.uniforms.uTime.value = t * 0.001;
         program.uniforms.uStarSpeed.value =
           (t * 0.001 * starSpeedRef.current) / 10.0;
       }
 
-      const lerpFactor = 0.05;
+      const lerpFactor = 1 - Math.pow(0.05, deltaTime * 60);
       smoothMousePos.current.x +=
         (targetMousePos.current.x - smoothMousePos.current.x) * lerpFactor;
       smoothMousePos.current.y +=
@@ -384,7 +388,9 @@ export const Galaxy = ({
       programRef.current = null;
       rendererRef.current = null;
       glRef.current = null;
-      ctn.removeChild(gl.canvas);
+      if (gl.canvas.parentNode === ctn) {
+        ctn.removeChild(gl.canvas);
+      }
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

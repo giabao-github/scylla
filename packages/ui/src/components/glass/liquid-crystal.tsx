@@ -94,7 +94,7 @@ export const LiquidCrystal = ({
           className="absolute inset-0 z-0 pointer-events-none"
           style={{
             ...sharedRadius,
-            boxShadow: "inset 0 0 5px -8px rgba(255,255,255,0.7)",
+            boxShadow: "inset 0 0 8px 0px rgba(255,255,255,0.15)",
             backgroundColor: tintColor,
           }}
         />
@@ -102,10 +102,9 @@ export const LiquidCrystal = ({
         {/* Backdrop-blur + distortion layer */}
         <div
           aria-hidden="true"
-          className="isolate absolute inset-0 pointer-events-none"
+          className="isolate absolute inset-0 pointer-events-none -z-10"
           style={{
             ...sharedRadius,
-            zIndex: -1,
             backdropFilter: `blur(${backdropBlur}px)`,
             WebkitBackdropFilter: `blur(${backdropBlur}px)`,
             filter: `url(#${filterId})`,

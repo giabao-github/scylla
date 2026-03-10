@@ -13,6 +13,7 @@ import {
   VideoIcon,
   XIcon,
 } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -241,6 +242,7 @@ export const AttachmentPreview = ({
   ...props
 }: AttachmentPreviewProps) => {
   const { data, mediaCategory, variant } = useAttachmentContext();
+  const prefersReducedMotion = useReducedMotion() ?? false;
 
   const iconSize = variant === "inline" ? "size-3" : "size-4";
 
@@ -254,7 +256,16 @@ export const AttachmentPreview = ({
     }
 
     if (mediaCategory === "video" && data.type === "file" && data.url) {
-      return <video className="object-cover size-full" muted src={data.url} />;
+      return (
+        <video
+          className="object-cover size-full"
+          muted
+          loop
+          autoPlay={!prefersReducedMotion}
+          playsInline
+          src={data.url}
+        />
+      );
     }
 
     const Icon = mediaCategoryIcons[mediaCategory];
@@ -362,7 +373,6 @@ export const AttachmentRemove = ({
       {...props}
     >
       {children ?? <XIcon />}
-      <span className="sr-only">{label}</span>
     </Button>
   );
 };

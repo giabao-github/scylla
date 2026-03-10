@@ -7,9 +7,6 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
-    "@ai-sdk/google": "3.0.43",
-    "@ai-sdk/openai": "3.0.41",
-    "@ai-sdk/provider-utils": "4.0.19",
     "@base-ui/react": "^1.2.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
@@ -18,7 +15,7 @@
     "@streamdown/math": "^1.0.2",
     "@streamdown/mermaid": "^1.0.2",
     "@workspace/shared": "workspace:*",
-    "ai": "6.0.116",
+    "ai": "^6.0.116",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

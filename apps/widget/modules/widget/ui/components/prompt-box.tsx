@@ -7,7 +7,9 @@ import {
   memo,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -57,122 +59,18 @@ import {
 } from "lucide-react";
 
 import { selectedModelAtom } from "@/modules/widget/atoms/widget-atoms";
-
-const models = [
-  {
-    chef: "Google",
-    chefSlug: "google",
-    id: "gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
-    providers: ["google"],
-  },
-  {
-    chef: "Google",
-    chefSlug: "google",
-    id: "gemini-2.5-pro",
-    name: "Gemini 2.5 Pro",
-    providers: ["google"],
-  },
-  {
-    chef: "Google",
-    chefSlug: "google",
-    id: "gemini-3-flash-preview",
-    name: "Gemini 3.0 Flash Preview",
-    providers: ["google"],
-  },
-  {
-    chef: "Google",
-    chefSlug: "google",
-    id: "gemini-3-pro-preview",
-    name: "Gemini 3.0 Pro Preview",
-    providers: ["google"],
-  },
-  {
-    chef: "Google",
-    chefSlug: "google",
-    id: "gemini-3.1-flash-lite-preview",
-    name: "Gemini 3.1 Flash Lite Preview",
-    providers: ["google"],
-  },
-  {
-    chef: "Google",
-    chefSlug: "google",
-    id: "gemini-3.1-pro-preview",
-    name: "Gemini 3.1 Pro Preview",
-    providers: ["google"],
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
-    providers: ["openai", "azure"],
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-4o",
-    name: "GPT-4o",
-    providers: ["openai", "azure"],
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-4.1-mini",
-    name: "GPT-4.1 Mini",
-    providers: ["openai", "azure"],
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-4.1",
-    name: "GPT-4.1",
-    providers: ["openai", "azure"],
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-5-mini",
-    name: "GPT-5 Mini",
-    providers: ["openai", "azure"],
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-5",
-    name: "GPT-5",
-    providers: ["openai", "azure"],
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-5.1",
-    name: "GPT-5.1",
-    providers: ["openai", "azure"],
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-5.2",
-    name: "GPT-5.2",
-    providers: ["openai", "azure"],
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-5.2-pro",
-    name: "GPT-5.2 Pro",
-    providers: ["openai", "azure"],
-  },
-];
+import {
+  ModelId,
+  modelCatalog,
+} from "@/modules/widget/constants/model-catalog";
 
 interface PromptBoxContextValue {
-  model: string;
-  setModel: (id: string) => void;
+  model: ModelId;
+  setModel: (id: ModelId) => void;
   modelSelectorOpen: boolean;
   setModelSelectorOpen: (open: boolean) => void;
-  selectedModelData: (typeof models)[number] | undefined;
-  handleModelSelect: (id: string) => void;
+  selectedModelData: (typeof modelCatalog)[number] | undefined;
+  handleModelSelect: (id: ModelId) => void;
 }
 
 const PromptBoxContext = createContext<PromptBoxContextValue | null>(null);
@@ -190,14 +88,17 @@ export const PromptBoxProvider = ({ children }: { children: ReactNode }) => {
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 
   const selectedModelData = useMemo(
-    () => models.find((m) => m.id === model),
+    () => modelCatalog.find((m) => m.id === model),
     [model],
   );
 
-  const handleModelSelect = useCallback((id: string) => {
-    setModel(id);
-    setModelSelectorOpen(false);
-  }, []);
+  const handleModelSelect = useCallback(
+    (id: ModelId) => {
+      setModel(id);
+      setModelSelectorOpen(false);
+    },
+    [setModel],
+  );
 
   const value = useMemo(
     () => ({
@@ -208,7 +109,7 @@ export const PromptBoxProvider = ({ children }: { children: ReactNode }) => {
       selectedModelData,
       handleModelSelect,
     }),
-    [model, modelSelectorOpen, selectedModelData, handleModelSelect],
+    [model, setModel, modelSelectorOpen, selectedModelData, handleModelSelect],
   );
 
   return (
@@ -238,7 +139,7 @@ const AttachmentItem = memo(({ attachment, onRemove }: AttachmentItemProps) => {
     [onRemove, attachment.id],
   );
   return (
-    <Attachment data={attachment} key={attachment.id} onRemove={handleRemove}>
+    <Attachment data={attachment} onRemove={handleRemove}>
       <AttachmentPreview />
       <AttachmentRemove />
     </Attachment>
@@ -248,15 +149,15 @@ const AttachmentItem = memo(({ attachment, onRemove }: AttachmentItemProps) => {
 AttachmentItem.displayName = "AttachmentItem";
 
 interface ModelItemProps {
-  m: (typeof models)[number];
-  selectedModel: string;
-  onSelect: (id: string) => void;
+  m: (typeof modelCatalog)[number];
+  selectedModel: ModelId;
+  onSelect: (id: ModelId) => void;
 }
 
 const ModelItem = memo(({ m, selectedModel, onSelect }: ModelItemProps) => {
   const handleSelect = useCallback(() => onSelect(m.id), [onSelect, m.id]);
   return (
-    <ModelSelectorItem key={m.id} onSelect={handleSelect} value={m.id}>
+    <ModelSelectorItem onSelect={handleSelect} value={m.id}>
       <ModelSelectorLogo provider={m.chefSlug} />
       <ModelSelectorName>{m.name}</ModelSelectorName>
       <ModelSelectorLogoGroup>
@@ -280,7 +181,7 @@ export const PromptInputAttachmentsDisplay = () => {
 
   const handleRemove = useCallback(
     (id: string) => attachments.remove(id),
-    [attachments],
+    [attachments.remove],
   );
 
   if (attachments.files.length === 0) {
@@ -301,6 +202,8 @@ export const PromptInputAttachmentsDisplay = () => {
     </div>
   );
 };
+
+const uniqueChefs = [...new Set(modelCatalog.map((m) => m.chef))];
 
 export const PromptBoxModelSelector = () => {
   const {
@@ -341,9 +244,9 @@ export const PromptBoxModelSelector = () => {
         <ModelSelectorInput placeholder="Search models..." />
         <ModelSelectorList>
           <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-          {["Google", "OpenAI"].map((chef) => (
+          {uniqueChefs.map((chef) => (
             <ModelSelectorGroup heading={chef} key={chef}>
-              {models
+              {modelCatalog
                 .filter((m) => m.chef === chef)
                 .map((m) => (
                   <ModelItem
@@ -384,6 +287,8 @@ export const PromptBoxActions = () => {
           "hover:bg-muted/60 hover:text-foreground hover:border-border/40",
           "transition-colors",
         )}
+        // TODO: implement web search functionality
+        onClick={() => {}}
       >
         <GlobeIcon className="size-3.5 shrink-0" />
         <span>Search</span>
@@ -426,6 +331,14 @@ export const PromptBox = ({
     "submitted" | "streaming" | "ready" | "error"
   >("ready");
 
+  const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
+
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach(clearTimeout);
+    };
+  }, []);
+
   const handleSubmit = useCallback((message: PromptInputMessage) => {
     const hasText = Boolean(message.text);
     const hasAttachments = Boolean(message.files?.length);
@@ -438,8 +351,10 @@ export const PromptBox = ({
     // eslint-disable-next-line no-console
     console.log("Submitting message:", message);
 
-    setTimeout(() => setStatus("streaming"), SUBMITTING_TIMEOUT);
-    setTimeout(() => setStatus("ready"), STREAMING_TIMEOUT);
+    timeoutsRef.current = [
+      setTimeout(() => setStatus("streaming"), SUBMITTING_TIMEOUT),
+      setTimeout(() => setStatus("ready"), STREAMING_TIMEOUT),
+    ];
   }, []);
 
   return (

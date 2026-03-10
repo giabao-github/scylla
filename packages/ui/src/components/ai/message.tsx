@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
+import { Children, isValidElement } from "react";
 import {
   createContext,
   memo,
@@ -56,7 +57,7 @@ export const MessageContent = ({
 }: MessageContentProps) => (
   <div
     className={cn(
-      "is-user:dark flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
+      "flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
       "group-[.is-user]:ml-auto group-[.is-user]:rounded-lg group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground",
       "group-[.is-assistant]:text-foreground",
       className,
@@ -92,10 +93,18 @@ export const MessageAction = ({
   size = "icon-sm",
   ...props
 }: MessageActionProps) => {
+  const accessibleLabel = label || tooltip;
+
+  if (process.env.NODE_ENV === "development" && !accessibleLabel) {
+    console.warn(
+      "MessageAction: Either 'label' or 'tooltip' should be provided for accessibility.",
+    );
+  }
+
   const button = (
     <Button size={size} type="button" variant={variant} {...props}>
       {children}
-      <span className="sr-only">{label || tooltip}</span>
+      <span className="sr-only">{accessibleLabel}</span>
     </Button>
   );
 
@@ -154,6 +163,11 @@ export const MessageBranch = ({
   const [currentBranch, setCurrentBranch] = useState(defaultBranch);
   const [branches, setBranches] = useState<ReactElement[]>([]);
 
+  // Sync with external defaultBranch changes
+  useEffect(() => {
+    setCurrentBranch(defaultBranch);
+  }, [defaultBranch]);
+
   const handleBranchChange = useCallback(
     (newBranch: number) => {
       setCurrentBranch(newBranch);
@@ -183,7 +197,7 @@ export const MessageBranch = ({
       setBranches,
       totalBranches: branches.length,
     }),
-    [branches, currentBranch, goToNext, goToPrevious],
+    [branches, currentBranch, goToNext, goToPrevious, setBranches],
   );
 
   return (
@@ -204,16 +218,14 @@ export const MessageBranchContent = ({
 }: MessageBranchContentProps) => {
   const { currentBranch, setBranches, branches } = useMessageBranch();
   const childrenArray = useMemo(
-    () => (Array.isArray(children) ? children : [children]),
+    () => Children.toArray(children).filter(isValidElement),
     [children],
   );
 
   // Use useEffect to update branches when they change
   useEffect(() => {
-    if (branches.length !== childrenArray.length) {
-      setBranches(childrenArray);
-    }
-  }, [childrenArray, branches, setBranches]);
+    setBranches(childrenArray);
+  }, [childrenArray, setBranches]);
 
   return childrenArray.map((branch, index) => (
     <div
@@ -221,7 +233,7 @@ export const MessageBranchContent = ({
         "grid gap-2 overflow-hidden [&>div]:pb-0",
         index === currentBranch ? "block" : "hidden",
       )}
-      key={branch.key}
+      key={branch.key ?? index}
       {...props}
     >
       {branch}
@@ -336,7 +348,9 @@ export const MessageResponse = memo(
       {...props}
     />
   ),
-  (prevProps, nextProps) => prevProps.children === nextProps.children,
+  (prevProps, nextProps) =>
+    prevProps.children === nextProps.children &&
+    prevProps.className === nextProps.className,
 );
 
 MessageResponse.displayName = "MessageResponse";

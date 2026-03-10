@@ -8,6 +8,7 @@ interface GlassButtonProps {
   disabled?: boolean;
   onClick?: () => void;
   children?: React.ReactNode;
+  /* RGB values as comma-separated string, e.g. "255,255,255" */
   tintRgb?: string;
   idleAlpha?: number;
   hoverAlpha?: number;
@@ -41,10 +42,10 @@ export const GlassButton = ({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={onClick}
-      onMouseEnter={() => setActive(true)}
-      onMouseLeave={() => setActive(false)}
-      onFocus={() => setActive(true)}
-      onBlur={() => setActive(false)}
+      onMouseEnter={() => !disabled && setActive(true)}
+      onMouseLeave={() => !disabled && setActive(false)}
+      onFocus={() => !disabled && setActive(true)}
+      onBlur={() => !disabled && setActive(false)}
       className={cn(
         "flex isolate overflow-hidden relative justify-between items-center",
         "px-4 w-full h-16 rounded-xl",
@@ -58,13 +59,13 @@ export const GlassButton = ({
           : `rgba(${tintRgb},${idleAlpha})`,
         boxShadow: active
           ? [
-              `inset 0 0 0 1px rgba(${ringRgb},${ringAlpha * 0.6})`,
-              `0 4px 24px rgba(${glowRgb},${glowAlpha * 1.3})`,
+              `inset 0 0 0 1px rgba(${ringRgb},${Math.min(ringAlpha * 0.6, 1)})`,
+              `0 4px 24px rgba(${glowRgb},${Math.min(glowAlpha * 1.3, 1)})`,
             ].join(", ")
           : [
-              `inset 0 0 0 1px rgba(${ringRgb},${ringAlpha})`,
+              `inset 0 0 0 1px rgba(${ringRgb},${Math.min(ringAlpha, 1)})`,
               `inset 0 -1px 0 0 rgba(0,0,0,0.12)`,
-              `0 2px 12px rgba(${glowRgb},${glowAlpha})`,
+              `0 2px 12px rgba(${glowRgb},${Math.min(glowAlpha, 1)})`,
             ].join(", "),
       }}
     >

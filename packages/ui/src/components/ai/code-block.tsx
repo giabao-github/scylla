@@ -121,22 +121,99 @@ const CodeBlockContext = createContext<CodeBlockContextType>({
   code: "",
 });
 
+class LRUCache<K, V> {
+  private cache = new Map<K, V>();
+  constructor(private maxEntries: number = 50) {}
+  get(key: K): V | undefined {
+    if (!this.cache.has(key)) return undefined;
+    const value = this.cache.get(key) as V;
+    this.cache.delete(key);
+    this.cache.set(key, value);
+    return value;
+  }
+  set(key: K, value: V) {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.maxEntries) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
+  }
+  delete(key: K) {
+    return this.cache.delete(key);
+  }
+  has(key: K) {
+    return this.cache.has(key);
+  }
+}
+
+interface HighlightingSubscriber {
+  onResult: (result: TokenizedCode) => void;
+  onError?: (error: unknown) => void;
+}
+
+class SubscriberMap {
+  private map = new Map<string, Set<HighlightingSubscriber>>();
+  has(key: string) {
+    return this.map.has(key);
+  }
+  get(key: string) {
+    return this.map.get(key);
+  }
+  add(
+    key: string,
+    onResult: (result: TokenizedCode) => void,
+    onError?: (error: unknown) => void,
+  ) {
+    let set = this.map.get(key);
+    if (!set) {
+      set = new Set();
+      this.map.set(key, set);
+    }
+    set.add({ onResult, onError });
+  }
+  remove(key: string, onResult: (result: TokenizedCode) => void) {
+    const set = this.map.get(key);
+    if (set) {
+      for (const sub of set) {
+        if (sub.onResult === onResult) {
+          set.delete(sub);
+          break;
+        }
+      }
+      if (set.size === 0) this.map.delete(key);
+    }
+  }
+  delete(key: string) {
+    return this.map.delete(key);
+  }
+}
+
 // Highlighter cache (singleton per language)
-const highlighterCache = new Map<
+const highlighterCache = new LRUCache<
   string,
   Promise<HighlighterGeneric<BundledLanguage, BundledTheme>>
->();
+>(20);
 
 // Token cache
-const tokensCache = new Map<string, TokenizedCode>();
+const tokensCache = new LRUCache<string, TokenizedCode>(100);
 
 // Subscribers for async token updates
-const subscribers = new Map<string, Set<(result: TokenizedCode) => void>>();
+const subscribers = new SubscriberMap();
+
+const simpleHash = (str: string): string => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return hash.toString(36);
+};
 
 const getTokensCacheKey = (code: string, language: BundledLanguage) => {
-  const start = code.slice(0, 100);
-  const end = code.length > 100 ? code.slice(-100) : "";
-  return `${language}:${code.length}:${start}:${end}`;
+  return `${language}:${code.length}:${simpleHash(code)}`;
 };
 
 const getHighlighter = (
@@ -150,6 +227,9 @@ const getHighlighter = (
   const highlighterPromise = createHighlighter({
     langs: [language],
     themes: ["github-light", "github-dark"],
+  }).catch((error) => {
+    highlighterCache.delete(language);
+    throw error;
   });
 
   highlighterCache.set(language, highlighterPromise);
@@ -177,7 +257,8 @@ export const highlightCode = (
   code: string,
   language: BundledLanguage,
   // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-callbacks)
-  callback?: (result: TokenizedCode) => void,
+  onResult?: (result: TokenizedCode) => void,
+  onError?: (error: unknown) => void,
 ): TokenizedCode | null => {
   const tokensCacheKey = getTokensCacheKey(code, language);
 
@@ -188,11 +269,8 @@ export const highlightCode = (
   }
 
   // Subscribe callback if provided
-  if (callback) {
-    if (!subscribers.has(tokensCacheKey)) {
-      subscribers.set(tokensCacheKey, new Set());
-    }
-    subscribers.get(tokensCacheKey)?.add(callback);
+  if (onResult) {
+    subscribers.add(tokensCacheKey, onResult, onError);
   }
 
   // Start highlighting in background - fire-and-forget async pattern
@@ -200,7 +278,9 @@ export const highlightCode = (
     // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-then)
     .then((highlighter) => {
       const availableLangs = highlighter.getLoadedLanguages();
-      const langToUse = availableLangs.includes(language) ? language : "text";
+      const langToUse = availableLangs.includes(language)
+        ? language
+        : ("text" as BundledLanguage);
 
       const result = highlighter.codeToTokens(code, {
         lang: langToUse,
@@ -223,7 +303,7 @@ export const highlightCode = (
       const subs = subscribers.get(tokensCacheKey);
       if (subs) {
         for (const sub of subs) {
-          sub(tokenized);
+          sub.onResult(tokenized);
         }
         subscribers.delete(tokensCacheKey);
       }
@@ -231,10 +311,27 @@ export const highlightCode = (
     // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-then), eslint-plugin-promise(prefer-await-to-callbacks)
     .catch((error) => {
       console.error("Failed to highlight code:", error);
-      subscribers.delete(tokensCacheKey);
+      const subs = subscribers.get(tokensCacheKey);
+      if (subs) {
+        const raw = createRawTokens(code);
+        for (const sub of subs) {
+          sub.onError?.(error);
+          sub.onResult(raw);
+        }
+        subscribers.delete(tokensCacheKey);
+      }
     });
 
   return null;
+};
+
+export const cancelHighlightCode = (
+  code: string,
+  language: BundledLanguage,
+  callback: (result: TokenizedCode) => void,
+) => {
+  const tokensCacheKey = getTokensCacheKey(code, language);
+  subscribers.remove(tokensCacheKey, callback);
 };
 
 // Line number styles using CSS counters
@@ -401,15 +498,24 @@ export const CodeBlockContent = ({
     // Reset to raw tokens when code changes (shows current code, not stale tokens)
     setTokenized(highlightCode(code, language) ?? rawTokens);
 
-    // Subscribe to async highlighting result
-    highlightCode(code, language, (result) => {
+    const onResult = (result: TokenizedCode) => {
       if (!cancelled) {
         setTokenized(result);
       }
-    });
+    };
+
+    const onError = (error: unknown) => {
+      if (!cancelled) {
+        console.warn("Async highlighting failed:", error);
+      }
+    };
+
+    // Subscribe to async highlighting result
+    highlightCode(code, language, onResult, onError);
 
     return () => {
       cancelled = true;
+      cancelHighlightCode(code, language, onResult);
     };
   }, [code, language, rawTokens]);
 

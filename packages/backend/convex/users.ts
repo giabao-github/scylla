@@ -19,8 +19,6 @@ export const add = mutation({
       throw new Error("User is not authenticated");
     }
 
-    console.log("Full Identity:", identity);
-
     const userId = await ctx.db.insert("users", {
       name: args.name,
     });

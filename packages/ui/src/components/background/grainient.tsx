@@ -148,7 +148,11 @@ const safeHexToRgb = (
   try {
     return hexToRgb(input);
   } catch {
-    return hexToRgb(fallback);
+    try {
+      return hexToRgb(fallback);
+    } catch {
+      return [1, 0, 1];
+    }
   }
 };
 
@@ -220,6 +224,9 @@ const Grainient: React.FC<GrainientProps> = ({
         dpr: Math.min(window.devicePixelRatio || 1, 2),
       });
     } catch {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("Grainient: WebGL renderer initialization failed");
+      }
       return;
     }
 

@@ -4,6 +4,10 @@ import { atomFamily } from "jotai-family";
 import { atomWithStorage } from "jotai/utils";
 
 import { CONTACT_SESSION_KEY } from "@/modules/widget/constants";
+import {
+  DEFAULT_MODEL_ID,
+  ModelId,
+} from "@/modules/widget/constants/model-catalog";
 import { WidgetScreen } from "@/modules/widget/types";
 
 // Basic widget state atoms
@@ -41,4 +45,7 @@ export const contactSessionIdAtom = atom(
 );
 
 // Agent atoms
-export const selectedModelAtom = atom<string>("gemini-3.1-flash-lite-preview");
+export const selectedModelAtom = atomWithStorage<ModelId>(
+  "selected_model",
+  DEFAULT_MODEL_ID,
+);

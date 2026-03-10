@@ -12,6 +12,7 @@ import {
   WrenchIcon,
   XCircleIcon,
 } from "lucide-react";
+import type { BundledLanguage } from "shiki";
 
 import { CodeBlock } from "@workspace/ui/components/ai/code-block";
 import { Badge } from "@workspace/ui/components/badge";
@@ -129,7 +130,16 @@ export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
       Parameters
     </h4>
     <div className="rounded-md bg-muted/50">
-      <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+      <CodeBlock
+        code={(() => {
+          try {
+            return JSON.stringify(input, null, 2);
+          } catch {
+            return String(input);
+          }
+        })()}
+        language="json"
+      />
     </div>
   </div>
 );
@@ -152,11 +162,24 @@ export const ToolOutput = ({
   let Output = <div>{output as ReactNode}</div>;
 
   if (typeof output === "object" && !isValidElement(output)) {
-    Output = (
-      <CodeBlock code={JSON.stringify(output, null, 2)} language="json" />
-    );
+    try {
+      Output = (
+        <CodeBlock code={JSON.stringify(output, null, 2)} language="json" />
+      );
+    } catch {
+      Output = (
+        <CodeBlock code={String(output)} language={"text" as BundledLanguage} />
+      );
+    }
   } else if (typeof output === "string") {
-    Output = <CodeBlock code={output} language="json" />;
+    let lang: BundledLanguage = "text" as BundledLanguage;
+    try {
+      JSON.parse(output);
+      lang = "json";
+    } catch {
+      // Not valid JSON, keep as text
+    }
+    Output = <CodeBlock code={output} language={lang} />;
   }
 
   return (
@@ -172,8 +195,7 @@ export const ToolOutput = ({
             : "bg-muted/50 text-foreground",
         )}
       >
-        {errorText && <div>{errorText}</div>}
-        {Output}
+        {errorText ? <div>{errorText}</div> : Output}
       </div>
     </div>
   );

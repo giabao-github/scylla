@@ -36,7 +36,9 @@ export const SourcesTrigger = ({
   >
     {children ?? (
       <>
-        <p className="font-medium">Used {count} sources</p>
+        <p className="font-medium">
+          Used {count} {count === 1 ? "source" : "sources"}
+        </p>
         <ChevronDownIcon className="w-4 h-4" />
       </>
     )}
@@ -52,7 +54,7 @@ export const SourcesContent = ({
   <CollapsibleContent
     className={cn(
       "mt-3 flex w-fit flex-col gap-2",
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
       className,
     )}
     {...props}
@@ -72,7 +74,7 @@ export const Source = ({ href, title, children, ...props }: SourceProps) => (
     {children ?? (
       <>
         <BookIcon className="w-4 h-4" />
-        <span className="block font-medium">{title}</span>
+        <span className="block font-medium">{title || href}</span>
       </>
     )}
   </a>

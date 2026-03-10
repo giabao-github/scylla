@@ -9,15 +9,13 @@ import { components, internal } from "@workspace/backend/_generated/api";
 import { action, query } from "@workspace/backend/_generated/server";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 
-const resolveModel = (modelId: string): LanguageModel | any => {
-  if (modelId.startsWith("gpt-"))
-    return openai.chat(modelId) as LanguageModel | any;
-  if (modelId.startsWith("gemini-"))
-    return google.chat(modelId) as LanguageModel | any;
-  return google.chat("gemini-3.1-flash-lite-preview") as LanguageModel | any;
+const resolveModel = (modelId: string): LanguageModel => {
+  if (modelId.startsWith("gpt-")) return openai.chat(modelId);
+  if (modelId.startsWith("gemini-")) return google.chat(modelId);
+  return google.chat("gemini-3.1-flash-lite-preview");
 };
 
-const agentForModel = (modelId: string | undefined): any =>
+const agentForModel = (modelId: string | undefined): typeof supportAgent =>
   modelId
     ? new Agent(components.agent, {
         ...supportAgent.options,
@@ -57,6 +55,13 @@ export const create = action({
       });
     }
 
+    if (conversation.contactSessionId !== contactSessionId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Not authorized to access this conversation",
+      });
+    }
+
     if (conversation.status === "resolved") {
       throw new ConvexError({
         code: "BAD_REQUEST",
@@ -68,7 +73,7 @@ export const create = action({
 
     const agent = agentForModel(modelId);
     const { thread } = await agent.continueThread(ctx, { threadId });
-    await thread.generateText({ prompt });
+    await thread.generateText({ prompt } as any);
   },
 });
 
@@ -81,10 +86,36 @@ export const getMany = query({
   handler: async (ctx, args) => {
     const contactSession = await ctx.db.get(args.contactSessionId);
 
-    if (!contactSession || contactSession.expiresAt < Date.now()) {
+    if (!contactSession) {
       throw new ConvexError({
         code: "UNAUTHORIZED",
-        message: "Invalid or expired session",
+        message: "Invalid session",
+      });
+    }
+
+    if (contactSession.expiresAt < Date.now()) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Expired session",
+      });
+    }
+
+    const conversation = await ctx.runQuery(
+      internal.system.conversations.getThreadById,
+      { threadId: args.threadId },
+    );
+
+    if (!conversation) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Conversation not found",
+      });
+    }
+
+    if (conversation.contactSessionId !== args.contactSessionId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Not authorized to access this conversation",
       });
     }
 

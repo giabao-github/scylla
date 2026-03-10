@@ -125,8 +125,11 @@ export const Reasoning = memo(
     const handleOpenChange = useCallback(
       (newOpen: boolean) => {
         setIsOpen(newOpen);
+        if (hasEverStreamedRef.current && !isStreaming) {
+          setHasAutoClosed(true);
+        }
       },
-      [setIsOpen],
+      [setIsOpen, isStreaming],
     );
 
     const contextValue = useMemo(
@@ -156,11 +159,11 @@ export type ReasoningTriggerProps = ComponentProps<
 };
 
 const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number) => {
-  if (isStreaming || duration === 0) {
+  if (isStreaming || duration === undefined) {
     return <Shimmer duration={1}>Thinking...</Shimmer>;
   }
-  if (duration === undefined) {
-    return <p>Thought for a few seconds</p>;
+  if (duration === 1) {
+    return <p>Thought for 1 second</p>;
   }
   return <p>Thought for {duration} seconds</p>;
 };

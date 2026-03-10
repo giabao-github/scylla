@@ -115,7 +115,10 @@ export type ConversationDownloadProps = Omit<
   formatMessage?: (message: ConversationMessage, index: number) => string;
 };
 
-const defaultFormatMessage = (message: ConversationMessage): string => {
+const defaultFormatMessage = (
+  message: ConversationMessage,
+  _index: number,
+): string => {
   const roleLabel =
     message.role.charAt(0).toUpperCase() + message.role.slice(1);
   return `**${roleLabel}:** ${message.content}`;
