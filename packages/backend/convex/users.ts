@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+
+import { mutation, query } from "@workspace/backend/_generated/server";
 
 export const getMany = query({
   args: {},
@@ -18,10 +19,20 @@ export const add = mutation({
       throw new Error("User is not authenticated");
     }
 
-    console.log("Full Identity:", identity);
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier),
+      )
+      .first();
+
+    if (existingUser) {
+      throw new Error("User already exists");
+    }
 
     const userId = await ctx.db.insert("users", {
       name: args.name,
+      tokenIdentifier: identity.tokenIdentifier,
     });
 
     return userId;

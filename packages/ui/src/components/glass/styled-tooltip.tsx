@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
-import { hexToRgba } from "@workspace/shared/utils";
+import { hexToRgba } from "@workspace/shared/lib/utils";
 
-import { FrostLens } from "@workspace/ui/components/frost-lens";
+import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
 import { cn } from "@workspace/ui/lib/utils";
 
 interface StyledTooltipProps {
@@ -49,10 +49,13 @@ interface StyledTooltipProps {
 const TOOLTIP_WIDTH = 300;
 const OFFSET = 12;
 
-const throttle = (fn: () => void, delay: number) => {
+const throttle = (
+  fn: () => void,
+  delay: number,
+): { run: () => void; cancel: () => void } => {
   let lastCall = 0;
   let trailingTimer: ReturnType<typeof setTimeout> | null = null;
-  return () => {
+  const run = () => {
     const now = Date.now();
     const remaining = delay - (now - lastCall);
     if (remaining <= 0) {
@@ -73,9 +76,16 @@ const throttle = (fn: () => void, delay: number) => {
       }, remaining);
     }
   };
+  const cancel = () => {
+    if (trailingTimer !== null) {
+      clearTimeout(trailingTimer);
+      trailingTimer = null;
+    }
+  };
+  return { run, cancel };
 };
 
-const StyledTooltip = ({
+export const StyledTooltip = ({
   open,
   id,
   title,
@@ -109,11 +119,14 @@ const StyledTooltip = ({
       setSide(spaceRight >= TOOLTIP_WIDTH + OFFSET ? "right" : "left");
     };
 
-    const throttledUpdate = throttle(updateSide, 100);
+    const { run: throttledUpdate, cancel } = throttle(updateSide, 100);
     updateSide();
 
     window.addEventListener("resize", throttledUpdate);
-    return () => window.removeEventListener("resize", throttledUpdate);
+    return () => {
+      window.removeEventListener("resize", throttledUpdate);
+      cancel();
+    };
   }, [open]);
 
   const tintRgba = hexToRgba(tint, tintOpacity);
@@ -132,6 +145,7 @@ const StyledTooltip = ({
       ref={ref}
       id={id}
       role="tooltip"
+      aria-hidden={!open || undefined}
       style={{ width: TOOLTIP_WIDTH, transform: "translateZ(0)" }}
       className={cn(
         "absolute z-50",
@@ -202,7 +216,10 @@ const StyledTooltip = ({
           {content && content.length > 0 && (
             <ul className="space-y-1.5">
               {content.map((item, index) => (
-                <li key={index} className="flex gap-2 items-baseline">
+                <li
+                  key={`${index}-${item}`}
+                  className="flex gap-2 items-baseline"
+                >
                   <span
                     className="w-1 h-1 rounded-full -translate-y-px shrink-0"
                     style={{ backgroundColor: bulletColor }}
@@ -247,5 +264,3 @@ const StyledTooltip = ({
     </div>
   );
 };
-
-export default StyledTooltip;

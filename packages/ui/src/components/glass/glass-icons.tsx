@@ -6,6 +6,7 @@ export interface GlassIconsItem {
   color: string;
   label: string;
   customClass?: string;
+  onClick?: () => void;
 }
 
 export interface GlassIconsProps {
@@ -39,7 +40,8 @@ const GlassIcons: React.FC<GlassIconsProps> = ({ items, className }) => {
           key={item.id}
           type="button"
           aria-label={item.label}
-          className={`relative bg-transparent outline-none border-none cursor-pointer w-[4.5em] h-[4.5em] perspective-[24em] transform-3d [-webkit-tap-highlight-color:transparent] group ${
+          onClick={item.onClick}
+          className={`relative bg-transparent outline-none border-none cursor-pointer w-[4.5em] h-[4.5em] perspective-[24em] transform-3d [-webkit-tap-highlight-color:transparent] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 ${
             item.customClass || ""
           }`}
         >
@@ -65,7 +67,7 @@ const GlassIcons: React.FC<GlassIconsProps> = ({ items, className }) => {
             </span>
           </span>
 
-          <span className="absolute top-full left-0 right-0 text-center whitespace-nowrap leading-loose text-base opacity-0 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.83,0,0.17,1)] translate-y-0 group-hover:opacity-100 group-hover:transform-[translateY(20%)]">
+          <span className="absolute top-full left-0 right-0 text-center whitespace-nowrap leading-loose text-base opacity-0 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.83,0,0.17,1)] translate-y-0 group-hover:opacity-100 group-hover:translate-y-[20%]">
             {item.label}
           </span>
         </button>

@@ -1,24 +1,18 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
+
+/** Run `npx convex dev` in backend directory after editing this file */
 export default defineSchema({
-  conversations: defineTable({
-    threadId: v.string(),
+  users: defineTable({
+    name: v.string(),
+    tokenIdentifier: v.string(),
+  }).index("by_token_identifier", ["tokenIdentifier"]),
+  organizations: defineTable({
+    name: v.string(),
     organizationId: v.string(),
-    contactSessionId: v.id("contactSessions"),
-    status: v.union(
-      v.literal("unresolved"),
-      v.literal("escalated"),
-      v.literal("resolved"),
-    ),
-    createdAt: v.number(),
-    updatedAt: v.optional(v.number()),
-  })
-    .index("by_organization_id", ["organizationId"])
-    .index("by_contact_session_id", ["contactSessionId"])
-    .index("by_thread_id", ["threadId"])
-    .index("by_organization_id_and_status", ["organizationId", "status"])
-    .index("by_updated_at", ["updatedAt"]),
+  }).index("by_organization_id", ["organizationId"]),
   contactSessions: defineTable({
     name: v.string(),
     email: v.string(),
@@ -44,11 +38,28 @@ export default defineSchema({
     .index("by_organization_id", ["organizationId"])
     .index("by_expires_at", ["expiresAt"])
     .index("by_email", ["email"]),
-  users: defineTable({
-    name: v.string(),
-  }),
-  organizations: defineTable({
-    name: v.string(),
+  conversations: defineTable({
+    threadId: v.string(),
     organizationId: v.string(),
-  }).index("by_organization_id", ["organizationId"]),
+    contactSessionId: v.id("contactSessions"),
+    status: v.union(
+      v.literal(CONVERSATION_STATUS.UNRESOLVED),
+      v.literal(CONVERSATION_STATUS.ESCALATED),
+      v.literal(CONVERSATION_STATUS.RESOLVED),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_organization_id", ["organizationId"])
+    .index("by_contact_session_id", ["contactSessionId"])
+    .index("by_thread_id", ["threadId"])
+    .index("by_organization_id_and_status", ["organizationId", "status"])
+    .index("by_updated_at", ["updatedAt"]),
+  messageRequests: defineTable({
+    requestId: v.string(),
+    contactSessionId: v.id("contactSessions"),
+    createdAt: v.number(),
+  })
+    .index("by_request_id", ["requestId"])
+    .index("by_created_at", ["createdAt"]),
 });

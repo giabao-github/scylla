@@ -3,7 +3,10 @@ const PATTERNS = {
   email: /^[a-zA-Z0-9._+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/,
   nameStrip: /[^\p{L}\p{M}'\- ]/gu,
   emailStrip: /[^a-zA-Z0-9._+\-@]/g,
-  emoji: /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu,
+  emojiTest:
+    /(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}]|\u200D|\uFE0F)/u,
+  emojiStrip:
+    /(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}]|\u200D|\uFE0F)/gu,
 };
 
 type Input = "input" | "name" | "username" | "email" | "phone";
@@ -30,7 +33,7 @@ export function validateInput(
     );
   }
 
-  if (PATTERNS.emoji.test(value)) {
+  if (PATTERNS.emojiTest.test(value)) {
     return fail(
       `${type.charAt(0).toUpperCase() + type.slice(1)} cannot contain emojis`,
     );
@@ -202,7 +205,10 @@ export function sanitizeInput(type: Input = "name", value: string): string {
     }
 
     case "username": {
-      return value.replace(PATTERNS.emoji, "").replace(/\s/g, "").slice(0, 30);
+      return value
+        .replace(PATTERNS.emojiStrip, "")
+        .replace(/\s/g, "")
+        .slice(0, 30);
     }
 
     case "phone": {
@@ -337,6 +343,7 @@ export const isUnauthorizedError = (error: unknown): boolean => {
   return (
     error instanceof Error &&
     typeof (error as any).data === "object" &&
+    (error as any).data !== null &&
     (error as any).data?.code === "UNAUTHORIZED"
   );
 };

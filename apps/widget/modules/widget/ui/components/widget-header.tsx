@@ -1,4 +1,4 @@
-import Grainient from "@workspace/ui/components/grainient";
+import Grainient from "@workspace/ui/components/background/grainient";
 import { cn } from "@workspace/ui/lib/utils";
 
 export const WidgetHeader = ({

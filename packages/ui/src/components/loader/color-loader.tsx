@@ -1,8 +1,12 @@
 import styled from "styled-components";
 
-const ColorLoader = () => {
+interface ColorLoaderProps {
+  className?: string;
+}
+
+const ColorLoader = ({ className }: ColorLoaderProps) => {
   return (
-    <StyledWrapper>
+    <StyledWrapper className={className}>
       <svg
         className="pl"
         width={240}
@@ -10,7 +14,6 @@ const ColorLoader = () => {
         viewBox="0 0 240 240"
         role="status"
         aria-label="Loading"
-        aria-hidden="true"
         focusable="false"
       >
         <circle

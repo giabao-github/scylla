@@ -1,9 +1,16 @@
 import { Id } from "@workspace/backend/_generated/dataModel";
+import {
+  DEFAULT_MODEL_ID,
+  ModelId,
+} from "@workspace/shared/constants/model-catalog";
 import { atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { atomWithStorage } from "jotai/utils";
 
-import { CONTACT_SESSION_KEY } from "@/modules/widget/constants";
+import {
+  CONTACT_SESSION_KEY,
+  SELECTED_MODEL_KEY,
+} from "@/modules/widget/constants";
 import { WidgetScreen } from "@/modules/widget/types";
 
 // Basic widget state atoms
@@ -38,4 +45,10 @@ export const contactSessionIdAtom = atom(
     }
     set(contactSessionIdAtomFamily(organizationId), value);
   },
+);
+
+// Agent atoms
+export const selectedModelAtom = atomWithStorage<ModelId>(
+  SELECTED_MODEL_KEY,
+  DEFAULT_MODEL_ID,
 );

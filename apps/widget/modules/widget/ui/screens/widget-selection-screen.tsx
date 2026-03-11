@@ -3,8 +3,8 @@
 import { useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
-import { isUnauthorizedError } from "@workspace/shared/utils";
-import { GlassButton } from "@workspace/ui/components/glass-button";
+import { isUnauthorizedError } from "@workspace/shared/lib/utils";
+import { GlassButton } from "@workspace/ui/components/glass/glass-button";
 import { useMutation } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
@@ -21,6 +21,7 @@ import {
   organizationIdAtom,
   widgetScreenAtom,
 } from "@/modules/widget/atoms/widget-atoms";
+import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 
 export const WidgetSelectionScreen = () => {
@@ -105,6 +106,7 @@ export const WidgetSelectionScreen = () => {
           </GlassButton>
         ))}
       </div>
+      <WidgetFooter />
     </>
   );
 };

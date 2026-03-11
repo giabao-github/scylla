@@ -4,7 +4,6 @@ import { useAtomValue } from "jotai";
 
 import { widgetScreenAtom } from "@/modules/widget/atoms/widget-atoms";
 import { WidgetScreen } from "@/modules/widget/types";
-import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 import { WidgetAuthScreen } from "@/modules/widget/ui/screens/widget-auth-screen";
 import { WidgetChatScreen } from "@/modules/widget/ui/screens/widget-chat-screen";
 import { WidgetErrorScreen } from "@/modules/widget/ui/screens/widget-error-screen";
@@ -46,9 +45,8 @@ export const WidgetView = ({ organizationId }: WidgetViewProps) => {
   const screen = useAtomValue(widgetScreenAtom);
 
   return (
-    <main className="flex overflow-hidden flex-col w-full h-full min-h-screen rounded-xl border bg-muted">
+    <main className="flex overflow-hidden flex-col w-full h-screen rounded-xl border bg-muted">
       {renderScreen(screen, organizationId)}
-      <WidgetFooter />
     </main>
   );
 };

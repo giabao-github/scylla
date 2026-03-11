@@ -2,7 +2,7 @@ import React from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
 
-export interface FrostLensProps {
+interface FrostLensBaseProps {
   children?: React.ReactNode;
   className?: string;
   radius?: number;
@@ -12,8 +12,17 @@ export interface FrostLensProps {
   glow?: string;
   highlight?: string;
   style?: React.CSSProperties;
-  onClick?: () => void;
 }
+
+export type FrostLensProps =
+  | (FrostLensBaseProps & {
+      onClick: () => void;
+      "aria-label": string;
+    })
+  | (FrostLensBaseProps & {
+      onClick?: never;
+      "aria-label"?: string;
+    });
 
 export const FrostLens = ({
   children,
@@ -26,6 +35,7 @@ export const FrostLens = ({
   highlight = "rgba(255,255,255,0.7)",
   style,
   onClick,
+  "aria-label": ariaLabel,
 }: FrostLensProps) => {
   const uniqueId = React.useId().replace(/:/g, "");
   const filterId = `glass-distortion-${uniqueId}`;
@@ -37,6 +47,7 @@ export const FrostLens = ({
       className={cn("relative", onClick && "cursor-pointer", className)}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? ariaLabel : undefined}
       onKeyDown={
         onClick
           ? (e: React.KeyboardEvent) => {
@@ -83,7 +94,6 @@ export const FrostLens = ({
           isolation: "isolate",
           pointerEvents: "none",
           transform: "translateZ(0)",
-          willChange: "backdrop-filter",
         }}
       />
 

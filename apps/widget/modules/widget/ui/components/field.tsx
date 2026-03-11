@@ -1,6 +1,6 @@
 import { ComponentType, HTMLInputTypeAttribute, useRef, useState } from "react";
 
-import StyledTooltip from "@workspace/ui/components/styled-tooltip";
+import { StyledTooltip } from "@workspace/ui/components/glass/styled-tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import { CheckIcon, InfoIcon, XIcon } from "lucide-react";
 
