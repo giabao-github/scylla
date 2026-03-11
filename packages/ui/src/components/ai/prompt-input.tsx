@@ -5,10 +5,12 @@ import type {
   ChangeEventHandler,
   ClipboardEventHandler,
   ComponentProps,
+  CompositionEventHandler,
   FormEvent,
   FormEventHandler,
   HTMLAttributes,
   KeyboardEventHandler,
+  MouseEvent,
   PropsWithChildren,
   ReactNode,
   RefObject,
@@ -445,12 +447,18 @@ export const PromptInput = ({
         .filter(Boolean);
 
       return patterns.some((pattern) => {
-        if (pattern.endsWith("/*")) {
-          // e.g: image/* -> image/
-          const prefix = pattern.slice(0, -1);
-          return f.type.startsWith(prefix);
+        const normalized = pattern.toLowerCase();
+        const fileType = f.type.toLowerCase();
+
+        if (normalized.startsWith(".")) {
+          return f.name.toLowerCase().endsWith(normalized);
         }
-        return f.type === pattern;
+        if (normalized.endsWith("/*")) {
+          // e.g: image/* -> image/
+          const prefix = normalized.slice(0, -1);
+          return fileType.startsWith(prefix);
+        }
+        return fileType === normalized;
       });
     },
     [accept],
@@ -480,12 +488,18 @@ export const PromptInput = ({
         });
         return null;
       }
+      const singleCapacity =
+        multiple !== true ? Math.max(0, 1 - currentCount) : undefined;
+      const maxFilesCapacity =
+        typeof maxFiles === "number"
+          ? Math.max(0, maxFiles - currentCount)
+          : undefined;
       const capacity =
-        multiple === false
-          ? Math.max(0, 1 - currentCount)
-          : typeof maxFiles === "number"
-            ? Math.max(0, maxFiles - currentCount)
-            : undefined;
+        singleCapacity === undefined
+          ? maxFilesCapacity
+          : maxFilesCapacity === undefined
+            ? singleCapacity
+            : Math.min(singleCapacity, maxFilesCapacity);
       const capped =
         typeof capacity === "number" ? sized.slice(0, capacity) : sized;
       if (typeof capacity === "number" && sized.length > capacity) {
@@ -810,6 +824,9 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
   const {
     onChange,
     onKeyDown,
+    onPaste,
+    onCompositionStart,
+    onCompositionEnd,
     className,
     placeholder = "What would you like to know?",
     value,
@@ -819,6 +836,7 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
   const attachments = usePromptInputAttachments();
   const [isComposing, setIsComposing] = useState(false);
 
+  // Sync external value prop into controller when it changes
   useEffect(() => {
     if (
       controller &&
@@ -878,6 +896,9 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
 
   const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = useCallback(
     (event) => {
+      onPaste?.(event);
+      if (event.defaultPrevented) return;
+
       const items = event.clipboardData?.items;
 
       if (!items) {
@@ -900,11 +921,26 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
         attachments.add(files);
       }
     },
-    [attachments],
+    [onPaste, attachments],
   );
 
-  const handleCompositionEnd = useCallback(() => setIsComposing(false), []);
-  const handleCompositionStart = useCallback(() => setIsComposing(true), []);
+  const handleCompositionEnd: CompositionEventHandler<HTMLTextAreaElement> =
+    useCallback(
+      (e) => {
+        setIsComposing(false);
+        onCompositionEnd?.(e);
+      },
+      [onCompositionEnd],
+    );
+
+  const handleCompositionStart: CompositionEventHandler<HTMLTextAreaElement> =
+    useCallback(
+      (e) => {
+        setIsComposing(true);
+        onCompositionStart?.(e);
+      },
+      [onCompositionStart],
+    );
 
   const controlledProps = controller
     ? {
@@ -916,10 +952,12 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
       }
     : {
         onChange,
+        value: value ?? "",
       };
 
   return (
     <InputGroupTextarea
+      {...rest}
       className={cn(
         "px-4 pt-4 max-h-48 field-sizing-content min-h-16",
         className,
@@ -930,7 +968,6 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
       placeholder={placeholder}
-      {...rest}
       {...controlledProps}
     />
   );
@@ -1082,8 +1119,7 @@ export const PromptInputActionMenuItem = ({
   <DropdownMenuItem className={cn(className)} {...props} />
 );
 
-// Note: Actions that perform side-effects (like opening a file dialog)
-// are provided in opt-in modules (e.g., prompt-input-attachments).
+// Note: Actions that perform side-effects (like opening a file dialog) are provided in opt-in modules (e.g., prompt-input-attachments).
 
 export type PromptInputSubmitProps = ComponentProps<typeof InputGroupButton> & {
   status?: ChatStatus;
@@ -1113,7 +1149,7 @@ export const PromptInputSubmit = ({
   }
 
   const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>) => {
+    (e: MouseEvent<HTMLButtonElement>) => {
       if (isGenerating && onStop) {
         e.preventDefault();
         onStop();

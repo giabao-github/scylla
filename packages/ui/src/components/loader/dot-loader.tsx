@@ -6,17 +6,34 @@ export interface LoaderProps {
   activeColor?: string;
 }
 
-// Rejects anything containing semicolons, braces, or other injection vectors.
-const CSS_COLOR_RE =
-  /^(#[\da-f]{3,8}|rgba?\(\s*[\d.,%\s]+\)|hsla?\(\s*[\d.,%\s]+\)|[a-z]{2,30})$/i;
+// Matches: var(--any-custom-property) with optional safe fallback
+const CSS_VAR_RE = /^var\(--[\w-]+(?:\s*,\s*[\w\s\-#%,.()]+)?\)$/;
 
-const CSS_SIZE_RE = /^\d+(?:\.\d+)?(px|rem|em|vh|vw|%)$/;
+// Matches: calc(...), clamp(...), min(...), max(...)
+const CSS_MATH_RE = /^(?:calc|clamp|min|max)\([\w\s\-+*/.,%()]+\)$/;
+
+// Matches: #rgb, #rrggbb, #rrggbbaa, rgb(...), rgba(...), hsl(...), hsla(...), oklch(...), lch(...), lab(...), oklab(...), hwb(...), named keywords
+const CSS_COLOR_RE =
+  /^(#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})|(?:rgb|rgba|hsl|hsla|oklch|lch|lab|oklab|hwb)\(\s*[\d\s.,/%a-z]+\)|[a-z]{2,30})$/i;
+
+// Matches: <number><unit> or CSS var/math functions
+const CSS_SIZE_RE = /^\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)$/;
+
+const isSafeColor = (value: string): boolean => {
+  const v = value.trim();
+  return CSS_COLOR_RE.test(v) || CSS_VAR_RE.test(v);
+};
+
+const isSafeSize = (value: string): boolean => {
+  const v = value.trim();
+  return CSS_SIZE_RE.test(v) || CSS_VAR_RE.test(v) || CSS_MATH_RE.test(v);
+};
 
 const sanitizeColor = (value: string, fallback: string): string =>
-  CSS_COLOR_RE.test(value.trim()) ? value.trim() : fallback;
+  isSafeColor(value) ? value.trim() : fallback;
 
 const sanitizeSize = (value: string, fallback: string): string =>
-  CSS_SIZE_RE.test(value.trim()) ? value.trim() : fallback;
+  isSafeSize(value) ? value.trim() : fallback;
 
 const DEFAULT_COLOR = "#b3d4fc";
 const DEFAULT_ACTIVE_COLOR = "#6793fb";

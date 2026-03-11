@@ -14,6 +14,10 @@ import {
 } from "react";
 
 import {
+  ModelId,
+  modelCatalog,
+} from "@workspace/shared/constants/model-catalog";
+import {
   Attachment,
   AttachmentPreview,
   AttachmentRemove,
@@ -59,10 +63,6 @@ import {
 } from "lucide-react";
 
 import { selectedModelAtom } from "@/modules/widget/atoms/widget-atoms";
-import {
-  ModelId,
-  modelCatalog,
-} from "@/modules/widget/constants/model-catalog";
 
 interface PromptBoxContextValue {
   model: ModelId;

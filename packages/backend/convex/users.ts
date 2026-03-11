@@ -21,7 +21,9 @@ export const add = mutation({
 
     const existingUser = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
+      .withIndex("by_token_identifier", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier),
+      )
       .first();
 
     if (existingUser) {

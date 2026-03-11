@@ -252,11 +252,11 @@ const createRawTokens = (code: string): TokenizedCode => ({
   ),
 });
 
-// Synchronous highlight with callback for async results
+const inFlightHighlights = new Set<string>();
+
 export const highlightCode = (
   code: string,
   language: BundledLanguage,
-  // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-callbacks)
   onResult?: (result: TokenizedCode) => void,
   onError?: (error: unknown) => void,
 ): TokenizedCode | null => {
@@ -273,9 +273,14 @@ export const highlightCode = (
     subscribers.add(tokensCacheKey, onResult, onError);
   }
 
+  if (inFlightHighlights.has(tokensCacheKey)) {
+    return null;
+  }
+
+  inFlightHighlights.add(tokensCacheKey);
+
   // Start highlighting in background - fire-and-forget async pattern
   getHighlighter(language)
-    // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-then)
     .then((highlighter) => {
       const availableLangs = highlighter.getLoadedLanguages();
       const langToUse = availableLangs.includes(language)
@@ -308,7 +313,6 @@ export const highlightCode = (
         subscribers.delete(tokensCacheKey);
       }
     })
-    // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-then), eslint-plugin-promise(prefer-await-to-callbacks)
     .catch((error) => {
       console.error("Failed to highlight code:", error);
       const subs = subscribers.get(tokensCacheKey);
@@ -320,6 +324,9 @@ export const highlightCode = (
         }
         subscribers.delete(tokensCacheKey);
       }
+    })
+    .finally(() => {
+      inFlightHighlights.delete(tokensCacheKey);
     });
 
   return null;
@@ -495,9 +502,6 @@ export const CodeBlockContent = ({
   useEffect(() => {
     let cancelled = false;
 
-    // Reset to raw tokens when code changes (shows current code, not stale tokens)
-    setTokenized(highlightCode(code, language) ?? rawTokens);
-
     const onResult = (result: TokenizedCode) => {
       if (!cancelled) {
         setTokenized(result);
@@ -510,8 +514,9 @@ export const CodeBlockContent = ({
       }
     };
 
-    // Subscribe to async highlighting result
-    highlightCode(code, language, onResult, onError);
+    // Try sync cache, subscribe for async result
+    const cached = highlightCode(code, language, onResult, onError);
+    setTokenized(cached ?? rawTokens);
 
     return () => {
       cancelled = true;
@@ -550,13 +555,18 @@ export const CodeBlock = ({
   );
 };
 
-export type CodeBlockCopyButtonProps = ComponentProps<typeof Button> & {
+export type CodeBlockCopyButtonProps = Omit<
+  ComponentProps<typeof Button>,
+  "onClick"
+> & {
+  onClick?: ComponentProps<typeof Button>["onClick"];
   onCopy?: () => void;
   onError?: (error: Error) => void;
   timeout?: number;
 };
 
 export const CodeBlockCopyButton = ({
+  onClick,
   onCopy,
   onError,
   timeout = 2000,
@@ -589,6 +599,18 @@ export const CodeBlockCopyButton = ({
     }
   }, [code, onCopy, onError, timeout, isCopied]);
 
+  const handleClick = useCallback<
+    NonNullable<ComponentProps<typeof Button>["onClick"]>
+  >(
+    async (event) => {
+      onClick?.(event);
+      if (!event.defaultPrevented) {
+        await copyToClipboard();
+      }
+    },
+    [onClick, copyToClipboard],
+  );
+
   useEffect(
     () => () => {
       window.clearTimeout(timeoutRef.current);
@@ -601,9 +623,10 @@ export const CodeBlockCopyButton = ({
   return (
     <Button
       className={cn("shrink-0", className)}
-      onClick={copyToClipboard}
+      onClick={handleClick}
       size="icon"
       variant="ghost"
+      aria-label={isCopied ? "Copied" : "Copy code"}
       {...props}
     >
       {children ?? <Icon size={14} />}

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import { mutation, query } from "@workspace/backend/_generated/server";
 
-import { sanitizeInput, validateInput } from "@workspace/shared/utils";
+import { sanitizeInput, validateInput } from "@workspace/shared/lib/utils";
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
@@ -49,10 +49,9 @@ export const create = mutation({
     const sanitizeMetadataString = (key: string, raw: string): string => {
       // Basic XSS sanitization: remove < and >
       let clean = raw.replace(/[<>]/g, "");
-      // Prevent javascript: protocol in URL fields and strip query/fragment
-      // to avoid leaking sensitive tokens
+      // Prevent javascript: protocol in URL fields and strip query/fragment to avoid leaking sensitive tokens
       if (key.toLowerCase().includes("url") || key === "referrer") {
-        clean = clean.replace(/^javascript:/i, "");
+        clean = clean.replace(/^(javascript|data):/i, "");
         clean = clean.split(/[?#]/)[0] ?? "";
       }
       return clean;

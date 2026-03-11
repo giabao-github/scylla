@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { hexToRgba } from "@workspace/shared/utils";
+import { hexToRgba } from "@workspace/shared/lib/utils";
 
 import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
 import { cn } from "@workspace/ui/lib/utils";
@@ -216,7 +216,10 @@ export const StyledTooltip = ({
           {content && content.length > 0 && (
             <ul className="space-y-1.5">
               {content.map((item, index) => (
-                <li key={index} className="flex gap-2 items-baseline">
+                <li
+                  key={`${index}-${item}`}
+                  className="flex gap-2 items-baseline"
+                >
                   <span
                     className="w-1 h-1 rounded-full -translate-y-px shrink-0"
                     style={{ backgroundColor: bulletColor }}

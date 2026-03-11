@@ -10,12 +10,23 @@ import { action, query } from "@workspace/backend/_generated/server";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import { getThreadById } from "@workspace/backend/system/conversations";
 
+import { modelCatalog } from "@workspace/shared/constants/model-catalog";
+
+const ALLOWED_MODEL_IDS = new Set<string>(modelCatalog.map((m) => m.id));
+
 const resolveModel = (modelId: string): LanguageModel => {
-  if (modelId.startsWith("gpt-")) return openai.chat(modelId);
-  if (modelId.startsWith("gemini-")) return google.chat(modelId);
+  if (!ALLOWED_MODEL_IDS.has(modelId)) {
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message: `Unsupported model: ${modelId}`,
+    });
+  }
+  const entry = modelCatalog.find((m) => m.id === modelId)!;
+  if (entry.chefSlug === "openai") return openai.chat(modelId);
+  if (entry.chefSlug === "google") return google.chat(modelId);
   throw new ConvexError({
     code: "BAD_REQUEST",
-    message: `Unsupported model ID: ${modelId}`,
+    message: `No provider for model: ${modelId}`,
   });
 };
 
@@ -33,20 +44,28 @@ export const create = action({
     contactSessionId: v.id("contactSessions"),
     prompt: v.string(),
     modelId: v.optional(v.string()),
+    requestId: v.string(),
   },
   handler: async (
     ctx,
-    { threadId, contactSessionId, prompt, modelId },
+    { threadId, contactSessionId, prompt, modelId, requestId },
   ): Promise<void> => {
     const contactSession = await ctx.runQuery(
       internal.system.contactSessions.getOne,
       { contactSessionId },
     );
 
-    if (!contactSession || contactSession.expiresAt < Date.now()) {
+    if (!contactSession) {
       throw new ConvexError({
         code: "UNAUTHORIZED",
-        message: "Invalid or expired session",
+        message: "Invalid session",
+      });
+    }
+
+    if (contactSession.expiresAt < Date.now()) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Expired session",
       });
     }
 
@@ -75,6 +94,13 @@ export const create = action({
         message: "Conversation resolved",
       });
     }
+
+    const { duplicate } = await ctx.runMutation(
+      internal.system.messageRequests.claim,
+      { requestId, contactSessionId },
+    );
+
+    if (duplicate) return;
 
     // TODO: implement subscription check
 

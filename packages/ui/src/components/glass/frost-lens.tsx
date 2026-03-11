@@ -2,7 +2,7 @@ import React from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
 
-export interface FrostLensProps {
+interface FrostLensBaseProps {
   children?: React.ReactNode;
   className?: string;
   radius?: number;
@@ -12,9 +12,17 @@ export interface FrostLensProps {
   glow?: string;
   highlight?: string;
   style?: React.CSSProperties;
-  onClick?: () => void;
-  "aria-label"?: string;
 }
+
+export type FrostLensProps =
+  | (FrostLensBaseProps & {
+      onClick: () => void;
+      "aria-label": string;
+    })
+  | (FrostLensBaseProps & {
+      onClick?: never;
+      "aria-label"?: string;
+    });
 
 export const FrostLens = ({
   children,

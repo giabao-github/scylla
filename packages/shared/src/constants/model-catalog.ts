@@ -1,4 +1,4 @@
-interface ModelEntry {
+export interface ModelEntry {
   readonly chef: string;
   readonly chefSlug: string;
   readonly id: string;

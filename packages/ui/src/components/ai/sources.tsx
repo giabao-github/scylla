@@ -36,9 +36,9 @@ export const SourcesTrigger = ({
   >
     {children ?? (
       <>
-        <p className="font-medium">
+        <span className="font-medium">
           Used {count} {count === 1 ? "source" : "sources"}
-        </p>
+        </span>
         <ChevronDownIcon className="w-4 h-4" />
       </>
     )}
@@ -61,7 +61,9 @@ export const SourcesContent = ({
   />
 );
 
-export type SourceProps = ComponentProps<"a">;
+export type SourceProps = Omit<ComponentProps<"a">, "href"> & {
+  href: string;
+};
 
 export const Source = ({
   href,

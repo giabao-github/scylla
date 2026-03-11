@@ -10,7 +10,7 @@ import {
   getVendor,
   sanitizeInput,
   validateInput,
-} from "@workspace/shared/utils";
+} from "@workspace/shared/lib/utils";
 import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { cn } from "@workspace/ui/lib/utils";

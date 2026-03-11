@@ -35,6 +35,7 @@ import {
   RefreshCwIcon,
   UserIcon,
 } from "lucide-react";
+import { nanoid } from "nanoid";
 import z from "zod";
 
 import {
@@ -183,6 +184,8 @@ export const WidgetChatScreen = () => {
       return;
     }
 
+    const requestId = nanoid();
+
     form.setValue("message", "");
 
     submitIds.current = new Set(
@@ -200,6 +203,7 @@ export const WidgetChatScreen = () => {
         contactSessionId,
         prompt: text,
         modelId: selectedModel,
+        requestId,
       });
       setUserMessage(null);
     } catch (err) {
@@ -222,7 +226,7 @@ export const WidgetChatScreen = () => {
   const uiMessages = toUIMessages(messages.results ?? []);
   const visibleMessages = uiMessages.filter((message, index) => {
     if (message.role === "user") return true;
-    if (!!message.text) return true;
+    if (message.text) return true;
     const isLast = index === uiMessages.length - 1;
     return isLast && !!generationError;
   });
@@ -273,10 +277,11 @@ export const WidgetChatScreen = () => {
             <p className="text-2xl font-semibold text-white">Scylla AI</p>
           </div>
           <FrostLens blur={0} distortion={0} radius={50}>
+            {/* TODO: Implement menu functionality */}
             <Button
+              disabled
               variant="transparent"
               className="size-10 hover:bg-primary/40"
-              onClick={() => {}}
             >
               <MenuIcon strokeWidth={3} />
             </Button>

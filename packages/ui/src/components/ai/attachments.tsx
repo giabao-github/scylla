@@ -1,6 +1,11 @@
 "use client";
 
-import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
+import type {
+  ComponentProps,
+  HTMLAttributes,
+  MouseEvent,
+  ReactNode,
+} from "react";
 import { createContext, useCallback, useContext, useMemo } from "react";
 
 import type { FileUIPart, SourceDocumentUIPart } from "ai";
@@ -334,16 +339,20 @@ export const AttachmentRemove = ({
   label = "Remove",
   className,
   children,
+  onClick,
   ...props
 }: AttachmentRemoveProps) => {
   const { onRemove, variant } = useAttachmentContext();
 
   const handleClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
-      onRemove?.();
+      onClick?.(e);
+      if (!e.defaultPrevented) {
+        onRemove?.();
+      }
     },
-    [onRemove],
+    [onClick, onRemove],
   );
 
   if (!onRemove) {
@@ -357,13 +366,13 @@ export const AttachmentRemove = ({
         variant === "grid" && [
           "absolute top-2 right-2 size-6 rounded-full p-0",
           "bg-background/80 backdrop-blur-sm",
-          "opacity-0 transition-opacity group-hover:opacity-100",
+          "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
           "hover:bg-background",
           "[&>svg]:size-3",
         ],
         variant === "inline" && [
           "size-5 rounded p-0",
-          "opacity-0 transition-opacity group-hover:opacity-100",
+          "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
           "[&>svg]:size-2.5",
         ],
         variant === "list" && ["size-8 shrink-0 rounded p-0", "[&>svg]:size-4"],
