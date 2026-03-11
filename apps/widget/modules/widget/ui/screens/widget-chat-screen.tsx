@@ -217,11 +217,11 @@ export const WidgetChatScreen = () => {
       });
       if (!abortRef.current) {
         setUserMessage(null);
+        setGenerationError(null);
       }
     } catch (err) {
       if (!abortRef.current) {
         setGenerationError(parseErrorMessage(err));
-        setUserMessage(null);
       }
     } finally {
       if (!abortRef.current) {
@@ -237,7 +237,12 @@ export const WidgetChatScreen = () => {
   };
 
   const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
-  const submitDisabled = isResolved || isGenerating || !message.trim();
+  const submitDisabled =
+    isResolved ||
+    isGenerating ||
+    !message.trim() ||
+    !conversation ||
+    !contactSessionId;
 
   const uiMessages = toUIMessages(messages.results ?? []);
   const visibleMessages = uiMessages.filter((message, index) => {
@@ -248,6 +253,28 @@ export const WidgetChatScreen = () => {
   });
 
   const displayMessages = (() => {
+    // Show failed turn with error shell when generation errored
+    if (generationError && lastPrompt && !isGenerating) {
+      const filtered = visibleMessages.filter(
+        (m) =>
+          !(
+            m.role === "user" &&
+            m.text?.trim() === lastPrompt.text?.trim() &&
+            m.id !== "__optimistic__"
+          ),
+      );
+      return [
+        ...filtered,
+        {
+          id: "__failed_user__",
+          role: "user" as const,
+          text: lastPrompt.text,
+          parts: [],
+        },
+        { id: "__error__", role: "assistant" as const, text: "", parts: [] },
+      ];
+    }
+
     if (!isGenerating || !userMessage) {
       return visibleMessages;
     }
@@ -284,6 +311,7 @@ export const WidgetChatScreen = () => {
             <FrostLens blur={0} distortion={0} radius={50}>
               <Button
                 variant="transparent"
+                aria-label="Back to selection screen"
                 className="size-10 hover:bg-primary/40"
                 onClick={onBack}
               >
@@ -297,6 +325,7 @@ export const WidgetChatScreen = () => {
             <Button
               disabled
               variant="transparent"
+              aria-label="Open menu"
               className="size-10 hover:bg-primary/40"
             >
               <MenuIcon strokeWidth={3} />

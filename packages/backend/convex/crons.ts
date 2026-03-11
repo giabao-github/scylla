@@ -4,16 +4,17 @@ import { internal } from "@workspace/backend/_generated/api";
 
 const crons = cronJobs();
 
-/**
- * Run the expired-session purge every hour.
- * Adjust the cron expression to suit your retention requirements
- * (e.g. "0 * * * *"  = top of every hour).
- */
-
 crons.cron(
-  "purgeExpiredContactSessions",
+  "Purge expired contact sessions",
   "0 * * * *",
   internal.contactSessionCleanup.purgeExpiredContactSessions,
+  {},
+);
+
+crons.daily(
+  "Cleanup stale message requests",
+  { hourUTC: 0, minuteUTC: 0 },
+  internal.system.messageRequests.cleanup,
   {},
 );
 

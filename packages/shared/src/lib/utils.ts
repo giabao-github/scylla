@@ -3,8 +3,10 @@ const PATTERNS = {
   email: /^[a-zA-Z0-9._+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/,
   nameStrip: /[^\p{L}\p{M}'\- ]/gu,
   emailStrip: /[^a-zA-Z0-9._+\-@]/g,
-  emojiTest: /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u,
-  emojiStrip: /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu,
+  emojiTest:
+    /(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}]|\u200D|\uFE0F)/u,
+  emojiStrip:
+    /(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}]|\u200D|\uFE0F)/gu,
 };
 
 type Input = "input" | "name" | "username" | "email" | "phone";

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 
+import { internal } from "@workspace/backend/_generated/api";
 import { internalMutation } from "@workspace/backend/_generated/server";
 
 export const claim = internalMutation({
@@ -34,5 +35,19 @@ export const release = internalMutation({
       .unique();
 
     if (existing) await ctx.db.delete(existing._id);
+  },
+});
+
+export const cleanup = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+
+    const stale = await ctx.db
+      .query("messageRequests")
+      .withIndex("by_created_at", (q) => q.lt("createdAt", cutoff))
+      .collect();
+
+    await Promise.all(stale.map((r) => ctx.db.delete(r._id)));
   },
 });

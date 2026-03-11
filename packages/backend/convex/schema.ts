@@ -59,5 +59,7 @@ export default defineSchema({
     requestId: v.string(),
     contactSessionId: v.id("contactSessions"),
     createdAt: v.number(),
-  }).index("by_request_id", ["requestId"]),
+  })
+    .index("by_request_id", ["requestId"])
+    .index("by_created_at", ["createdAt"]),
 });

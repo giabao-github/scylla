@@ -81,20 +81,20 @@ import { cn } from "@workspace/ui/lib/utils";
 // Helpers
 // ============================================================================
 
-const convertBlobUrlToDataUrl = async (url: string): Promise<string | null> => {
+const convertBlobUrlToDataUrl = async (
+  url: string,
+  signal?: AbortSignal,
+): Promise<string | null> => {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal });
     if (!response.ok) {
       return null;
     }
     const blob = await response.blob();
     // FileReader uses callback-based API, wrapping in Promise is necessary
-    // oxlint-disable-next-line eslint-plugin-promise(avoid-new)
     return new Promise((resolve) => {
       const reader = new FileReader();
-      // oxlint-disable-next-line eslint-plugin-unicorn(prefer-add-event-listener)
       reader.onloadend = () => resolve(reader.result as string);
-      // oxlint-disable-next-line eslint-plugin-unicorn(prefer-add-event-listener)
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
@@ -178,17 +178,27 @@ export const PromptInputProvider = ({
   initialInput: initialTextInput = "",
   children,
 }: PromptInputProviderProps) => {
-  // ----- textInput state
+  // TextInput state
   const [textInput, setTextInput] = useState(initialTextInput);
   const clearInput = useCallback(() => setTextInput(""), []);
 
-  // ----- attachments state (global when wrapped)
+  // Attachments state (global when wrapped)
   const [attachmentFiles, setAttachmentFiles] = useState<
     (FileUIPart & { id: string })[]
   >([]);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  // oxlint-disable-next-line eslint(no-empty-function)
+
+  // Refs
+  const attachmentsRef = useRef(attachmentFiles);
   const openRef = useRef<() => void>(() => {});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const registeredInputRef = useRef<RefObject<HTMLInputElement | null> | null>(
+    null,
+  );
+  const effectiveFileInputRef: RefObject<HTMLInputElement | null> = {
+    get current() {
+      return registeredInputRef.current?.current ?? fileInputRef.current;
+    },
+  };
 
   const add = useCallback((files: File[] | FileList) => {
     const incoming = [...files];
@@ -229,9 +239,6 @@ export const PromptInputProvider = ({
     });
   }, []);
 
-  // Keep a ref to attachments for cleanup on unmount (avoids stale closure)
-  const attachmentsRef = useRef(attachmentFiles);
-
   useEffect(() => {
     attachmentsRef.current = attachmentFiles;
   }, [attachmentFiles]);
@@ -256,7 +263,7 @@ export const PromptInputProvider = ({
     () => ({
       add,
       clear,
-      fileInputRef,
+      fileInputRef: effectiveFileInputRef,
       files: attachmentFiles,
       openFileDialog,
       remove,
@@ -266,11 +273,7 @@ export const PromptInputProvider = ({
 
   const __registerFileInput = useCallback(
     (ref: RefObject<HTMLInputElement | null>, open: () => void) => {
-      // Store the ref object to always read the latest .current value
-      Object.defineProperty(fileInputRef, "current", {
-        get: () => ref.current,
-        configurable: true,
-      });
+      registeredInputRef.current = ref;
       openRef.current = open;
     },
     [],
@@ -381,6 +384,10 @@ export type PromptInputProps = Omit<
   // e.g., "image/*" or leave undefined for any
   accept?: string;
   multiple?: boolean;
+  /**
+   * When true, file drops anywhere on the document are captured by this input.
+   * If multiple PromptInputs enable globalDrop, only the most recently mounted one receives dropped files.
+   */
   globalDrop?: boolean;
   // Minimal constraints
   maxFiles?: number;
@@ -398,22 +405,32 @@ export type PromptInputProps = Omit<
 
 const globalDropRegistry = new Set<(files: FileList) => void>();
 let globalListenersAttached = false;
+let cleanupGlobalListeners: (() => void) | null = null;
 
 const attachGlobalListeners = () => {
   if (globalListenersAttached || typeof document === "undefined") return;
   globalListenersAttached = true;
 
-  document.addEventListener("dragover", (e: DragEvent) => {
+  const onDragOver = (e: DragEvent) => {
     if (e.dataTransfer?.types?.includes("Files")) e.preventDefault();
-  });
+  };
 
-  document.addEventListener("drop", (e: DragEvent) => {
+  const onDrop = (e: DragEvent) => {
     if (!e.dataTransfer?.files?.length) return;
     e.preventDefault();
     const handlers = [...globalDropRegistry];
     const last = handlers.at(-1);
     last?.(e.dataTransfer.files);
-  });
+  };
+
+  document.addEventListener("dragover", onDragOver);
+  document.addEventListener("drop", onDrop);
+
+  cleanupGlobalListeners = () => {
+    document.removeEventListener("dragover", onDragOver);
+    document.removeEventListener("drop", onDrop);
+    globalListenersAttached = false;
+  };
 };
 
 const registerGlobalDrop = (
@@ -423,6 +440,9 @@ const registerGlobalDrop = (
   attachGlobalListeners();
   return () => {
     globalDropRegistry.delete(handler);
+    if (globalDropRegistry.size === 0 && cleanupGlobalListeners) {
+      cleanupGlobalListeners();
+    }
   };
 };
 
@@ -734,11 +754,14 @@ export const PromptInput = ({
           })();
 
       try {
-        // Convert blob URLs to data URLs asynchronously
+        const abortController = new AbortController();
         const convertedFiles: FileUIPart[] = await Promise.all(
           files.map(async ({ id: _id, ...item }) => {
             if (item.url?.startsWith("blob:")) {
-              const dataUrl = await convertBlobUrlToDataUrl(item.url);
+              const dataUrl = await convertBlobUrlToDataUrl(
+                item.url,
+                abortController.signal,
+              );
               // If conversion failed, keep the original blob URL
               return {
                 ...item,
