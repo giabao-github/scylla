@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
+import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import {
   Conversation,
   ConversationContent,
@@ -118,7 +119,16 @@ export const WidgetChatScreen = () => {
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [lastPrompt, setLastPrompt] = useState<PromptInputMessage | null>(null);
 
+  const abortRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current = true;
+    };
+  }, []);
+
   const onBack = () => {
+    abortRef.current = true;
     setScreen("selection");
     setConversationId(null);
   };
@@ -205,12 +215,18 @@ export const WidgetChatScreen = () => {
         modelId: selectedModel,
         requestId,
       });
-      setUserMessage(null);
+      if (!abortRef.current) {
+        setUserMessage(null);
+      }
     } catch (err) {
-      setGenerationError(parseErrorMessage(err));
-      setUserMessage(null);
+      if (!abortRef.current) {
+        setGenerationError(parseErrorMessage(err));
+        setUserMessage(null);
+      }
     } finally {
-      setIsGenerating(false);
+      if (!abortRef.current) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -220,7 +236,7 @@ export const WidgetChatScreen = () => {
     }
   };
 
-  const isResolved = conversation?.status === "resolved";
+  const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
   const submitDisabled = isResolved || isGenerating || !message.trim();
 
   const uiMessages = toUIMessages(messages.results ?? []);

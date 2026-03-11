@@ -5,6 +5,8 @@ import { components } from "@workspace/backend/_generated/api";
 import { mutation, query } from "@workspace/backend/_generated/server";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 
+import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
+
 export const create = mutation({
   args: {
     organizationId: v.string(),
@@ -42,7 +44,7 @@ export const create = mutation({
 
     const conversationId = await ctx.db.insert("conversations", {
       contactSessionId: session._id,
-      status: "unresolved",
+      status: CONVERSATION_STATUS.UNRESOLVED,
       organizationId: session.organizationId,
       threadId,
       createdAt: Date.now(),

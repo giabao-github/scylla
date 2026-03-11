@@ -10,6 +10,7 @@ import { action, query } from "@workspace/backend/_generated/server";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import { getThreadById } from "@workspace/backend/system/conversations";
 
+import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { modelCatalog } from "@workspace/shared/constants/model-catalog";
 
 const ALLOWED_MODEL_IDS = new Set<string>(modelCatalog.map((m) => m.id));
@@ -88,7 +89,7 @@ export const create = action({
       });
     }
 
-    if (conversation.status === "resolved") {
+    if (conversation.status === CONVERSATION_STATUS.RESOLVED) {
       throw new ConvexError({
         code: "BAD_REQUEST",
         message: "Conversation resolved",
@@ -104,9 +105,17 @@ export const create = action({
 
     // TODO: implement subscription check
 
-    const agent = agentForModel(modelId);
-    const { thread } = await agent.continueThread(ctx, { threadId });
-    await thread.generateText({ prompt } as any);
+    try {
+      const agent = agentForModel(modelId);
+      const { thread } = await agent.continueThread(ctx, { threadId });
+      await thread.generateText({ prompt } as any);
+    } catch (err) {
+      // Release the claim so the client can retry with the same requestId
+      await ctx.runMutation(internal.system.messageRequests.release, {
+        requestId,
+      });
+      throw err;
+    }
   },
 });
 

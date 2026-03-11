@@ -24,3 +24,15 @@ export const claim = internalMutation({
     return { duplicate: false } as const;
   },
 });
+
+export const release = internalMutation({
+  args: { requestId: v.string() },
+  handler: async (ctx, { requestId }) => {
+    const existing = await ctx.db
+      .query("messageRequests")
+      .withIndex("by_request_id", (q) => q.eq("requestId", requestId))
+      .unique();
+
+    if (existing) await ctx.db.delete(existing._id);
+  },
+});

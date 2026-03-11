@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
+
 /** Run `npx convex dev` in backend directory after editing this file */
 export default defineSchema({
   users: defineTable({
@@ -41,9 +43,9 @@ export default defineSchema({
     organizationId: v.string(),
     contactSessionId: v.id("contactSessions"),
     status: v.union(
-      v.literal("unresolved"),
-      v.literal("escalated"),
-      v.literal("resolved"),
+      v.literal(CONVERSATION_STATUS.UNRESOLVED),
+      v.literal(CONVERSATION_STATUS.ESCALATED),
+      v.literal(CONVERSATION_STATUS.RESOLVED),
     ),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),

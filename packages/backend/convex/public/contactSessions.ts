@@ -51,7 +51,12 @@ export const create = mutation({
       let clean = raw.replace(/[<>]/g, "");
       // Prevent javascript: protocol in URL fields and strip query/fragment to avoid leaking sensitive tokens
       if (key.toLowerCase().includes("url") || key === "referrer") {
-        clean = clean.replace(/^(javascript|data):/i, "");
+        clean = clean.trim();
+        let prev;
+        do {
+          prev = clean;
+          clean = clean.replace(/^(javascript|data):/i, "").trim();
+        } while (clean !== prev);
         clean = clean.split(/[?#]/)[0] ?? "";
       }
       return clean;

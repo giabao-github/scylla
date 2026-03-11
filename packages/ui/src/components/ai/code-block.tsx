@@ -7,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -123,7 +124,10 @@ const CodeBlockContext = createContext<CodeBlockContextType>({
 
 class LRUCache<K, V> {
   private cache = new Map<K, V>();
-  constructor(private maxEntries: number = 50) {}
+  constructor(
+    private maxEntries: number = 50,
+    private onEvict?: (value: V) => void,
+  ) {}
   get(key: K): V | undefined {
     if (!this.cache.has(key)) return undefined;
     const value = this.cache.get(key) as V;
@@ -136,7 +140,13 @@ class LRUCache<K, V> {
       this.cache.delete(key);
     } else if (this.cache.size >= this.maxEntries) {
       const firstKey = this.cache.keys().next().value;
-      if (firstKey !== undefined) this.cache.delete(firstKey);
+      if (firstKey !== undefined) {
+        const evicted = this.cache.get(firstKey);
+        this.cache.delete(firstKey);
+        if (evicted !== undefined) {
+          this.onEvict?.(evicted);
+        }
+      }
     }
     this.cache.set(key, value);
   }
@@ -194,7 +204,13 @@ class SubscriberMap {
 const highlighterCache = new LRUCache<
   string,
   Promise<HighlighterGeneric<BundledLanguage, BundledTheme>>
->(20);
+>(20, (highlighterPromise) => {
+  void highlighterPromise
+    .then((highlighter) => highlighter.dispose())
+    .catch(() => {
+      // Highlighter creation failed, nothing to dispose
+    });
+});
 
 // Token cache
 const tokensCache = new LRUCache<string, TokenizedCode>(100);
@@ -499,7 +515,7 @@ export const CodeBlockContent = ({
     () => highlightCode(code, language) ?? rawTokens,
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let cancelled = false;
 
     const onResult = (result: TokenizedCode) => {

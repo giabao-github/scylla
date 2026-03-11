@@ -371,6 +371,7 @@ export const PromptInputActionAddAttachments = ({
 export interface PromptInputMessage {
   text: string;
   files: FileUIPart[];
+  sources: SourceDocumentUIPart[];
 }
 
 export type PromptInputProps = Omit<
@@ -393,6 +394,36 @@ export type PromptInputProps = Omit<
     message: PromptInputMessage,
     event: FormEvent<HTMLFormElement>,
   ) => void | Promise<void>;
+};
+
+const globalDropRegistry = new Set<(files: FileList) => void>();
+let globalListenersAttached = false;
+
+const attachGlobalListeners = () => {
+  if (globalListenersAttached || typeof document === "undefined") return;
+  globalListenersAttached = true;
+
+  document.addEventListener("dragover", (e: DragEvent) => {
+    if (e.dataTransfer?.types?.includes("Files")) e.preventDefault();
+  });
+
+  document.addEventListener("drop", (e: DragEvent) => {
+    if (!e.dataTransfer?.files?.length) return;
+    e.preventDefault();
+    const handlers = [...globalDropRegistry];
+    const last = handlers.at(-1);
+    last?.(e.dataTransfer.files);
+  });
+};
+
+const registerGlobalDrop = (
+  handler: (files: FileList) => void,
+): (() => void) => {
+  globalDropRegistry.add(handler);
+  attachGlobalListeners();
+  return () => {
+    globalDropRegistry.delete(handler);
+  };
 };
 
 export const PromptInput = ({
@@ -628,29 +659,11 @@ export const PromptInput = ({
   }, [add, globalDrop]);
 
   useEffect(() => {
-    if (!globalDrop) {
-      return;
-    }
+    if (!globalDrop) return;
 
-    const onDragOver = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes("Files")) {
-        e.preventDefault();
-      }
-    };
-    const onDrop = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes("Files")) {
-        e.preventDefault();
-      }
-      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        add(e.dataTransfer.files);
-      }
-    };
-    document.addEventListener("dragover", onDragOver);
-    document.addEventListener("drop", onDrop);
-    return () => {
-      document.removeEventListener("dragover", onDragOver);
-      document.removeEventListener("drop", onDrop);
-    };
+    const handler = (files: FileList) => add(files);
+    const unregister = registerGlobalDrop(handler);
+    return unregister;
   }, [add, globalDrop]);
 
   useEffect(
@@ -736,7 +749,14 @@ export const PromptInput = ({
           }),
         );
 
-        const result = onSubmit({ files: convertedFiles, text }, event);
+        const convertedSources = referencedSources.map(
+          ({ id: _id, ...source }) => source,
+        );
+
+        const result = onSubmit(
+          { files: convertedFiles, sources: convertedSources, text },
+          event,
+        );
 
         // Handle both sync and async onSubmit
         if (result instanceof Promise) {
@@ -764,7 +784,7 @@ export const PromptInput = ({
         // Don't clear on error - user may want to retry
       }
     },
-    [usingProvider, controller, files, onSubmit, clear],
+    [usingProvider, controller, files, referencedSources, onSubmit, clear],
   );
 
   // Render with or without local provider
@@ -843,7 +863,7 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
       value !== undefined &&
       value !== controller.textInput.value
     ) {
-      controller.textInput.setInput(String(value));
+      controller.textInput.setInput(value);
     }
   }, [value, controller]);
 
@@ -952,7 +972,7 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
       }
     : {
         onChange,
-        value: value ?? "",
+        ...(value !== undefined ? { value } : {}),
       };
 
   return (
