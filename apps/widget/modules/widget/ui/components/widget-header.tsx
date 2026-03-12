@@ -19,7 +19,7 @@ export const WidgetHeader = ({
   return (
     <header
       className={cn(
-        "flex overflow-hidden relative justify-between items-center p-4 text-primary-foreground",
+        "flex overflow-hidden relative justify-between items-center p-2 w-full shrink-0 md:p-4 text-primary-foreground",
         className,
       )}
     >
@@ -49,7 +49,6 @@ export const WidgetHeader = ({
           zoom={1.75}
         />
       </div>
-
       <div className="relative w-full">{children}</div>
     </header>
   );

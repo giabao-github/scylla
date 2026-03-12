@@ -24,18 +24,15 @@ import {
   PromptInputTextarea,
 } from "@workspace/ui/components/ai/prompt-input";
 import { Button } from "@workspace/ui/components/button";
+import { AgentAvatar } from "@workspace/ui/components/dicebear-avatar";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
+import { InfiniteScrollTrigger } from "@workspace/ui/components/infinite-scroll-trigger";
+import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAction, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import {
-  ArrowLeftIcon,
-  BotIcon,
-  MenuIcon,
-  RefreshCwIcon,
-  UserIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, MenuIcon, RefreshCwIcon, UserIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import z from "zod";
 
@@ -122,6 +119,7 @@ export const WidgetChatScreen = () => {
   const abortRef = useRef(false);
 
   useEffect(() => {
+    abortRef.current = false;
     return () => {
       abortRef.current = true;
     };
@@ -153,6 +151,13 @@ export const WidgetChatScreen = () => {
       : "skip",
     { initialNumItems: 10 },
   );
+
+  const { topElementRef, handleLoadMore, canLoadMore, isLoadingMore } =
+    useInfiniteScroll({
+      status: messages.status,
+      loadMore: messages.loadMore,
+      loadSize: 10,
+    });
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -245,32 +250,33 @@ export const WidgetChatScreen = () => {
     !contactSessionId;
 
   const uiMessages = toUIMessages(messages.results ?? []);
-  const visibleMessages = uiMessages.filter((message, index) => {
+  const visibleMessages = uiMessages.filter((message) => {
     if (message.role === "user") return true;
     if (message.text) return true;
-    const isLast = index === uiMessages.length - 1;
-    return isLast && !!generationError;
+    return false;
   });
 
   const displayMessages = (() => {
-    // Show failed turn with error shell when generation errored
     if (generationError && lastPrompt && !isGenerating) {
-      const filtered = visibleMessages.filter(
-        (m) =>
-          !(
-            m.role === "user" &&
-            m.text?.trim() === lastPrompt.text?.trim() &&
-            m.id !== "__optimistic__"
-          ),
-      );
+      const lastMessage = visibleMessages[visibleMessages.length - 1];
+      const hasFailedMessage =
+        lastMessage?.role === "user" &&
+        lastMessage?.text?.trim() === lastPrompt.text?.trim();
+
+      const baseMessages = hasFailedMessage
+        ? visibleMessages
+        : [
+            ...visibleMessages,
+            {
+              id: "__failed_user__",
+              role: "user" as const,
+              text: lastPrompt.text,
+              parts: [],
+            },
+          ];
+
       return [
-        ...filtered,
-        {
-          id: "__failed_user__",
-          role: "user" as const,
-          text: lastPrompt.text,
-          parts: [],
-        },
+        ...baseMessages,
         { id: "__error__", role: "assistant" as const, text: "", parts: [] },
       ];
     }
@@ -298,16 +304,15 @@ export const WidgetChatScreen = () => {
   })();
 
   return (
-    <>
+    <div className="flex overflow-hidden absolute inset-0 flex-col bg-muted">
       <WidgetHeader
         timeSpeed={0.4}
         color1="#5B21B6"
         color2="#6D28D9"
         color3="#7C3AED"
-        className="flex items-center"
       >
-        <div className="flex justify-between items-center">
-          <div className="flex gap-x-8 items-center">
+        <div className="flex justify-between p-2 md:p-1">
+          <div className="flex gap-x-6 items-center">
             <FrostLens blur={0} distortion={0} radius={50}>
               <Button
                 variant="transparent"
@@ -318,7 +323,7 @@ export const WidgetChatScreen = () => {
                 <ArrowLeftIcon strokeWidth={3} />
               </Button>
             </FrostLens>
-            <p className="text-2xl font-semibold text-white">Scylla AI</p>
+            <p className="text-2xl font-semibold">Scylla AI</p>
           </div>
           <FrostLens blur={0} distortion={0} radius={50}>
             {/* TODO: Implement menu functionality */}
@@ -334,87 +339,90 @@ export const WidgetChatScreen = () => {
         </div>
       </WidgetHeader>
 
-      <Conversation>
-        <ConversationContent className="gap-5 px-4 py-6">
-          {displayMessages.map((message) => {
-            const isUser = message.role === "user";
-            const isEmpty = !message.text;
+      <div className="flex relative flex-col flex-1 w-full min-h-0">
+        {/* Top smooth blur */}
+        <div className="absolute top-0 left-0 right-[14px] h-12 pointer-events-none z-10 bg-linear-to-b from-[#6D28D9]/20 to-transparent backdrop-blur-[3px] mask-[linear-gradient(to_bottom,black_0%,transparent_100%)]" />
 
-            const isThinking = !isUser && isEmpty && isGenerating;
+        <Conversation className="overflow-y-auto flex-1 w-full min-h-0">
+          <ConversationContent className="gap-5 px-4 py-6">
+            <InfiniteScrollTrigger
+              ref={topElementRef}
+              canLoadMore={canLoadMore}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={handleLoadMore}
+              loadingText="Loading messages..."
+              noMoreText=""
+            />
+            {displayMessages.map((message) => {
+              const isUser = message.role === "user";
+              const isEmpty = !message.text;
 
-            return (
-              <Message
-                from={isUser ? "user" : "assistant"}
-                key={message.id}
-                className="max-w-[88%]"
-              >
-                {!isUser && (
-                  <div className="flex items-start gap-2.5">
-                    <div
-                      className={cn(
-                        "shrink-0 flex items-center justify-center",
-                        "size-7 rounded-full mt-0.5",
-                        "border-2 transition-colors",
-                        "bg-primary/10 border-primary/20",
-                        isThinking && "animate-pulse",
-                      )}
-                    >
-                      <BotIcon
-                        className="size-4 text-primary"
-                        strokeWidth={2.3}
-                      />
+              const isThinking = !isUser && isEmpty && isGenerating;
+
+              return (
+                <Message
+                  from={isUser ? "user" : "assistant"}
+                  key={message.id}
+                  className="max-w-[88%]"
+                >
+                  {!isUser && (
+                    <div className="flex items-start gap-2.5">
+                      <AgentAvatar isThinking={isThinking} />
+                      <MessageContent
+                        className={cn(
+                          "px-4 py-3 rounded-2xl rounded-tl-sm",
+                          "border shadow-sm text-sm leading-relaxed",
+                          isEmpty && !isGenerating
+                            ? "bg-destructive/10 border-destructive/30 text-destructive"
+                            : "bg-muted/60 border-border/40 text-foreground",
+                        )}
+                      >
+                        {isEmpty && isGenerating && <ThinkingEllipsis />}
+                        {isEmpty && !isGenerating && (
+                          <ErrorMessage
+                            message={generationError || "Something went wrong."}
+                            onRetry={handleRetry}
+                            disabled={isGenerating}
+                          />
+                        )}
+                        {!isEmpty && (
+                          <MessageResponse>{message.text}</MessageResponse>
+                        )}
+                      </MessageContent>
                     </div>
-                    <MessageContent
-                      className={cn(
-                        "px-4 py-3 rounded-2xl rounded-tl-sm",
-                        "border shadow-sm text-sm leading-relaxed",
-                        isEmpty && !isGenerating
-                          ? "bg-destructive/10 border-destructive/30 text-destructive"
-                          : "bg-muted/60 border-border/40 text-foreground",
-                      )}
-                    >
-                      {isEmpty && isGenerating && <ThinkingEllipsis />}
-                      {isEmpty && !isGenerating && (
-                        <ErrorMessage
-                          message={generationError || "Something went wrong."}
-                          onRetry={handleRetry}
-                          disabled={isGenerating}
-                        />
-                      )}
-                      {!isEmpty && (
+                  )}
+
+                  {isUser && (
+                    <div className="flex items-start gap-2.5 ml-auto">
+                      <MessageContent
+                        className={cn(
+                          "px-4 py-3 rounded-2xl rounded-tr-sm",
+                          "bg-primary text-primary-foreground",
+                          "text-sm leading-relaxed shadow-sm",
+                        )}
+                      >
                         <MessageResponse>{message.text}</MessageResponse>
-                      )}
-                    </MessageContent>
-                  </div>
-                )}
-
-                {isUser && (
-                  <div className="flex items-start gap-2.5 ml-auto">
-                    <MessageContent
-                      className={cn(
-                        "px-4 py-3 rounded-2xl rounded-tr-sm",
-                        "bg-primary text-primary-foreground",
-                        "text-sm leading-relaxed shadow-sm",
-                      )}
-                    >
-                      <MessageResponse>{message.text}</MessageResponse>
-                    </MessageContent>
-                    <div className="flex items-center justify-center size-7 rounded-full bg-secondary border border-border/40 mt-0.5">
-                      <UserIcon
-                        className="size-4 text-foreground/70"
-                        strokeWidth={2.3}
-                      />
+                      </MessageContent>
+                      <div className="flex items-center justify-center size-7 rounded-full bg-secondary border border-border/40 mt-0.5">
+                        <UserIcon
+                          className="size-4 text-foreground/70"
+                          strokeWidth={2.3}
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
-              </Message>
-            );
-          })}
-        </ConversationContent>
-      </Conversation>
+                  )}
+                </Message>
+              );
+            })}
+          </ConversationContent>
+        </Conversation>
+
+        {/* Bottom smooth blur */}
+        <div className="absolute bottom-0 left-0 right-[14px] h-12 pointer-events-none z-10 bg-linear-to-t from-muted/60 to-transparent backdrop-blur-[3px] mask-[linear-gradient(to_top,black_0%,transparent_100%)]" />
+      </div>
       {/* TODO: add suggestions */}
-      <div className="px-4 pt-2 pb-4">
-        <div className="mx-auto w-full max-w-4xl">
+      <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent shrink-0">
+        <div className="mx-auto max-w-4xl">
           <Form {...form}>
             <PromptBox
               disabled={submitDisabled}
@@ -443,6 +451,7 @@ export const WidgetChatScreen = () => {
                           ? "This conversation has been resolved."
                           : "Ask anything..."
                       }
+                      className="text-sm"
                       onChange={field.onChange}
                       value={field.value}
                     />
@@ -461,6 +470,6 @@ export const WidgetChatScreen = () => {
           </Form>
         </div>
       </div>
-    </>
+    </div>
   );
 };

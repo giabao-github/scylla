@@ -1,4 +1,5 @@
-import { saveMessage } from "@convex-dev/agent";
+import { MessageDoc, saveMessage } from "@convex-dev/agent";
+import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { components } from "@workspace/backend/_generated/api";
@@ -100,6 +101,74 @@ export const getOne = query({
       status: conversation.status,
       threadId: conversation.threadId,
       createdAt: conversation.createdAt,
+    };
+  },
+});
+
+export const getMany = query({
+  args: {
+    contactSessionId: v.id("contactSessions"),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const contactSession = await ctx.db.get(args.contactSessionId);
+
+    if (!contactSession) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Invalid session",
+      });
+    }
+
+    if (contactSession.expiresAt < Date.now()) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Expired session",
+      });
+    }
+
+    const conversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_contact_session_id", (q) =>
+        q.eq("contactSessionId", args.contactSessionId),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    const conversationWithLastMessage = await Promise.all(
+      conversations.page.map(async (conversation) => {
+        let lastMessage: MessageDoc | null = null;
+
+        // TODO: Denormalize lastMessageText onto conversations to eliminate this N+1.
+        // Update the field inside messages.create action after generateText completes.
+        try {
+          const messages = await supportAgent.listMessages(ctx, {
+            threadId: conversation.threadId,
+            paginationOpts: { numItems: 1, cursor: null },
+          });
+          lastMessage = messages.page[0] ?? null;
+        } catch {
+          console.warn(
+            `Failed to fetch last message for thread ${conversation.threadId}`,
+          );
+          lastMessage = null;
+        }
+
+        return {
+          _id: conversation._id,
+          _creationTime: conversation._creationTime,
+          _updateTime: conversation.updatedAt ?? conversation._creationTime,
+          status: conversation.status,
+          organizationId: conversation.organizationId,
+          threadId: conversation.threadId,
+          lastMessage,
+        };
+      }),
+    );
+
+    return {
+      ...conversations,
+      page: conversationWithLastMessage,
     };
   },
 });

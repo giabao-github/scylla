@@ -24,6 +24,12 @@ import {
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 
+const buttonOptions = [
+  { icon: MessageCircleIcon, label: "Start chat", mode: "chat" as const },
+  { icon: MicIcon, label: "Start voice chat", mode: "voice" as const },
+  { icon: PhoneIcon, label: "Start audio call", mode: "audio" as const },
+];
+
 export const WidgetSelectionScreen = () => {
   const setScreen = useSetAtom(widgetScreenAtom);
   const setErrorMessage = useSetAtom(errorMessageAtom);
@@ -35,13 +41,7 @@ export const WidgetSelectionScreen = () => {
   const createConversation = useMutation(api.public.conversations.create);
   const [isPending, setIsPending] = useState(false);
 
-  const buttonOptions = [
-    { icon: MessageCircleIcon, label: "Start chat", mode: "chat" as const },
-    { icon: MicIcon, label: "Start voice chat", mode: "voice" as const },
-    { icon: PhoneIcon, label: "Start audio call", mode: "audio" as const },
-  ];
-
-  const sharedButtonProps = {
+  const selectionButtonProps = {
     idleAlpha: 0.06,
     hoverAlpha: 0.2,
     glowAlpha: 0.15,
@@ -86,23 +86,23 @@ export const WidgetSelectionScreen = () => {
   return (
     <>
       <WidgetHeader>
-        <div className="flex flex-col gap-y-2 justify-between px-2 py-6 font-semibold">
-          <p className="text-3xl">Hi there! 👋</p>
-          <p className="text-lg">Let&apos;s get you started.</p>
+        <div className="flex flex-col gap-y-2 justify-between px-4 py-6 font-semibold">
+          <p className="text-2xl md:text-3xl">Hi there! 👋</p>
+          <p className="text-base md:text-lg">Let&apos;s get you started.</p>
         </div>
       </WidgetHeader>
-      <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4">
+      <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4 mt-4">
         {buttonOptions.map(({ icon: Icon, label, mode }) => (
           <GlassButton
             key={mode}
-            {...sharedButtonProps}
+            {...selectionButtonProps}
             onClick={() => handleNewConversation(mode)}
           >
-            <div className="flex gap-x-3 items-center text-black dark:text-foreground">
-              <Icon className="size-4" strokeWidth={2.5} />
+            <div className="flex gap-x-3 items-center text-sm text-black md:text-base dark:text-foreground">
+              <Icon className="size-3.5 md:size-4" strokeWidth={2.5} />
               <span>{label}</span>
             </div>
-            <ChevronRightIcon className="text-black dark:text-foreground" />
+            <ChevronRightIcon className="text-black dark:text-foreground size-5 md:size-6" />
           </GlassButton>
         ))}
       </div>
