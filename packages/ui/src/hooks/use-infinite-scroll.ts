@@ -14,12 +14,17 @@ export const useInfiniteScroll = ({
   observerEnabled = true,
 }: UseInfiniteScrollProps) => {
   const topElementRef = useRef<HTMLDivElement>(null);
+  const handleLoadMoreRef = useRef<() => void>(() => {});
 
   const handleLoadMore = useCallback(() => {
     if (status === "CanLoadMore") {
       loadMore(loadSize);
     }
   }, [status, loadMore, loadSize]);
+
+  useEffect(() => {
+    handleLoadMoreRef.current = handleLoadMore;
+  }, [handleLoadMore]);
 
   useEffect(() => {
     const topElement = topElementRef.current;
@@ -30,7 +35,7 @@ export const useInfiniteScroll = ({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          handleLoadMore();
+          handleLoadMoreRef.current();
         }
       },
       { threshold: 0.1 },
@@ -41,7 +46,7 @@ export const useInfiniteScroll = ({
     return () => {
       observer.disconnect();
     };
-  }, [handleLoadMore, observerEnabled]);
+  }, [observerEnabled]);
 
   return {
     topElementRef,

@@ -19,7 +19,7 @@ export const WidgetHeader = ({
   return (
     <header
       className={cn(
-        "flex overflow-hidden fixed top-0 z-10 justify-between items-center p-2 w-full md:p-4 text-primary-foreground",
+        "flex overflow-hidden relative justify-between items-center p-2 w-full shrink-0 md:p-4 text-primary-foreground",
         className,
       )}
     >

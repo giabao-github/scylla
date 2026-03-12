@@ -24,7 +24,7 @@ import {
   PromptInputTextarea,
 } from "@workspace/ui/components/ai/prompt-input";
 import { Button } from "@workspace/ui/components/button";
-import { DicebearAvatar } from "@workspace/ui/components/dicebear-avatar";
+import { AgentAvatar } from "@workspace/ui/components/dicebear-avatar";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
 import { InfiniteScrollTrigger } from "@workspace/ui/components/infinite-scroll-trigger";
@@ -32,13 +32,7 @@ import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAction, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import {
-  ArrowLeftIcon,
-  BotIcon,
-  MenuIcon,
-  RefreshCwIcon,
-  UserIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, MenuIcon, RefreshCwIcon, UserIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import z from "zod";
 
@@ -312,7 +306,6 @@ export const WidgetChatScreen = () => {
   return (
     <div className="flex overflow-hidden absolute inset-0 flex-col bg-muted">
       <WidgetHeader
-        className="relative z-20 shrink-0"
         timeSpeed={0.4}
         color1="#5B21B6"
         color2="#6D28D9"
@@ -358,7 +351,7 @@ export const WidgetChatScreen = () => {
               isLoadingMore={isLoadingMore}
               onLoadMore={handleLoadMore}
               loadingText="Loading messages..."
-              noMoreText="Top of content"
+              noMoreText=""
             />
             {displayMessages.map((message) => {
               const isUser = message.role === "user";
@@ -374,17 +367,7 @@ export const WidgetChatScreen = () => {
                 >
                   {!isUser && (
                     <div className="flex items-start gap-2.5">
-                      <div
-                        className={cn(
-                          "shrink-0 flex items-center justify-center",
-                          "size-7 rounded-full mt-0.5",
-                          "border-2 transition-colors",
-                          "bg-primary/10 border-primary/20",
-                          isThinking && "animate-pulse",
-                        )}
-                      >
-                        <DicebearAvatar seed="assistant" size={32} />
-                      </div>
+                      <AgentAvatar isThinking={isThinking} />
                       <MessageContent
                         className={cn(
                           "px-4 py-3 rounded-2xl rounded-tl-sm",

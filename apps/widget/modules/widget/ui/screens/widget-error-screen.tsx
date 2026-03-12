@@ -18,7 +18,7 @@ export const WidgetErrorScreen = () => {
         </div>
       </WidgetHeader>
       <div
-        className="flex flex-col flex-1 mt-[152px] gap-y-4 justify-center items-center p-4 text-muted-foreground"
+        className="flex flex-col flex-1 gap-y-4 justify-center items-center p-4 text-muted-foreground"
         role="alert"
         aria-live="assertive"
       >

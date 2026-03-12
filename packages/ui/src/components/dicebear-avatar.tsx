@@ -15,6 +15,10 @@ interface DicebearAvatarProps {
   badgeImageUrl?: string;
 }
 
+interface AgentAvatarProps {
+  isThinking?: boolean;
+  className?: string;
+}
 export const DicebearAvatar = ({
   seed,
   size = 32,
@@ -43,10 +47,7 @@ export const DicebearAvatar = ({
       className={cn("inline-block relative", className)}
       style={{ width: size, height: size }}
     >
-      <Avatar
-        className={cn("border", className)}
-        style={{ width: size, height: size }}
-      >
+      <Avatar className="border" style={{ width: size, height: size }}>
         <AvatarImage alt="Avatar" src={avatarSrc} />
       </Avatar>
       {badgeImageUrl && (
@@ -73,3 +74,21 @@ export const DicebearAvatar = ({
     </div>
   );
 };
+
+export const AgentAvatar = ({
+  isThinking = false,
+  className,
+}: AgentAvatarProps) => (
+  <div
+    className={cn(
+      "shrink-0 flex items-center justify-center",
+      "size-8 rounded-full mt-0.5",
+      "border-2 transition-colors",
+      "bg-primary/10 border-primary/20",
+      isThinking && "animate-pulse",
+      className,
+    )}
+  >
+    <DicebearAvatar seed="assistant" size={32} />
+  </div>
+);

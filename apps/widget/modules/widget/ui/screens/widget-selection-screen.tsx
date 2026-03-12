@@ -91,7 +91,7 @@ export const WidgetSelectionScreen = () => {
           <p className="text-base md:text-lg">Let&apos;s get you started.</p>
         </div>
       </WidgetHeader>
-      <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4 mt-44">
+      <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4 mt-4">
         {buttonOptions.map(({ icon: Icon, label, mode }) => (
           <GlassButton
             key={mode}

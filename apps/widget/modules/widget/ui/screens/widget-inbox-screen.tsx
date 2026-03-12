@@ -11,7 +11,7 @@ import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { usePaginatedQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { useAtomValue, useSetAtom } from "jotai";
-import { ArrowLeftIcon } from "lucide-react";
+import { AlertTriangleIcon, ArrowLeftIcon } from "lucide-react";
 
 import {
   contactSessionIdAtom,
@@ -45,12 +45,20 @@ export const WidgetInboxScreen = () => {
     },
   );
 
-  const { topElementRef, handleLoadMore, canLoadMore, isLoadingMore } =
-    useInfiniteScroll({
-      status: conversations.status,
-      loadMore: conversations.loadMore,
-      loadSize: 10,
-    });
+  const {
+    topElementRef: loadMoreTriggerRef,
+    handleLoadMore,
+    canLoadMore,
+    isLoadingMore,
+  } = useInfiniteScroll({
+    status: conversations.status,
+    loadMore: conversations.loadMore,
+    loadSize: 10,
+  });
+
+  const isSkipped = !contactSessionId;
+  const isLoading = conversations.status === "LoadingFirstPage";
+  const isEmpty = !isLoading && conversations.results.length === 0;
 
   return (
     <>
@@ -74,60 +82,70 @@ export const WidgetInboxScreen = () => {
           <p className="text-2xl font-semibold">Inbox</p>
         </div>
       </WidgetHeader>
-      <div className="flex overflow-y-auto flex-col flex-1 gap-y-2 p-4 mt-20">
-        {conversations.results.length > 0 ? (
-          conversations.results.map((conversation) => (
-            <GlassButton
-              key={conversation._id}
-              {...chatButtonProps}
-              onClick={() => {
-                setConversationId(conversation._id);
-                setScreen(WIDGET_SCREENS.CHAT);
-              }}
-              className="justify-between w-full h-16 rounded-sm md:h-20"
-            >
-              <div className="flex overflow-hidden flex-col gap-4 w-full text-start">
-                <div className="flex gap-x-2 justify-between items-center w-full">
-                  <p className="text-xs text-muted-foreground">Chat</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(conversation._creationTime)}
-                  </p>
-                </div>
-                <div className="flex gap-x-2 justify-between items-center w-full">
-                  {conversation.lastMessage?.text ? (
-                    <p className="text-sm truncate">
-                      {conversation.lastMessage?.text}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground/80">Untitled</p>
-                  )}
-                  <ConversationStatusIcon
-                    status={conversation.status}
-                    className="shrink-0"
-                  />
-                </div>
-              </div>
-            </GlassButton>
-          ))
-        ) : !conversations.results.length ? (
+      <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4 mt-4">
+        {isSkipped ? (
           <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
-            <div className="loader"></div>
+            <AlertTriangleIcon className="size-12" aria-hidden="true" />
+            <p>Unable to load conversations</p>
+          </div>
+        ) : isLoading ? (
+          <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
+            <div className="loader" />
             <p>Loading conversations...</p>
           </div>
-        ) : (
-          <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
+        ) : isEmpty ? (
+          <div className="flex flex-col flex-1 justify-center items-center p-4 text-muted-foreground">
             <p>No conversations</p>
           </div>
-        )}
-        {conversations.results.length && (
-          <InfiniteScrollTrigger
-            ref={topElementRef}
-            canLoadMore={canLoadMore}
-            loadMoreText="Load more chat"
-            noMoreText="End of content"
-            isLoadingMore={isLoadingMore}
-            onLoadMore={handleLoadMore}
-          />
+        ) : (
+          <>
+            {conversations.results.map((conversation) => (
+              <GlassButton
+                key={conversation._id}
+                {...chatButtonProps}
+                aria-label={`Open conversation: ${conversation.lastMessage?.text || "Untitled"}`}
+                onClick={() => {
+                  setConversationId(conversation._id);
+                  setScreen(WIDGET_SCREENS.CHAT);
+                }}
+                className="justify-between w-full h-16 rounded-sm md:h-20"
+              >
+                <div className="flex overflow-hidden flex-col gap-4 w-full text-start">
+                  <div className="flex gap-x-2 justify-between items-center w-full">
+                    <p className="text-xs text-muted-foreground">Chat</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(conversation._creationTime, {
+                        addSuffix: true,
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex gap-x-2 justify-between items-center w-full">
+                    {conversation.lastMessage?.text ? (
+                      <p className="text-sm truncate">
+                        {conversation.lastMessage.text}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground/80">
+                        Untitled
+                      </p>
+                    )}
+                    <ConversationStatusIcon
+                      status={conversation.status}
+                      className="shrink-0"
+                    />
+                  </div>
+                </div>
+              </GlassButton>
+            ))}
+            <InfiniteScrollTrigger
+              ref={loadMoreTriggerRef}
+              canLoadMore={canLoadMore}
+              loadMoreText="Load more chat"
+              noMoreText=""
+              isLoadingMore={isLoadingMore}
+              onLoadMore={handleLoadMore}
+            />
+          </>
         )}
       </div>
       <WidgetFooter />
