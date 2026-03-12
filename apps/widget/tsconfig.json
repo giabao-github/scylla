@@ -19,7 +19,9 @@
     "next.config.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "../../packages/shared/src/types.ts",
+    "../../packages/shared/src/constants/urls.ts"
   ],
   "exclude": ["node_modules"]
 }

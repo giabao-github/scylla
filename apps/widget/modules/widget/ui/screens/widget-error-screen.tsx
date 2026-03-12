@@ -12,13 +12,13 @@ export const WidgetErrorScreen = () => {
   return (
     <>
       <WidgetHeader>
-        <div className="flex flex-col gap-y-2 justify-between px-2 py-6 font-semibold">
+        <div className="flex flex-col gap-y-2 justify-between px-4 py-6 font-semibold">
           <p className="text-3xl">Hi there! 👋</p>
           <p className="text-lg">Let&apos;s get you started.</p>
         </div>
       </WidgetHeader>
       <div
-        className="flex flex-col flex-1 gap-y-4 justify-center items-center p-4 text-muted-foreground"
+        className="flex flex-col flex-1 mt-[152px] gap-y-4 justify-center items-center p-4 text-muted-foreground"
         role="alert"
         aria-live="assertive"
       >

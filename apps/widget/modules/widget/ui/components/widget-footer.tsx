@@ -1,20 +1,25 @@
+import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { useAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { HomeIcon, InboxIcon, LibraryBigIcon, MailIcon } from "lucide-react";
 
 import { widgetScreenAtom } from "@/modules/widget/atoms/widget-atoms";
-import { WIDGET_SCREENS } from "@/modules/widget/constants";
 
 const footerItems = [
-  { icon: HomeIcon, screen: WIDGET_SCREENS.SELECTION, label: "Home" },
-  { icon: MailIcon, screen: WIDGET_SCREENS.AUTH, label: "Authentication" },
-  { icon: InboxIcon, screen: WIDGET_SCREENS.INBOX, label: "Inbox" },
-  { icon: LibraryBigIcon, screen: WIDGET_SCREENS.LIBRARY, label: "Library" },
+  { icon: HomeIcon, itemScreen: WIDGET_SCREENS.SELECTION, label: "Home" },
+  { icon: MailIcon, itemScreen: WIDGET_SCREENS.AUTH, label: "Authentication" },
+  { icon: InboxIcon, itemScreen: WIDGET_SCREENS.INBOX, label: "Inbox" },
+  {
+    icon: LibraryBigIcon,
+    itemScreen: WIDGET_SCREENS.LIBRARY,
+    label: "Library",
+  },
 ] as const;
 
 export const WidgetFooter = () => {
-  const [activeScreen, setActiveScreen] = useAtom(widgetScreenAtom);
+  const screen = useAtomValue(widgetScreenAtom);
+  const setScreen = useSetAtom(widgetScreenAtom);
 
   return (
     <footer
@@ -37,11 +42,11 @@ export const WidgetFooter = () => {
         }}
       />
 
-      {footerItems.map(({ icon: Icon, screen, label }) => {
-        const isActive = screen === activeScreen;
+      {footerItems.map(({ icon: Icon, itemScreen, label }) => {
+        const isActive = screen === itemScreen;
         return (
           <Button
-            key={screen}
+            key={itemScreen}
             aria-current={isActive ? "page" : undefined}
             aria-label={label}
             className={cn(
@@ -49,7 +54,7 @@ export const WidgetFooter = () => {
               "bg-transparent hover:bg-transparent transition-all duration-200",
               "border-none shadow-none",
             )}
-            onClick={() => setActiveScreen(screen)}
+            onClick={() => setScreen(itemScreen)}
             variant="ghost"
           >
             {/* Active indicator bar */}

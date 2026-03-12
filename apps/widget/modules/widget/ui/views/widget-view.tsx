@@ -1,12 +1,13 @@
 "use client";
 
+import { WidgetScreen } from "@workspace/shared/constants/screens";
 import { useAtomValue } from "jotai";
 
 import { widgetScreenAtom } from "@/modules/widget/atoms/widget-atoms";
-import { WidgetScreen } from "@/modules/widget/types";
 import { WidgetAuthScreen } from "@/modules/widget/ui/screens/widget-auth-screen";
 import { WidgetChatScreen } from "@/modules/widget/ui/screens/widget-chat-screen";
 import { WidgetErrorScreen } from "@/modules/widget/ui/screens/widget-error-screen";
+import { WidgetInboxScreen } from "@/modules/widget/ui/screens/widget-inbox-screen";
 import { WidgetLoadingScreen } from "@/modules/widget/ui/screens/widget-loading-screen";
 import { WidgetSelectionScreen } from "@/modules/widget/ui/screens/widget-selection-screen";
 
@@ -25,7 +26,7 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
     case "voice":
       return <p>TODO: Voice</p>;
     case "inbox":
-      return <p>TODO: Inbox</p>;
+      return <WidgetInboxScreen />;
     case "selection":
       return <WidgetSelectionScreen />;
     case "chat":
@@ -45,7 +46,7 @@ export const WidgetView = ({ organizationId }: WidgetViewProps) => {
   const screen = useAtomValue(widgetScreenAtom);
 
   return (
-    <main className="flex overflow-hidden flex-col w-full h-screen rounded-xl border bg-muted">
+    <main className="flex overflow-hidden flex-col w-full h-full min-h-screen rounded-none border md:rounded-sm bg-muted">
       {renderScreen(screen, organizationId)}
     </main>
   );

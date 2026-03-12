@@ -61,10 +61,10 @@ const shouldShowFieldError = (
 };
 
 export const WidgetAuthScreen = () => {
-  const organizationId = useAtomValue(organizationIdAtom);
-  const setErrorMessage = useSetAtom(errorMessageAtom);
   const setScreen = useSetAtom(widgetScreenAtom);
   const setContactSessionId = useSetAtom(contactSessionIdAtom);
+  const setErrorMessage = useSetAtom(errorMessageAtom);
+  const organizationId = useAtomValue(organizationIdAtom);
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -177,7 +177,7 @@ export const WidgetAuthScreen = () => {
   return (
     <>
       <WidgetHeader>
-        <div className="flex flex-col gap-y-2 justify-between px-2 py-6 font-semibold">
+        <div className="flex flex-col gap-y-2 justify-between px-4 py-6 font-semibold">
           <p className="text-3xl">Hi there! 👋</p>
           <p className="text-lg">Let&apos;s get you started.</p>
         </div>
@@ -185,7 +185,7 @@ export const WidgetAuthScreen = () => {
 
       <Form {...form}>
         <form
-          className="flex flex-col flex-1 gap-y-4 items-center p-4 mt-12 md:p-6"
+          className="flex flex-col flex-1 gap-y-4 items-center p-4 mt-[200px] md:p-6"
           onSubmit={form.handleSubmit(onSubmit)}
         >
           <FormField

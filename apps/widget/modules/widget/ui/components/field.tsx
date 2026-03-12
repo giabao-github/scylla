@@ -1,10 +1,9 @@
 import { ComponentType, HTMLInputTypeAttribute, useRef, useState } from "react";
 
+import { TOOLTIP_THEME } from "@workspace/shared/constants/themes";
 import { StyledTooltip } from "@workspace/ui/components/glass/styled-tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import { CheckIcon, InfoIcon, XIcon } from "lucide-react";
-
-import { TOOLTIP_THEME } from "@/modules/widget/constants";
 
 interface FieldProps {
   label: string;
