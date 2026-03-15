@@ -86,8 +86,9 @@ const SidebarNavGroup = ({
               asChild
               isActive={isActive(item.url)}
               className={cn(
+                "hover:bg-linear-to-b hover:from-sidebar-primary/30 hover:to-chart-2/20 ",
                 isActive(item.url) &&
-                  "bg-linear-to-b from-sidebar-primary to-chart-2! text-sidebar-primary-foreground! hover:to-chart-2/90!",
+                  "bg-linear-to-b from-sidebar-primary to-chart-2! text-sidebar-primary-foreground! hover:from-sidebar-primary hover:to-chart-2!",
               )}
               tooltip={item.title}
             >
@@ -185,7 +186,7 @@ export const DashboardSidebar = () => {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      <SidebarRail />
+      <SidebarRail className="border-r border-sidebar" />
     </Sidebar>
   );
 };

@@ -5,6 +5,7 @@ interface InfiniteScrollTriggerProps {
   canLoadMore: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
+  mode?: "auto" | "manual";
   loadMoreText?: string;
   loadingText?: string;
   noMoreText?: string;
@@ -16,32 +17,43 @@ export const InfiniteScrollTrigger = ({
   canLoadMore,
   isLoadingMore,
   onLoadMore,
+  mode = "auto",
   loadMoreText = "Load more",
   loadingText = "Loading...",
   noMoreText = "No more items",
   className,
   ref,
 }: InfiniteScrollTriggerProps) => {
-  let text = loadMoreText;
-
-  if (isLoadingMore) {
-    text = loadingText;
-  } else if (!canLoadMore) {
-    text = noMoreText;
+  if (mode === "auto") {
+    return <div ref={ref} className={cn("w-full h-1", className)} />;
   }
+
+  const text = isLoadingMore
+    ? loadingText
+    : canLoadMore
+      ? loadMoreText
+      : noMoreText;
+
+  if (!text) return <div ref={ref} />;
 
   return (
     <div
       ref={ref}
-      className={cn("flex justify-center items-center py-2 w-full", className)}
+      className={cn("flex justify-center items-center py-4 w-full", className)}
     >
       <Button
         disabled={!canLoadMore || isLoadingMore}
         onClick={onLoadMore}
         size="sm"
         variant="ghost"
+        className={cn(
+          "text-xs md:text-sm",
+          (canLoadMore || !isLoadingMore) &&
+            "border-2 border-white bg-white/40 hover:backdrop-blur-sm hover:bg-transparent",
+          isLoadingMore && "text-black",
+        )}
       >
-        <span className="text-xs md:text-sm">{text}</span>
+        <span>{text}</span>
       </Button>
     </div>
   );

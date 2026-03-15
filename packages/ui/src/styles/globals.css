@@ -160,6 +160,17 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  --width-sidebar: var(--sidebar-width);
+  --width-sidebar-mobile: var(--sidebar-width-mobile);
+  --width-sidebar-icon: var(--sidebar-width-icon);
+  --width-sidebar-icon-padded: calc(var(--sidebar-width-icon) + 1rem + 2px);
+
+  /* Needed for -left-sidebar and -right-sidebar offcanvas animation */
+  --spacing-sidebar: var(--sidebar-width);
+  --spacing-sidebar-icon: var(--sidebar-width-icon);
+
+  --max-width-skeleton: var(--skeleton-width);
+
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
@@ -192,7 +203,7 @@
 }
 
 .loader {
-  width: 40px;
+  width: var(--loader-size, 40px);
   aspect-ratio: 1;
   display: grid;
   border-radius: 50%;
@@ -224,7 +235,7 @@
 }
 
 .dot-loader {
-  width: 10px;
+  width: var(--dot-size, 10px);
   aspect-ratio: 1;
   border-radius: 50%;
   animation: l5 1s infinite linear alternate;
@@ -274,7 +285,7 @@
 }
 
 .spinner {
-  width: 28px;
+  width: var(--spinner-size, 28px);
   aspect-ratio: 1;
   border-radius: 50%;
   background:
