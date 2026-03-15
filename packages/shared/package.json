@@ -19,5 +19,8 @@
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*",
     "typescript": "latest"
+  },
+  "dependencies": {
+    "countries-and-timezones": "^3.8.0"
   }
 }

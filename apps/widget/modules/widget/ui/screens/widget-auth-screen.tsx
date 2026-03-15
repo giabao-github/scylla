@@ -136,6 +136,23 @@ export const WidgetAuthScreen = () => {
         }
       }
 
+      let country: { code: string; name: string } | undefined;
+      try {
+        const cached = sessionStorage.getItem("geo");
+        if (cached) {
+          country = JSON.parse(cached);
+        } else {
+          const res = await fetch("https://api.country.is/");
+          const data = await res.json();
+          if (data.country) {
+            country = { code: data.country, name: data.country };
+            sessionStorage.setItem("geo", JSON.stringify(country));
+          }
+        }
+      } catch {
+        // Non-fatal, fall back to timezone-based
+      }
+
       const metadata: Doc<"contactSessions">["metadata"] = {
         userAgent: ua,
         language: navigator.language,
@@ -149,6 +166,8 @@ export const WidgetAuthScreen = () => {
         cookieEnabled: navigator.cookieEnabled,
         referrer: ref ? `${ref.origin}${ref.pathname}` : "direct",
         currentUrl: `${current.origin}${current.pathname}`,
+        countryCode: country?.code,
+        country: country?.name,
       };
 
       const contactSessionId = await createContactSession({

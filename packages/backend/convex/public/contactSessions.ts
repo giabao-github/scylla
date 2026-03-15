@@ -25,6 +25,8 @@ export const create = mutation({
         cookieEnabled: v.optional(v.boolean()),
         referrer: v.optional(v.string()),
         currentUrl: v.optional(v.string()),
+        country: v.optional(v.string()),
+        countryCode: v.optional(v.string()),
       }),
     ),
   },
