@@ -120,6 +120,11 @@ export interface LiquidCrystalProps extends Omit<
    * Accessibility: aria-description for additional context
    */
   ariaDescription?: string;
+
+  /**
+   * Accessibility: role for the card
+   */
+  role?: React.AriaRole;
 }
 
 export const LiquidCrystal = React.forwardRef<
@@ -147,6 +152,7 @@ export const LiquidCrystal = React.forwardRef<
       className,
       ariaLabel,
       ariaDescription,
+      role = "article",
       style,
       ...props
     },
@@ -165,7 +171,9 @@ export const LiquidCrystal = React.forwardRef<
     }, []);
 
     // Generate unique filter ID to avoid filter conflicts
-    const filterId = useId();
+    const rawId = useId();
+    const filterId = rawId.replace(/:/g, "");
+    const descriptionId = `${filterId}-desc`;
 
     // CSS variables for dynamic styling - optimized for performance
     const cssVariables = useMemo<CSSProperties>(() => {
@@ -239,9 +247,9 @@ export const LiquidCrystal = React.forwardRef<
             className,
           )}
           style={mergedStyle}
-          role="article"
+          role={role}
           aria-label={ariaLabel || "Liquid crystal card"}
-          aria-description={ariaDescription}
+          aria-describedby={ariaDescription ? descriptionId : undefined}
           {...props}
         >
           {/* Outer glow and shadow layer */}

@@ -1,38 +1,48 @@
+import { v } from "convex/values";
+
 import { internal } from "@workspace/backend/_generated/api";
 import { internalMutation } from "@workspace/backend/_generated/server";
 
 const BATCH_SIZE = 100;
 
 export const cleanupOrphanedConversations = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const conversations = await ctx.db.query("conversations").take(BATCH_SIZE);
+  args: {
+    sessionIds: v.array(v.id("contactSessions")),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (args.cursor && args.sessionIds.length > 1) {
+      throw new Error(
+        "Argument 'cursor' can only be used with a single 'sessionId'",
+      );
+    }
+
     let deleted = 0;
 
-    for (const conversation of conversations) {
-      try {
-        const session = await ctx.db.get(conversation.contactSessionId);
-        if (!session) {
-          await ctx.db.delete(conversation._id);
-          deleted++;
-        }
-      } catch (error) {
-        console.error(
-          `Failed to process conversation ${conversation._id}:`,
-          error,
+    for (const sessionId of args.sessionIds) {
+      const result = await ctx.db
+        .query("conversations")
+        .withIndex("by_contact_session_id", (q) =>
+          q.eq("contactSessionId", sessionId),
+        )
+        .paginate({ numItems: BATCH_SIZE, cursor: args.cursor ?? null });
+
+      await Promise.all(result.page.map((c) => ctx.db.delete(c._id)));
+      deleted += result.page.length;
+
+      if (!result.isDone) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.conversationCleanup.cleanupOrphanedConversations,
+          { sessionIds: [sessionId], cursor: result.continueCursor },
         );
       }
     }
 
-    console.log(`Deleted ${deleted} orphaned conversations`);
+    console.log(
+      `Deleted ${deleted} orphaned conversations across ${args.sessionIds.length} sessions`,
+    );
 
-    // Schedule another batch if we processed a full batch
-    if (conversations.length === BATCH_SIZE) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.conversationCleanup.cleanupOrphanedConversations,
-        {},
-      );
-    }
+    return { deleted };
   },
 });

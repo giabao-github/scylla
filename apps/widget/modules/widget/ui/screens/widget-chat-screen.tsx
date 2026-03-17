@@ -111,10 +111,6 @@ export const WidgetChatScreen = () => {
   const contactSessionId = useAtomValue(contactSessionIdAtom);
   const selectedModel = useAtomValue(selectedModelAtom);
 
-  if (!organizationId) {
-    return null;
-  }
-
   const setScreen = useSetAtom(widgetScreenAtom);
   const setConversationId = useSetAtom(conversationIdAtom);
 
@@ -199,6 +195,10 @@ export const WidgetChatScreen = () => {
 
   const createMessage = useAction(api.public.messages.create);
   const submitIds = useRef<Set<string>>(new Set());
+
+  if (!organizationId) {
+    return null;
+  }
 
   const handleSubmit = async (promptMessage: PromptInputMessage) => {
     const text = promptMessage.text.trim();

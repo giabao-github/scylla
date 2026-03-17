@@ -1,6 +1,7 @@
 import React, {
   MouseEventHandler,
   ReactNode,
+  Ref,
   UIEvent,
   useCallback,
   useEffect,
@@ -67,7 +68,7 @@ interface AnimatedListProps<T> {
   initialSelectedIndex?: number;
   scrollContainerClassName?: string;
   infiniteScroll?: {
-    triggerElementRef: React.RefObject<HTMLDivElement | null>;
+    triggerElementRef: Ref<HTMLDivElement>;
     handleLoadMore: () => void;
     canLoadMore: boolean;
     isLoadingMore: boolean;

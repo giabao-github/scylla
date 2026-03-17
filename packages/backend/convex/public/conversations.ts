@@ -113,6 +113,20 @@ export const getMany = query({
   handler: async (ctx, args) => {
     const contactSession = await ctx.db.get(args.contactSessionId);
 
+    if (!contactSession) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Invalid session",
+      });
+    }
+
+    if (contactSession.expiresAt < Date.now()) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Expired session",
+      });
+    }
+
     const conversations = await ctx.db
       .query("conversations")
       .withIndex("by_contact_session_id", (q) =>
@@ -144,17 +158,27 @@ export const getMany = query({
             status: conversation.status,
             organizationId: conversation.organizationId,
             threadId: conversation.threadId,
-            contactSession,
             lastMessage,
           };
         } catch (error) {
-          console.warn(
-            `Skipping conversation ${conversation._id}: ${error instanceof Error ? error.message : "unknown error"}`,
+          console.error(
+            `Failed to process conversation ${conversation._id}:`,
+            error instanceof Error ? error.message : error,
           );
           return null;
         }
       }),
     );
+
+    const skipped = conversationWithLastMessage.filter(
+      (c) => c === null,
+    ).length;
+
+    if (skipped > 0) {
+      console.error(
+        `Skipped ${skipped} conversations in getMany — investigate`,
+      );
+    }
 
     const validConversations = conversationWithLastMessage.filter(
       (c): c is NonNullable<typeof c> => c !== null,
@@ -162,6 +186,7 @@ export const getMany = query({
 
     return {
       ...conversations,
+      contactSession,
       page: validConversations,
     };
   },

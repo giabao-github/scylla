@@ -69,10 +69,6 @@ export const WidgetAuthScreen = () => {
   const setContactSessionId = useSetAtom(contactSessionIdAtom);
   const organizationId = useAtomValue(organizationIdAtom);
 
-  if (!organizationId) {
-    return null;
-  }
-
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -99,6 +95,10 @@ export const WidgetAuthScreen = () => {
       setScreen(WIDGET_SCREENS.ERROR);
     }
   }, [organizationId, setScreen]);
+
+  if (!organizationId) {
+    return null;
+  }
 
   const onSubmit = async (values: FormSchema) => {
     if (!organizationId) {

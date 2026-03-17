@@ -36,10 +36,6 @@ export const WidgetInboxScreen = () => {
   const organizationId = useAtomValue(organizationIdAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
 
-  if (!organizationId) {
-    return null;
-  }
-
   const conversations = usePaginatedQuery(
     api.public.conversations.getMany,
     contactSessionId
@@ -67,6 +63,10 @@ export const WidgetInboxScreen = () => {
     loadMore: conversations.loadMore,
     loadSize: 10,
   });
+
+  if (!organizationId) {
+    return null;
+  }
 
   const isNew = !contactSessionId;
   const isValidationLoading = contactSessionId && validation === undefined;

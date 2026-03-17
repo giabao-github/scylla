@@ -1,34 +1,46 @@
+import { v } from "convex/values";
+
+import { internal } from "@workspace/backend/_generated/api";
 import { internalMutation } from "@workspace/backend/_generated/server";
 
+const BATCH_SIZE = 100;
+
 export const purgeExpiredContactSessions = internalMutation({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    totalDeleted: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const now = Date.now();
     const expiredSessions = await ctx.db
       .query("contactSessions")
       .withIndex("by_expires_at", (q) => q.lt("expiresAt", now))
-      .take(100);
+      .take(BATCH_SIZE);
 
-    const hasMore = expiredSessions.length === 100;
-    let deleted = 0;
+    const sessionIds = expiredSessions.map((s) => s._id);
+    await Promise.all(expiredSessions.map((s) => ctx.db.delete(s._id)));
 
-    for (const session of expiredSessions) {
-      const conversations = await ctx.db
-        .query("conversations")
-        .withIndex("by_contact_session_id", (q) =>
-          q.eq("contactSessionId", session._id),
-        )
-        .take(100);
-
-      await Promise.all(conversations.map((c) => ctx.db.delete(c._id)));
-      await ctx.db.delete(session._id);
-      deleted++;
+    if (sessionIds.length > 0) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.conversationCleanup.cleanupOrphanedConversations,
+        { sessionIds },
+      );
     }
 
-    console.log(
-      `Deleted ${deleted} expired contact sessions${hasMore ? " (more may remain)" : ""}`,
-    );
+    const runningTotal = (args.totalDeleted ?? 0) + expiredSessions.length;
 
-    return { deleted, hasMore };
+    if (expiredSessions.length === BATCH_SIZE) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.contactSessionCleanup.purgeExpiredContactSessions,
+        { totalDeleted: runningTotal },
+      );
+    } else {
+      console.log(
+        `Purge complete. Total deleted: ${runningTotal} expired contact sessions`,
+      );
+    }
+
+    return { deleted: expiredSessions.length };
   },
 });

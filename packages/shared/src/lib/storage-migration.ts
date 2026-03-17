@@ -10,7 +10,8 @@ export function migrateStorageKey(oldKey: string, newKey: string): void {
 
     localStorage.setItem(newKey, old);
     localStorage.removeItem(oldKey);
-  } catch {
+  } catch (error) {
     // localStorage unavailable (SSR, private mode, etc.) — non-fatal
+    console.warn("Storage key migration failed", { oldKey, newKey, error });
   }
 }

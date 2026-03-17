@@ -39,10 +39,6 @@ export const WidgetSelectionScreen = () => {
   const organizationId = useAtomValue(organizationIdAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
 
-  if (!organizationId) {
-    return null;
-  }
-
   const validation = useQuery(
     api.public.contactSessions.validate,
     contactSessionId ? { contactSessionId } : "skip",
@@ -53,6 +49,10 @@ export const WidgetSelectionScreen = () => {
 
   const createConversation = useMutation(api.public.conversations.create);
   const [isPending, setIsPending] = useState(false);
+
+  if (!organizationId) {
+    return null;
+  }
 
   const selectionButtonProps = {
     idleAlpha: 0.06,

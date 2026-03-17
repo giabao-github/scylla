@@ -14,7 +14,7 @@ export const ConversationsLayout = ({ children }: { children: ReactNode }) => {
       <ResizablePanel defaultSize="30%" maxSize="30%" minSize="20%">
         <ConversationsPanel />
       </ResizablePanel>
-      <ResizableHandle />
+      <ResizableHandle className="focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0" />
       <ResizablePanel defaultSize="70%" className="h-full">
         {children}
       </ResizablePanel>
