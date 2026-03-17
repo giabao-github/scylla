@@ -19,7 +19,7 @@ import {
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
-import { usePaginatedQuery } from "convex/react";
+import { UsePaginatedQueryReturnType, usePaginatedQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { useAtomValue, useSetAtom } from "jotai/react";
 import {
@@ -37,18 +37,17 @@ import { statusFilterAtom } from "@/modules/dashboard/atoms";
 
 export const ConversationsPanel = () => {
   const pathname = usePathname();
-
   const statusFilter = useAtomValue(statusFilterAtom);
   const setStatusFilter = useSetAtom(statusFilterAtom);
 
   const conversations = usePaginatedQuery(
     api.private.conversations.getMany,
     { status: statusFilter === "all" ? undefined : statusFilter },
-    { initialNumItems: 10 },
+    { initialNumItems: 20 },
   );
 
   const {
-    topElementRef,
+    topElementRef: triggerElementRef,
     handleLoadMore,
     canLoadMore,
     isLoadingMore,
@@ -56,20 +55,19 @@ export const ConversationsPanel = () => {
   } = useInfiniteScroll({
     status: conversations.status,
     loadMore: conversations.loadMore,
-    loadSize: 10,
+    loadSize: 20,
+    mode: "manual",
   });
 
   return (
     <div
       className="flex flex-col w-full h-full bg-center bg-cover text-sidebar-foreground"
       style={{
-        backgroundImage:
-          "url(https://images.pexels.com/photos/1939485/pexels-photo-1939485.jpeg)",
+        backgroundImage: "url(/panel-background.jpg)",
       }}
     >
       <div className="flex flex-col gap-3.5 border-b p-2 backdrop-blur-sm bg-white/10">
         <Select
-          defaultValue="all"
           value={statusFilter}
           onValueChange={(value) =>
             setStatusFilter(value as ConversationStatus | "all")
@@ -118,7 +116,7 @@ export const ConversationsPanel = () => {
           displayScrollbar
           scrollContainerClassName="max-h-[calc(100vh-53px)]"
           infiniteScroll={{
-            topElementRef,
+            triggerElementRef,
             handleLoadMore,
             canLoadMore,
             isLoadingMore,
@@ -126,16 +124,19 @@ export const ConversationsPanel = () => {
             mode: "manual",
           }}
           renderItem={(conversation, isSelected) => {
+            if (!conversation.contactSession) {
+              return null;
+            }
             const isActive = pathname === `/conversations/${conversation._id}`;
             const isLastMessageFromUser =
               conversation.lastMessage?.message?.role === "user";
-            const metadata = conversation.contactSession.metadata;
+            const metadata = conversation.contactSession?.metadata;
             const country = metadata?.countryCode
               ? { code: metadata.countryCode, name: metadata.country || "" }
               : getCountryFromTimezone(metadata?.timezone);
 
             const countryFlagUrl = country?.code
-              ? getCountryFlagUrl(country.code)
+              ? (getCountryFlagUrl(country.code) ?? undefined)
               : undefined;
 
             return (
@@ -156,7 +157,7 @@ export const ConversationsPanel = () => {
                 <div
                   className={cn(
                     "absolute left-0 top-1/2 w-2 h-full bg-violet-300 rounded-full transition-opacity duration-200 -translate-y-1/2",
-                    !isActive ? "opacity-100" : "opacity-0",
+                    isActive ? "opacity-100" : "opacity-0",
                   )}
                 />
 
@@ -207,7 +208,7 @@ export const ConversationsPanel = () => {
 export const SkeletonConversations = () => {
   return (
     <div className="flex overflow-auto flex-col flex-1 min-h-0">
-      {Array.from({ length: 10 }).map((_, index) => (
+      {Array.from({ length: 13 }).map((_, index) => (
         <div key={index} className="flex gap-3 items-start px-4 py-2 border-b">
           <Skeleton className="h-[50px] w-[50px] shrink-0 rounded-full bg-slate-300" />
           <div className="flex-1 space-y-2 min-w-0">

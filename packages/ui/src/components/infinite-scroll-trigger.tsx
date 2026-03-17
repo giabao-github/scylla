@@ -34,13 +34,14 @@ export const InfiniteScrollTrigger = ({
       ? loadMoreText
       : noMoreText;
 
-  if (!text) return <div ref={ref} />;
+  const containerClasses = "flex justify-center items-center py-4 w-full";
+
+  if (!text) {
+    return <div ref={ref} className={cn(containerClasses, className)} />;
+  }
 
   return (
-    <div
-      ref={ref}
-      className={cn("flex justify-center items-center py-4 w-full", className)}
-    >
+    <div ref={ref} className={cn(containerClasses, className)}>
       <Button
         disabled={!canLoadMore || isLoadingMore}
         onClick={onLoadMore}
@@ -48,7 +49,8 @@ export const InfiniteScrollTrigger = ({
         variant="ghost"
         className={cn(
           "text-xs md:text-sm",
-          (canLoadMore || !isLoadingMore) &&
+          canLoadMore &&
+            !isLoadingMore &&
             "border-2 border-white bg-white/40 hover:backdrop-blur-sm hover:bg-transparent",
           isLoadingMore && "text-black",
         )}

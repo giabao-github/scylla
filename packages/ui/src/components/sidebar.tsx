@@ -4,11 +4,7 @@ import * as React from "react";
 
 import { Slot } from "@radix-ui/react-slot";
 import { VariantProps, cva } from "class-variance-authority";
-import {
-  PanelLeftCloseIcon,
-  PanelLeftIcon,
-  PanelLeftOpenIcon,
-} from "lucide-react";
+import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
@@ -40,7 +36,7 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
   open: boolean;
-  setOpen: (open: boolean) => void;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   openMobile: boolean;
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
@@ -263,7 +259,8 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar, state } = useSidebar();
+  const { toggleSidebar, isMobile, open, openMobile } = useSidebar();
+  const isCollapsed = isMobile ? !openMobile : !open;
 
   return (
     <Button
@@ -278,9 +275,9 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      {state === "collapsed" ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
+      {isCollapsed ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
       <span className="sr-only">
-        {state === "collapsed" ? "Expand Sidebar" : "Collapse Sidebar"}
+        {isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
       </span>
     </Button>
   );
@@ -536,11 +533,8 @@ function SidebarMenuButton({
     return button;
   }
 
-  if (typeof tooltip === "string") {
-    tooltip = {
-      children: tooltip,
-    };
-  }
+  const tooltipProps =
+    typeof tooltip === "string" ? { children: tooltip } : tooltip;
 
   return (
     <Tooltip>
@@ -549,7 +543,7 @@ function SidebarMenuButton({
         side="right"
         align="center"
         hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
+        {...tooltipProps}
       />
     </Tooltip>
   );

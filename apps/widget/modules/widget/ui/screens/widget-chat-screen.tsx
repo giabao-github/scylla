@@ -7,6 +7,7 @@ import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
+import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import {
   Conversation,
   ConversationContent,
@@ -39,6 +40,7 @@ import z from "zod";
 import {
   contactSessionIdAtom,
   conversationIdAtom,
+  organizationIdAtom,
   selectedModelAtom,
   widgetScreenAtom,
 } from "@/modules/widget/atoms/widget-atoms";
@@ -104,9 +106,14 @@ const ensureTrailingPeriod = (str: string): string => {
 };
 
 export const WidgetChatScreen = () => {
+  const organizationId = useAtomValue(organizationIdAtom);
   const conversationId = useAtomValue(conversationIdAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
   const selectedModel = useAtomValue(selectedModelAtom);
+
+  if (!organizationId) {
+    return null;
+  }
 
   const setScreen = useSetAtom(widgetScreenAtom);
   const setConversationId = useSetAtom(conversationIdAtom);
@@ -127,7 +134,7 @@ export const WidgetChatScreen = () => {
 
   const onBack = () => {
     abortRef.current = true;
-    setScreen("selection");
+    setScreen(WIDGET_SCREENS.SELECTION);
     setConversationId(null);
   };
 
@@ -200,11 +207,13 @@ export const WidgetChatScreen = () => {
     }
 
     const requestId = nanoid();
-
     form.setValue("message", "");
 
+    const currentUiMessages = toUIMessages(messages.results ?? []);
     submitIds.current = new Set(
-      uiMessages.filter((m) => m.role === "user" || !!m.text).map((m) => m.id),
+      currentUiMessages
+        .filter((m) => m.role === "user" || !!m.text)
+        .map((m) => m.id),
     );
 
     setUserMessage(promptMessage.text);

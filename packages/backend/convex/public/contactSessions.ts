@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import { mutation, query } from "@workspace/backend/_generated/server";
 
+import { normalizeCountryCode } from "@workspace/shared/lib/country-utils";
 import { sanitizeInput, validateInput } from "@workspace/shared/lib/utils";
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -85,12 +86,21 @@ export const create = mutation({
         ) as typeof args.metadata)
       : undefined;
 
+    const rawCountryCode = sanitizedMetadata?.countryCode;
+    const normalizedCountryCode =
+      normalizeCountryCode(rawCountryCode) ?? undefined;
+
     const contactSessionId = await ctx.db.insert("contactSessions", {
       name: sanitizedName,
       email: sanitizedEmail,
       organizationId: args.organizationId,
       expiresAt,
-      metadata: sanitizedMetadata,
+      metadata: sanitizedMetadata
+        ? {
+            ...sanitizedMetadata,
+            countryCode: normalizedCountryCode,
+          }
+        : undefined,
     });
 
     return contactSessionId;

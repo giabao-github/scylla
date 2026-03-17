@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
+import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { useAction, useConvex } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 
@@ -46,7 +47,7 @@ export const WidgetLoadingScreen = ({
 
     if (!organizationId) {
       setErrorMessage("Organization ID is required");
-      setScreen("error");
+      setScreen(WIDGET_SCREENS.ERROR);
       return;
     }
 
@@ -62,7 +63,7 @@ export const WidgetLoadingScreen = ({
           setStep("session");
         } else {
           setErrorMessage(result.reason || "Invalid configuration");
-          setScreen("error");
+          setScreen(WIDGET_SCREENS.ERROR);
         }
       })
       .catch(() => {
@@ -70,7 +71,7 @@ export const WidgetLoadingScreen = ({
           return;
         }
         setErrorMessage("Unable to verify organization");
-        setScreen("error");
+        setScreen(WIDGET_SCREENS.ERROR);
       });
 
     return () => {
@@ -134,7 +135,7 @@ export const WidgetLoadingScreen = ({
     }
 
     const hasValidSession = sessionValid && contactSessionId;
-    setScreen(hasValidSession ? "selection" : "auth");
+    setScreen(hasValidSession ? WIDGET_SCREENS.SELECTION : WIDGET_SCREENS.AUTH);
   }, [step, contactSessionId, sessionValid, setScreen]);
 
   return (

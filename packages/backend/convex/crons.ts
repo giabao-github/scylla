@@ -11,6 +11,13 @@ crons.cron(
   {},
 );
 
+crons.cron(
+  "Cleanup orphaned conversations",
+  "0 * * * *",
+  internal.conversationCleanup.cleanupOrphanedConversations,
+  {},
+);
+
 crons.daily(
   "Cleanup stale message requests",
   { hourUTC: 0, minuteUTC: 0 },

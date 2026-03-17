@@ -21,7 +21,7 @@
     "@workspace/math": "workspace:*",
     "@workspace/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "convex": "^1.33.0",
+    "convex": "^1.33.1",
     "date-fns": "^4.1.0",
     "jotai": "^2.18.0",
     "lucide-react": "^0.562.0",

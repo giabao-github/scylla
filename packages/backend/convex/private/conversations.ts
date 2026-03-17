@@ -32,14 +32,14 @@ export const getMany = query({
       });
     }
 
-    const organizationId = identity.orgId as string;
-
-    if (!organizationId) {
+    if (!identity.orgId) {
       throw new ConvexError({
         code: "UNAUTHORIZED",
         message: "Organization not found",
       });
     }
+
+    const organizationId = identity.orgId as string;
 
     let conversations: PaginationResult<Doc<"conversations">>;
 
@@ -65,51 +65,48 @@ export const getMany = query({
 
     const conversationWithAdditionalData = await Promise.all(
       conversations.page.map(async (conversation) => {
-        let lastMessage: MessageDoc | null = null;
-
-        const contactSession = await ctx.db.get(conversation.contactSessionId);
-
-        if (!contactSession) {
-          throw new ConvexError({
-            code: "NOT_FOUND",
-            message: "Contact session not found",
-          });
-        }
-
-        // TODO: Denormalize lastMessageText onto conversations to eliminate this N+1.
-        // Update the field inside messages.create action after generateText completes.
         try {
-          const messages = await supportAgent.listMessages(ctx, {
-            threadId: conversation.threadId,
-            paginationOpts: { numItems: 1, cursor: null },
-          });
-
-          if (messages.page.length > 0) {
-            lastMessage = messages.page[0];
-          }
-        } catch {
-          console.warn(
-            `Failed to fetch last message for thread ${conversation.threadId}`,
+          const contactSession = await ctx.db.get(
+            conversation.contactSessionId,
           );
-          lastMessage = null;
-        }
 
-        return {
-          ...conversation,
-          lastMessage,
-          contactSession,
-        };
+          let lastMessage: MessageDoc | null = null;
+          // TODO: Denormalize lastMessageText onto conversations to eliminate this N+1.
+          // Update the field inside messages.create action after generateText completes.
+          try {
+            const messages = await supportAgent.listMessages(ctx, {
+              threadId: conversation.threadId,
+              paginationOpts: { numItems: 1, cursor: null },
+            });
+            lastMessage = messages.page[0] ?? null;
+          } catch (error) {
+            console.warn(
+              `Failed to fetch last message for conversation ${conversation._id}: ${error instanceof Error ? error.message : "unknown error"}`,
+            );
+            lastMessage = null;
+          }
+
+          return {
+            ...conversation,
+            lastMessage,
+            contactSession,
+          };
+        } catch (error) {
+          console.warn(
+            `Skipping conversation ${conversation._id}: ${error instanceof Error ? error.message : "unknown error"}`,
+          );
+          return null;
+        }
       }),
     );
 
-    const validConversation = conversationWithAdditionalData.filter(
-      (conversation): conversation is NonNullable<typeof conversation> =>
-        conversation !== null,
+    const validConversations = conversationWithAdditionalData.filter(
+      (c): c is NonNullable<typeof c> => c !== null,
     );
 
     return {
       ...conversations,
-      page: validConversation,
+      page: validConversations,
     };
   },
 });

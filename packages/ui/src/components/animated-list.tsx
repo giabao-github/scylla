@@ -49,12 +49,12 @@ const AnimatedItem: React.FC<AnimatedItemProps> = ({
 };
 
 interface AnimatedListProps<T> {
-  items?: T[];
+  items: T[];
   /**
    * Render each item. Receives the item and whether it is currently selected.
    * When omitted, items are expected to be strings and a default renderer is used.
    */
-  renderItem?: (item: T, isSelected: boolean) => ReactNode;
+  renderItem?: (item: T, isSelected: boolean, index?: number) => ReactNode;
   /** Called when an item is clicked or activated via keyboard. */
   onItemSelect?: (item: T, index: number) => void;
   /** Unique key extractor. Defaults to index if omitted. */
@@ -67,30 +67,19 @@ interface AnimatedListProps<T> {
   initialSelectedIndex?: number;
   scrollContainerClassName?: string;
   infiniteScroll?: {
-    topElementRef: React.RefObject<HTMLDivElement | null>;
+    triggerElementRef: React.RefObject<HTMLDivElement | null>;
     handleLoadMore: () => void;
     canLoadMore: boolean;
     isLoadingMore: boolean;
     isLoadingFirstPage: boolean;
     mode?: "auto" | "manual";
+    loadMoreText?: string;
+    noMoreText?: string;
   };
 }
 
-const DEFAULT_ITEMS = [
-  "Item 1",
-  "Item 2",
-  "Item 3",
-  "Item 4",
-  "Item 5",
-  "Item 6",
-  "Item 7",
-  "Item 8",
-  "Item 9",
-  "Item 10",
-];
-
 export function AnimatedList<T>({
-  items = DEFAULT_ITEMS as unknown as T[],
+  items,
   renderItem,
   onItemSelect,
   getKey,
@@ -122,25 +111,27 @@ export function AnimatedList<T>({
     [onItemSelect],
   );
 
-  const handleScroll = (e: UIEvent<HTMLDivElement>) => {
-    if (!showGradients) return;
-    const { scrollTop, scrollHeight, clientHeight } =
-      e.target as HTMLDivElement;
+  const updateGradientOpacity = useCallback((container: HTMLDivElement) => {
+    const { scrollTop, scrollHeight, clientHeight } = container;
     setTopGradientOpacity(Math.min(scrollTop / 50, 1));
     const bottomDistance = scrollHeight - (scrollTop + clientHeight);
     setBottomGradientOpacity(
       scrollHeight <= clientHeight ? 0 : Math.min(bottomDistance / 50, 1),
     );
+  }, []);
+
+  const handleScroll = (e: UIEvent<HTMLDivElement>) => {
+    if (!showGradients) return;
+    updateGradientOpacity(e.target as HTMLDivElement);
   };
 
-  useEffect(() => {
-    if (!enableArrowNavigation) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
         setKeyboardNav(true);
         setSelectedIndex((prev) => Math.min(prev + 1, items.length - 1));
-      } else if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setKeyboardNav(true);
         setSelectedIndex((prev) => Math.max(prev - 1, 0));
@@ -155,10 +146,9 @@ export function AnimatedList<T>({
           onItemSelect?.(item, selectedIndex);
         }
       }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [items, selectedIndex, onItemSelect, enableArrowNavigation]);
+    },
+    [items, selectedIndex, onItemSelect],
+  );
 
   useEffect(() => {
     if (!keyboardNav || selectedIndex < 0 || !listRef.current) return;
@@ -190,17 +180,15 @@ export function AnimatedList<T>({
   useEffect(() => {
     const container = listRef.current;
     if (!container || !showGradients) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    setTopGradientOpacity(Math.min(scrollTop / 50, 1));
-    const bottomDistance = scrollHeight - (scrollTop + clientHeight);
-    setBottomGradientOpacity(
-      scrollHeight <= clientHeight ? 0 : Math.min(bottomDistance / 50, 1),
-    );
-  }, [items, showGradients]);
+    updateGradientOpacity(container);
+  }, [items, showGradients, updateGradientOpacity]);
 
   return (
-    <div className={cn("relative", className)}>
+    <div
+      className={cn("relative outline-none", className)}
+      tabIndex={enableArrowNavigation ? 0 : -1}
+      onKeyDown={enableArrowNavigation ? handleKeyDown : undefined}
+    >
       <div
         ref={listRef}
         onMouseLeave={() => setSelectedIndex(-1)}
@@ -220,14 +208,14 @@ export function AnimatedList<T>({
         {items.map((item, index) => (
           <AnimatedItem
             key={getKey ? getKey(item, index) : index}
-            delay={0.1}
+            delay={Math.min(index * 0.02, 0.2)}
             index={index}
             className={itemClassName}
             onMouseEnter={() => handleItemMouseEnter(index)}
             onClick={() => handleItemClick(item, index)}
           >
             {renderItem ? (
-              renderItem(item, selectedIndex === index)
+              renderItem(item, selectedIndex === index, index)
             ) : (
               <div
                 className={cn(
@@ -240,17 +228,18 @@ export function AnimatedList<T>({
             )}
           </AnimatedItem>
         ))}
-        {infiniteScroll && (
-          <InfiniteScrollTrigger
-            ref={infiniteScroll.topElementRef}
-            onLoadMore={infiniteScroll.handleLoadMore}
-            canLoadMore={infiniteScroll.canLoadMore}
-            isLoadingMore={infiniteScroll.isLoadingMore}
-            mode={infiniteScroll.mode ?? "auto"}
-            loadMoreText="Load more"
-            noMoreText=""
-          />
-        )}
+        {infiniteScroll &&
+          (infiniteScroll.canLoadMore || infiniteScroll.isLoadingMore) && (
+            <InfiniteScrollTrigger
+              ref={infiniteScroll.triggerElementRef}
+              onLoadMore={infiniteScroll.handleLoadMore}
+              canLoadMore={infiniteScroll.canLoadMore}
+              isLoadingMore={infiniteScroll.isLoadingMore}
+              mode={infiniteScroll.mode ?? "auto"}
+              loadMoreText={infiniteScroll.loadMoreText ?? "Load more"}
+              noMoreText={infiniteScroll.noMoreText ?? "No more items"}
+            />
+          )}
       </div>
 
       {showGradients && (
