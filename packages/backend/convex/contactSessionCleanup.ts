@@ -1,30 +1,45 @@
+import { v } from "convex/values";
+
+import { internal } from "@workspace/backend/_generated/api";
 import { internalMutation } from "@workspace/backend/_generated/server";
 
-/**
- * Deletes all contactSessions rows whose expiresAt timestamp is in the past.
- * Uses the "by_expires_at" index so only expired rows are scanned – no full
- * table scan required.
- */
+const BATCH_SIZE = 100;
 
 export const purgeExpiredContactSessions = internalMutation({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    totalDeleted: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const now = Date.now();
-
-    // Efficiently collect every expired session via the index lt(now) keeps the scan to rows where expiresAt < now.
     const expiredSessions = await ctx.db
       .query("contactSessions")
       .withIndex("by_expires_at", (q) => q.lt("expiresAt", now))
-      .take(100);
+      .take(BATCH_SIZE);
 
-    // Delete each expired row.
-    await Promise.all(
-      expiredSessions.map((session) => ctx.db.delete(session._id)),
-    );
+    const sessionIds = expiredSessions.map((s) => s._id);
+    await Promise.all(expiredSessions.map((s) => ctx.db.delete(s._id)));
 
-    console.log(
-      `purgeExpiredContactSessions: deleted ${expiredSessions.length} expired session(s)`,
-    );
+    if (sessionIds.length > 0) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.conversationCleanup.cleanupOrphanedConversations,
+        { sessionIds },
+      );
+    }
+
+    const runningTotal = (args.totalDeleted ?? 0) + expiredSessions.length;
+
+    if (expiredSessions.length === BATCH_SIZE) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.contactSessionCleanup.purgeExpiredContactSessions,
+        { totalDeleted: runningTotal },
+      );
+    } else {
+      console.log(
+        `Purge complete. Total deleted: ${runningTotal} expired contact sessions`,
+      );
+    }
 
     return { deleted: expiredSessions.length };
   },

@@ -105,16 +105,34 @@ export const create = action({
 
     // TODO: implement subscription check
 
+    let result: { text: string };
     try {
+      await ctx.runMutation(internal.system.conversations.updateLastMessage, {
+        threadId,
+        lastMessage: { text: prompt, role: "user" },
+      });
+
       const agent = agentForModel(modelId);
       const { thread } = await agent.continueThread(ctx, { threadId });
-      await thread.generateText({ prompt } as any);
+      result = await thread.generateText({ prompt } as any);
     } catch (err) {
-      // Release the claim so the client can retry with the same requestId
       await ctx.runMutation(internal.system.messageRequests.release, {
         requestId,
       });
       throw err;
+    }
+
+    // Post-generation sync should not reopen idempotency window
+    try {
+      await ctx.runMutation(internal.system.conversations.updateLastMessage, {
+        threadId,
+        lastMessage: { text: result.text, role: "assistant" },
+      });
+    } catch (err) {
+      console.error(
+        `Failed to sync the last message for thread '${threadId}'`,
+        err instanceof Error ? err.message : err,
+      );
     }
   },
 });

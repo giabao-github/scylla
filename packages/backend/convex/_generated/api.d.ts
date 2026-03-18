@@ -9,7 +9,9 @@
  */
 
 import type * as contactSessionCleanup from "../contactSessionCleanup.js";
+import type * as conversationCleanup from "../conversationCleanup.js";
 import type * as crons from "../crons.js";
+import type * as private_conversations from "../private/conversations.js";
 import type * as public_contactSessions from "../public/contactSessions.js";
 import type * as public_conversations from "../public/conversations.js";
 import type * as public_messages from "../public/messages.js";
@@ -28,7 +30,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   contactSessionCleanup: typeof contactSessionCleanup;
+  conversationCleanup: typeof conversationCleanup;
   crons: typeof crons;
+  "private/conversations": typeof private_conversations;
   "public/contactSessions": typeof public_contactSessions;
   "public/conversations": typeof public_conversations;
   "public/messages": typeof public_messages;

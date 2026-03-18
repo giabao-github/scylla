@@ -131,5 +131,3 @@ export const FrostLens = ({
     </div>
   );
 };
-
-export default FrostLens;

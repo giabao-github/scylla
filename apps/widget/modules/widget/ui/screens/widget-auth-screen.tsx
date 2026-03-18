@@ -4,6 +4,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
+import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import {
+  getCountryFromCode,
+  normalizeCountryCode,
+} from "@workspace/shared/lib/country-utils";
 import {
   NavigatorWithUAData,
   getPlatform,
@@ -22,7 +27,6 @@ import z from "zod";
 
 import {
   contactSessionIdAtom,
-  errorMessageAtom,
   organizationIdAtom,
   widgetScreenAtom,
 } from "@/modules/widget/atoms/widget-atoms";
@@ -63,7 +67,6 @@ const shouldShowFieldError = (
 export const WidgetAuthScreen = () => {
   const setScreen = useSetAtom(widgetScreenAtom);
   const setContactSessionId = useSetAtom(contactSessionIdAtom);
-  const setErrorMessage = useSetAtom(errorMessageAtom);
   const organizationId = useAtomValue(organizationIdAtom);
 
   const form = useForm<FormSchema>({
@@ -89,10 +92,9 @@ export const WidgetAuthScreen = () => {
 
   useEffect(() => {
     if (!organizationId) {
-      setErrorMessage("Organization is not found");
-      setScreen("error");
+      setScreen(WIDGET_SCREENS.ERROR);
     }
-  }, [organizationId, setErrorMessage, setScreen]);
+  }, [organizationId, setScreen]);
 
   if (!organizationId) {
     return null;
@@ -136,6 +138,48 @@ export const WidgetAuthScreen = () => {
         }
       }
 
+      let country: { code: string; name: string } | undefined;
+      try {
+        const cached = sessionStorage.getItem("geo");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (
+            typeof parsed?.code === "string" &&
+            typeof parsed?.name === "string"
+          ) {
+            country = parsed;
+          } else {
+            sessionStorage.removeItem("geo");
+          }
+        } else {
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), 1200);
+          try {
+            const res = await fetch("https://api.country.is/", {
+              signal: controller.signal,
+            });
+            if (res.ok) {
+              const data: { country?: string } = await res.json();
+              if (typeof data.country === "string") {
+                const normalizedCode = normalizeCountryCode(data.country);
+                if (normalizedCode) {
+                  const countryInfo = getCountryFromCode(normalizedCode);
+                  country = {
+                    code: normalizedCode,
+                    name: countryInfo?.name ?? normalizedCode,
+                  };
+                  sessionStorage.setItem("geo", JSON.stringify(country));
+                }
+              }
+            }
+          } finally {
+            window.clearTimeout(timeoutId);
+          }
+        }
+      } catch {
+        // Non-fatal — falls back to timezone-based
+      }
+
       const metadata: Doc<"contactSessions">["metadata"] = {
         userAgent: ua,
         language: navigator.language,
@@ -149,6 +193,8 @@ export const WidgetAuthScreen = () => {
         cookieEnabled: navigator.cookieEnabled,
         referrer: ref ? `${ref.origin}${ref.pathname}` : "direct",
         currentUrl: `${current.origin}${current.pathname}`,
+        countryCode: country?.code,
+        country: country?.name,
       };
 
       const contactSessionId = await createContactSession({
@@ -158,7 +204,7 @@ export const WidgetAuthScreen = () => {
       });
 
       setContactSessionId(contactSessionId);
-      setScreen("selection");
+      setScreen(WIDGET_SCREENS.SELECTION);
     } catch (error) {
       console.error("Failed to create contact session:", error);
       toast.error("An error has occurred. Please try again!", {

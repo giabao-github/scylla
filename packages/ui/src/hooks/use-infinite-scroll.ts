@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseInfiniteScrollProps {
   status: "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted";
   loadMore: (numItems: number) => void;
   loadSize?: number;
   observerEnabled?: boolean;
+  mode?: "auto" | "manual";
 }
 
 export const useInfiniteScroll = ({
@@ -12,12 +13,18 @@ export const useInfiniteScroll = ({
   loadMore,
   loadSize = 10,
   observerEnabled = true,
+  mode = "auto",
 }: UseInfiniteScrollProps) => {
-  const topElementRef = useRef<HTMLDivElement>(null);
+  const [topElement, setTopElement] = useState<HTMLDivElement | null>(null);
+
+  const topElementRef = useCallback((node: HTMLDivElement | null) => {
+    setTopElement(node);
+  }, []);
   const handleLoadMoreRef = useRef<() => void>(() => {});
+  const hasInitializedRef = useRef(false);
 
   const handleLoadMore = useCallback(() => {
-    if (status === "CanLoadMore") {
+    if (status === "CanLoadMore" && hasInitializedRef.current) {
       loadMore(loadSize);
     }
   }, [status, loadMore, loadSize]);
@@ -27,14 +34,19 @@ export const useInfiniteScroll = ({
   }, [handleLoadMore]);
 
   useEffect(() => {
-    const topElement = topElementRef.current;
-    if (!(topElement && observerEnabled)) {
-      return;
+    if (status === "LoadingFirstPage") {
+      hasInitializedRef.current = false;
+    } else {
+      hasInitializedRef.current = true;
     }
+  }, [status]);
+
+  useEffect(() => {
+    if (!(topElement && observerEnabled && mode === "auto")) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) {
+        if (entries[0]?.isIntersecting && hasInitializedRef.current) {
           handleLoadMoreRef.current();
         }
       },
@@ -42,11 +54,8 @@ export const useInfiniteScroll = ({
     );
 
     observer.observe(topElement);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [observerEnabled]);
+    return () => observer.disconnect();
+  }, [topElement, observerEnabled, mode]);
 
   return {
     topElementRef,

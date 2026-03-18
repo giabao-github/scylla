@@ -34,12 +34,14 @@ export const create = mutation({
       userId: args.organizationId,
     });
 
+    const initialMessage = "Hello, how can I help you today?";
+
     await saveMessage(ctx, components.agent, {
       threadId,
       message: {
         role: "assistant",
         // TODO: Later modify to widget settings' initial message
-        content: "Hello, how can I help you today?",
+        content: initialMessage,
       },
     });
 
@@ -49,6 +51,10 @@ export const create = mutation({
       organizationId: session.organizationId,
       threadId,
       createdAt: Date.now(),
+      lastMessage: {
+        text: initialMessage,
+        role: "assistant",
+      },
     });
 
     return conversationId;
@@ -135,40 +141,18 @@ export const getMany = query({
       .order("desc")
       .paginate(args.paginationOpts);
 
-    const conversationWithLastMessage = await Promise.all(
-      conversations.page.map(async (conversation) => {
-        let lastMessage: MessageDoc | null = null;
-
-        // TODO: Denormalize lastMessageText onto conversations to eliminate this N+1.
-        // Update the field inside messages.create action after generateText completes.
-        try {
-          const messages = await supportAgent.listMessages(ctx, {
-            threadId: conversation.threadId,
-            paginationOpts: { numItems: 1, cursor: null },
-          });
-          lastMessage = messages.page[0] ?? null;
-        } catch {
-          console.warn(
-            `Failed to fetch last message for thread ${conversation.threadId}`,
-          );
-          lastMessage = null;
-        }
-
-        return {
-          _id: conversation._id,
-          _creationTime: conversation._creationTime,
-          _updateTime: conversation.updatedAt ?? conversation._creationTime,
-          status: conversation.status,
-          organizationId: conversation.organizationId,
-          threadId: conversation.threadId,
-          lastMessage,
-        };
-      }),
-    );
-
     return {
       ...conversations,
-      page: conversationWithLastMessage,
+      contactSession,
+      page: conversations.page.map((conversation) => ({
+        _id: conversation._id,
+        _creationTime: conversation._creationTime,
+        lastUpdatedAt: conversation.updatedAt ?? conversation.createdAt,
+        status: conversation.status,
+        organizationId: conversation.organizationId,
+        threadId: conversation.threadId,
+        lastMessage: conversation.lastMessage ?? null,
+      })),
     };
   },
 });

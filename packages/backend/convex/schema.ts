@@ -32,6 +32,8 @@ export default defineSchema({
         cookieEnabled: v.optional(v.boolean()),
         referrer: v.optional(v.string()),
         currentUrl: v.optional(v.string()),
+        country: v.optional(v.string()),
+        countryCode: v.optional(v.string()),
       }),
     ),
   })
@@ -49,6 +51,12 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
+    lastMessage: v.optional(
+      v.object({
+        text: v.string(),
+        role: v.union(v.literal("user"), v.literal("assistant")),
+      }),
+    ),
   })
     .index("by_organization_id", ["organizationId"])
     .index("by_contact_session_id", ["contactSessionId"])

@@ -3,9 +3,10 @@
 import { useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
-import { isUnauthorizedError } from "@workspace/shared/lib/utils";
+import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { GlassButton } from "@workspace/ui/components/glass/glass-button";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
   ChevronRightIcon,
@@ -38,25 +39,37 @@ export const WidgetSelectionScreen = () => {
   const organizationId = useAtomValue(organizationIdAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
 
+  const validation = useQuery(
+    api.public.contactSessions.validate,
+    contactSessionId ? { contactSessionId } : "skip",
+  );
+  const isExpired = validation?.valid === false;
+  const isNew = !contactSessionId;
+  const isValidating = !!contactSessionId && validation === undefined;
+
   const createConversation = useMutation(api.public.conversations.create);
   const [isPending, setIsPending] = useState(false);
+
+  if (!organizationId) {
+    return null;
+  }
 
   const selectionButtonProps = {
     idleAlpha: 0.06,
     hoverAlpha: 0.2,
     glowAlpha: 0.15,
-    disabled: isPending,
+    disabled: isPending || isNew || isExpired || isValidating,
   };
 
   const handleNewConversation = async (mode: "chat" | "voice" | "audio") => {
     if (!organizationId) {
-      setScreen("error");
+      setScreen(WIDGET_SCREENS.ERROR);
       setErrorMessage("Missing organization ID");
       return;
     }
 
     if (!contactSessionId) {
-      setScreen("auth");
+      setScreen(WIDGET_SCREENS.AUTH);
       return;
     }
 
@@ -69,15 +82,11 @@ export const WidgetSelectionScreen = () => {
       });
 
       setConversationId(conversationId);
-      setScreen("chat");
+      setScreen(WIDGET_SCREENS.CHAT);
     } catch (error) {
-      // Check if it is an auth error
-      if (isUnauthorizedError(error)) {
-        setScreen("auth");
-      } else {
-        setErrorMessage("Failed to create conversation. Please try again.");
-        setScreen("error");
-      }
+      console.error("Failed to create conversation:", error);
+      setErrorMessage("Failed to create conversation. Please try again.");
+      setScreen(WIDGET_SCREENS.ERROR);
     } finally {
       setIsPending(false);
     }
@@ -91,6 +100,24 @@ export const WidgetSelectionScreen = () => {
           <p className="text-base md:text-lg">Let&apos;s get you started.</p>
         </div>
       </WidgetHeader>
+      {isNew && (
+        <CTAModal
+          open
+          title="Authentication Required"
+          description="Please provide your information to continue."
+          buttonText="Sign in"
+          onAction={() => setScreen(WIDGET_SCREENS.AUTH)}
+        />
+      )}
+      {isExpired && (
+        <CTAModal
+          open
+          title="Session Expired"
+          description="Your session has expired. Please sign in again to continue."
+          buttonText="Sign in again"
+          onAction={() => setScreen(WIDGET_SCREENS.AUTH)}
+        />
+      )}
       <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4 mt-4">
         {buttonOptions.map(({ icon: Icon, label, mode }) => (
           <GlassButton
