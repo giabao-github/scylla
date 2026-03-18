@@ -154,6 +154,7 @@ export const LiquidCrystal = React.forwardRef<
       ariaDescription,
       role = "article",
       style,
+      "aria-describedby": ariaDescribedByProp,
       ...props
     },
     ref,
@@ -224,6 +225,11 @@ export const LiquidCrystal = React.forwardRef<
       };
     }, [width, height, cssVariables, style]);
 
+    const describedBy =
+      [ariaDescribedByProp, ariaDescription ? descriptionId : undefined]
+        .filter(Boolean)
+        .join(" ") || undefined;
+
     return (
       <>
         {enableDistortion && (
@@ -248,8 +254,8 @@ export const LiquidCrystal = React.forwardRef<
           )}
           style={mergedStyle}
           role={role}
-          aria-label={ariaLabel || "Liquid crystal card"}
-          aria-describedby={ariaDescription ? descriptionId : undefined}
+          aria-label={ariaLabel}
+          aria-describedby={describedBy}
           {...props}
         >
           {ariaDescription && (

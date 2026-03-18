@@ -123,10 +123,17 @@ export const create = action({
     }
 
     // Post-generation sync should not reopen idempotency window
-    await ctx.runMutation(internal.system.conversations.updateLastMessage, {
-      threadId,
-      lastMessage: { text: result.text, role: "assistant" },
-    });
+    try {
+      await ctx.runMutation(internal.system.conversations.updateLastMessage, {
+        threadId,
+        lastMessage: { text: result.text, role: "assistant" },
+      });
+    } catch (err) {
+      console.error(
+        `Failed to sync the last message for thread '${threadId}'`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   },
 });
 
