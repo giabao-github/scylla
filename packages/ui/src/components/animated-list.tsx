@@ -72,9 +72,9 @@ interface AnimatedListProps<T> {
     handleLoadMore: () => void;
     canLoadMore: boolean;
     isLoadingMore: boolean;
-    isLoadingFirstPage: boolean;
     mode?: "auto" | "manual";
     loadMoreText?: string;
+    loadingText?: string;
     noMoreText?: string;
   };
 }
@@ -238,6 +238,7 @@ export function AnimatedList<T>({
               isLoadingMore={infiniteScroll.isLoadingMore}
               mode={infiniteScroll.mode ?? "auto"}
               loadMoreText={infiniteScroll.loadMoreText ?? "Load more"}
+              loadingText={infiniteScroll.loadingText ?? "Loading..."}
               noMoreText={infiniteScroll.noMoreText ?? "No more items"}
             />
           )}

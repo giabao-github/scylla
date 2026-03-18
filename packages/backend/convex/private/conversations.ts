@@ -1,10 +1,8 @@
-import { MessageDoc } from "@convex-dev/agent";
 import { PaginationResult, paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import { query } from "@workspace/backend/_generated/server";
-import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 
 import {
   CONVERSATION_STATUS,
@@ -70,30 +68,15 @@ export const getMany = query({
             conversation.contactSessionId,
           );
 
-          let lastMessage: MessageDoc | null = null;
-          // TODO: Denormalize lastMessageText onto conversations to eliminate this N+1.
-          // Update the field inside messages.create action after generateText completes.
-          try {
-            const messages = await supportAgent.listMessages(ctx, {
-              threadId: conversation.threadId,
-              paginationOpts: { numItems: 1, cursor: null },
-            });
-            lastMessage = messages.page[0] ?? null;
-          } catch (error) {
-            console.warn(
-              `Failed to fetch last message for conversation ${conversation._id}: ${error instanceof Error ? error.message : "unknown error"}`,
-            );
-            lastMessage = null;
-          }
-
           return {
             ...conversation,
-            lastMessage,
+            lastMessage: conversation.lastMessage ?? null,
             contactSession,
           };
         } catch (error) {
-          console.warn(
-            `Skipping conversation ${conversation._id}: ${error instanceof Error ? error.message : "unknown error"}`,
+          console.error(
+            `Failed to process conversation '${conversation._id}':`,
+            error instanceof Error ? error.message : error,
           );
           return null;
         }
@@ -103,6 +86,15 @@ export const getMany = query({
     const validConversations = conversationWithAdditionalData.filter(
       (c): c is NonNullable<typeof c> => c !== null,
     );
+
+    const skipped =
+      conversationWithAdditionalData.length - validConversations.length;
+
+    if (skipped > 0) {
+      console.error(
+        `Skipped ${skipped} conversations in getMany for organization '${organizationId}'`,
+      );
+    }
 
     return {
       ...conversations,

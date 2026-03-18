@@ -105,10 +105,21 @@ export const create = action({
 
     // TODO: implement subscription check
 
+    await ctx.runMutation(internal.system.conversations.updateLastMessage, {
+      threadId,
+      lastMessage: { text: prompt, role: "user" },
+    });
+
     try {
       const agent = agentForModel(modelId);
       const { thread } = await agent.continueThread(ctx, { threadId });
-      await thread.generateText({ prompt } as any);
+      const result = await thread.generateText({ prompt } as any);
+
+      // Patch assistant response after generation
+      await ctx.runMutation(internal.system.conversations.updateLastMessage, {
+        threadId,
+        lastMessage: { text: result.text, role: "assistant" },
+      });
     } catch (err) {
       // Release the claim so the client can retry with the same requestId
       await ctx.runMutation(internal.system.messageRequests.release, {

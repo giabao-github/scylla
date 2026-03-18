@@ -34,12 +34,14 @@ export const create = mutation({
       userId: args.organizationId,
     });
 
+    const initialMessage = "Hello, how can I help you today?";
+
     await saveMessage(ctx, components.agent, {
       threadId,
       message: {
         role: "assistant",
         // TODO: Later modify to widget settings' initial message
-        content: "Hello, how can I help you today?",
+        content: initialMessage,
       },
     });
 
@@ -49,6 +51,10 @@ export const create = mutation({
       organizationId: session.organizationId,
       threadId,
       createdAt: Date.now(),
+      lastMessage: {
+        text: initialMessage,
+        role: "assistant",
+      },
     });
 
     return conversationId;
@@ -135,59 +141,18 @@ export const getMany = query({
       .order("desc")
       .paginate(args.paginationOpts);
 
-    const conversationWithLastMessage = await Promise.all(
-      conversations.page.map(async (conversation) => {
-        try {
-          let lastMessage: MessageDoc | null = null;
-          // TODO: Denormalize lastMessageText onto conversations to eliminate this N+1.
-          // Update the field inside messages.create action after generateText completes.
-          try {
-            const messages = await supportAgent.listMessages(ctx, {
-              threadId: conversation.threadId,
-              paginationOpts: { numItems: 1, cursor: null },
-            });
-            lastMessage = messages.page[0] ?? null;
-          } catch {
-            lastMessage = null;
-          }
-
-          return {
-            _id: conversation._id,
-            _creationTime: conversation._creationTime,
-            lastUpdatedAt: conversation.updatedAt ?? conversation._creationTime,
-            status: conversation.status,
-            organizationId: conversation.organizationId,
-            threadId: conversation.threadId,
-            lastMessage,
-          };
-        } catch (error) {
-          console.error(
-            `Failed to process conversation ${conversation._id}:`,
-            error instanceof Error ? error.message : error,
-          );
-          return null;
-        }
-      }),
-    );
-
-    const skipped = conversationWithLastMessage.filter(
-      (c) => c === null,
-    ).length;
-
-    if (skipped > 0) {
-      console.error(
-        `Skipped ${skipped} conversations in getMany — investigate`,
-      );
-    }
-
-    const validConversations = conversationWithLastMessage.filter(
-      (c): c is NonNullable<typeof c> => c !== null,
-    );
-
     return {
       ...conversations,
       contactSession,
-      page: validConversations,
+      page: conversations.page.map((conversation) => ({
+        _id: conversation._id,
+        _creationTime: conversation._creationTime,
+        lastUpdatedAt: conversation.updatedAt ?? conversation._creationTime,
+        status: conversation.status,
+        organizationId: conversation.organizationId,
+        threadId: conversation.threadId,
+        lastMessage: conversation.lastMessage ?? null,
+      })),
     };
   },
 });

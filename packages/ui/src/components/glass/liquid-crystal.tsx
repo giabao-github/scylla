@@ -252,6 +252,11 @@ export const LiquidCrystal = React.forwardRef<
           aria-describedby={ariaDescription ? descriptionId : undefined}
           {...props}
         >
+          {ariaDescription && (
+            <span id={descriptionId} className="sr-only">
+              {ariaDescription}
+            </span>
+          )}
           {/* Outer glow and shadow layer */}
           <div
             className="absolute inset-0 rounded-(--border-radius) pointer-events-none"

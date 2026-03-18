@@ -51,7 +51,6 @@ export const ConversationsPanel = () => {
     handleLoadMore,
     canLoadMore,
     isLoadingMore,
-    isLoadingFirstPage,
   } = useInfiniteScroll({
     status: conversations.status,
     loadMore: conversations.loadMore,
@@ -120,7 +119,6 @@ export const ConversationsPanel = () => {
             handleLoadMore,
             canLoadMore,
             isLoadingMore,
-            isLoadingFirstPage,
             mode: "manual",
           }}
           renderItem={(conversation, isSelected) => {
@@ -129,7 +127,7 @@ export const ConversationsPanel = () => {
             }
             const isActive = pathname === `/conversations/${conversation._id}`;
             const isLastMessageFromUser =
-              conversation.lastMessage?.message?.role === "user";
+              conversation.lastMessage?.role === "user";
             const metadata = conversation.contactSession?.metadata;
             const country = metadata?.countryCode
               ? { code: metadata.countryCode, name: metadata.country || "" }
