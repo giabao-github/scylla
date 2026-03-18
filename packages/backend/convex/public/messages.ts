@@ -105,28 +105,28 @@ export const create = action({
 
     // TODO: implement subscription check
 
-    await ctx.runMutation(internal.system.conversations.updateLastMessage, {
-      threadId,
-      lastMessage: { text: prompt, role: "user" },
-    });
-
+    let result: { text: string };
     try {
-      const agent = agentForModel(modelId);
-      const { thread } = await agent.continueThread(ctx, { threadId });
-      const result = await thread.generateText({ prompt } as any);
-
-      // Patch assistant response after generation
       await ctx.runMutation(internal.system.conversations.updateLastMessage, {
         threadId,
-        lastMessage: { text: result.text, role: "assistant" },
+        lastMessage: { text: prompt, role: "user" },
       });
+
+      const agent = agentForModel(modelId);
+      const { thread } = await agent.continueThread(ctx, { threadId });
+      result = await thread.generateText({ prompt } as any);
     } catch (err) {
-      // Release the claim so the client can retry with the same requestId
       await ctx.runMutation(internal.system.messageRequests.release, {
         requestId,
       });
       throw err;
     }
+
+    // Post-generation sync should not reopen idempotency window
+    await ctx.runMutation(internal.system.conversations.updateLastMessage, {
+      threadId,
+      lastMessage: { text: result.text, role: "assistant" },
+    });
   },
 });
 

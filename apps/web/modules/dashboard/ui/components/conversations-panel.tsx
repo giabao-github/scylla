@@ -1,7 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { api } from "@workspace/backend/_generated/api";
-import { ConversationStatus } from "@workspace/shared/constants/conversation";
+import {
+  CONVERSATION_STATUS,
+  ConversationStatus,
+} from "@workspace/shared/constants/conversation";
 import {
   getCountryFlagUrl,
   getCountryFromTimezone,
@@ -35,14 +40,26 @@ import { usePathname } from "next/navigation";
 
 import { statusFilterAtom } from "@/modules/dashboard/atoms";
 
+const isValidStatusFilter = (
+  value: string,
+): value is ConversationStatus | "all" =>
+  value === "all" ||
+  value === CONVERSATION_STATUS.UNRESOLVED ||
+  value === CONVERSATION_STATUS.ESCALATED ||
+  value === CONVERSATION_STATUS.RESOLVED;
+
 export const ConversationsPanel = () => {
   const pathname = usePathname();
   const statusFilter = useAtomValue(statusFilterAtom);
   const setStatusFilter = useSetAtom(statusFilterAtom);
 
+  const safeStatusFilter = isValidStatusFilter(statusFilter)
+    ? statusFilter
+    : "all";
+
   const conversations = usePaginatedQuery(
     api.private.conversations.getMany,
-    { status: statusFilter === "all" ? undefined : statusFilter },
+    { status: safeStatusFilter === "all" ? undefined : safeStatusFilter },
     { initialNumItems: 20 },
   );
 
@@ -58,6 +75,20 @@ export const ConversationsPanel = () => {
     mode: "manual",
   });
 
+  type ConversationItem = (typeof conversations.results)[number];
+  type ConversationWithSession = ConversationItem & {
+    contactSession: NonNullable<ConversationItem["contactSession"]>;
+  };
+
+  const conversationsWithSession = useMemo(
+    () =>
+      conversations.results.filter(
+        (conversation): conversation is ConversationWithSession =>
+          conversation.contactSession != null,
+      ),
+    [conversations.results],
+  );
+
   return (
     <div
       className="flex flex-col w-full h-full bg-center bg-cover text-sidebar-foreground"
@@ -67,10 +98,10 @@ export const ConversationsPanel = () => {
     >
       <div className="flex flex-col gap-3.5 border-b p-2 backdrop-blur-sm bg-white/10">
         <Select
-          value={statusFilter}
-          onValueChange={(value) =>
-            setStatusFilter(value as ConversationStatus | "all")
-          }
+          value={safeStatusFilter}
+          onValueChange={(value) => {
+            if (isValidStatusFilter(value)) setStatusFilter(value);
+          }}
         >
           <SelectTrigger className="h-8 border-none px-1.5 shadow-none ring-0 hover:bg-accent hover:text-accent-foreground focus-visible:ring-0">
             <SelectValue placeholder="Filter" />
@@ -82,19 +113,19 @@ export const ConversationsPanel = () => {
                 <span>All</span>
               </div>
             </SelectItem>
-            <SelectItem value="unresolved">
+            <SelectItem value={CONVERSATION_STATUS.UNRESOLVED}>
               <div className="flex gap-2 items-center">
                 <ClockIcon className="size-4" />
                 <span>Unresolved</span>
               </div>
             </SelectItem>
-            <SelectItem value="escalated">
+            <SelectItem value={CONVERSATION_STATUS.ESCALATED}>
               <div className="flex gap-2 items-center">
                 <ArrowUpIcon className="size-4" />
                 <span>Escalated</span>
               </div>
             </SelectItem>
-            <SelectItem value="resolved">
+            <SelectItem value={CONVERSATION_STATUS.RESOLVED}>
               <div className="flex gap-2 items-center">
                 <CheckIcon className="size-4" />
                 <span>Resolved</span>
@@ -108,7 +139,7 @@ export const ConversationsPanel = () => {
         <SkeletonConversations />
       ) : (
         <AnimatedList
-          items={conversations.results}
+          items={conversationsWithSession}
           getKey={(c) => c._id}
           showGradients
           enableArrowNavigation
@@ -122,13 +153,10 @@ export const ConversationsPanel = () => {
             mode: "manual",
           }}
           renderItem={(conversation, isSelected) => {
-            if (!conversation.contactSession) {
-              return null;
-            }
             const isActive = pathname === `/conversations/${conversation._id}`;
             const isLastMessageFromUser =
               conversation.lastMessage?.role === "user";
-            const metadata = conversation.contactSession?.metadata;
+            const metadata = conversation.contactSession.metadata;
             const country = metadata?.countryCode
               ? { code: metadata.countryCode, name: metadata.country || "" }
               : getCountryFromTimezone(metadata?.timezone);

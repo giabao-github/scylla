@@ -147,7 +147,7 @@ export const getMany = query({
       page: conversations.page.map((conversation) => ({
         _id: conversation._id,
         _creationTime: conversation._creationTime,
-        lastUpdatedAt: conversation.updatedAt ?? conversation._creationTime,
+        lastUpdatedAt: conversation.updatedAt ?? conversation.createdAt,
         status: conversation.status,
         organizationId: conversation.organizationId,
         threadId: conversation.threadId,

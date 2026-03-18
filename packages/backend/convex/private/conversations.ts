@@ -68,6 +68,13 @@ export const getMany = query({
             conversation.contactSessionId,
           );
 
+          if (!contactSession) {
+            console.warn(
+              `Skipping conversation '${conversation._id}': missing contact session '${conversation.contactSessionId}'`,
+            );
+            return null;
+          }
+
           return {
             ...conversation,
             lastMessage: conversation.lastMessage ?? null,

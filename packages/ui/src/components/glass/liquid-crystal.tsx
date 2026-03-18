@@ -271,8 +271,8 @@ export const LiquidCrystal = React.forwardRef<
             className="absolute inset-0 rounded-(--border-radius) pointer-events-none"
             style={{
               boxShadow: `inset 0 0 var(--inner-shadow-blur) -4px rgba(255, 255, 255, 0.7)`,
-              backgroundColor: tintColor,
-              opacity: tintOpacity,
+              backgroundColor: "var(--tint-color)",
+              opacity: "var(--tint-opacity)",
             }}
             aria-hidden="true"
           />

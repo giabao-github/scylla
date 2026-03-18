@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import type { QueryCtx } from "@workspace/backend/_generated/server";
 import {
@@ -30,10 +30,10 @@ export const updateLastMessage = internalMutation({
     const conversation = await getThreadById(ctx, args.threadId);
 
     if (!conversation) {
-      console.error(
-        `updateLastMessage: conversation not found for threadId '${args.threadId}'`,
-      );
-      return;
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: `Conversation not found for threadId '${args.threadId}'`,
+      });
     }
 
     await ctx.db.patch(conversation._id, {
