@@ -45,6 +45,8 @@ const formSchema = z.object({
 const isVisibleMessage = (m: { role: string; text?: string }) =>
   m.role === "user" || !!m.text;
 
+const PAGE_SIZE = 13;
+
 export const ConversationIdView = ({
   conversationId,
 }: {
@@ -67,7 +69,7 @@ export const ConversationIdView = ({
   const messages = useThreadMessages(
     api.private.messages.getMany,
     conversation?.threadId ? { threadId: conversation.threadId } : "skip",
-    { initialNumItems: 13 },
+    { initialNumItems: PAGE_SIZE },
   );
 
   const createMessage = useMutation(api.private.messages.create);
@@ -76,7 +78,7 @@ export const ConversationIdView = ({
     useInfiniteScroll({
       status: messages.status,
       loadMore: messages.loadMore,
-      loadSize: 13,
+      loadSize: PAGE_SIZE,
     });
 
   const messagesCount = messages.results?.length ?? 0;
@@ -124,7 +126,7 @@ export const ConversationIdView = ({
 
   const handleSubmit = async (promptMessage: PromptInputMessage) => {
     const text = promptMessage.text.trim();
-    if (!conversation || !text) return;
+    if (!conversation || !text || isSending) return;
 
     const localId = nanoid();
     const requestId = nanoid();
@@ -166,8 +168,37 @@ export const ConversationIdView = ({
   const handleRetry = async (localId: string) => {
     const slot = pendingSlots.find((s) => s.localId === localId);
     if (!slot || isSending) return;
-    setPendingSlots((prev) => prev.filter((s) => s.localId !== localId));
-    await handleSubmit(slot.prompt);
+    setPendingSlots((prev) =>
+      prev.map((s) =>
+        s.localId === localId ? { ...s, status: "sending" as const } : s,
+      ),
+    );
+
+    const text = slot.prompt.text.trim();
+    if (!conversation || !text) return;
+
+    const requestId = nanoid();
+    try {
+      await createMessage({
+        conversationId: conversationId as Id<"conversations">,
+        prompt: text,
+        requestId,
+      });
+      setPendingSlots((prev) => prev.filter((s) => s.localId !== localId));
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      setPendingSlots((prev) =>
+        prev.map((s) =>
+          s.localId === localId
+            ? {
+                ...s,
+                status: "failed" as const,
+                error: "Failed to send. Please retry.",
+              }
+            : s,
+        ),
+      );
+    }
   };
 
   if (conversation === undefined) {
@@ -253,7 +284,7 @@ export const ConversationIdView = ({
             <ChatBubble
               text={slot.text}
               variant="user"
-              status={slot.status === "sending" ? "generating" : "failed"}
+              status={slot.status}
               error={slot.status === "failed" ? slot.error : undefined}
               onRetry={
                 slot.status === "failed"

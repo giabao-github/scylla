@@ -310,7 +310,7 @@ export const WidgetAuthScreen = () => {
                     "No spaces or emojis 😊",
                   ]}
                   placeholder="john.doe@example.com"
-                  type="text"
+                  type="email"
                   value={field.value}
                   onChange={(value: string) => {
                     field.onChange(value);

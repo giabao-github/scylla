@@ -96,6 +96,7 @@ export function AnimatedList<T>({
   scrollContainerClassName,
   infiniteScroll,
 }: AnimatedListProps<T>) {
+  const clampedGradientLevel = Math.max(0, Math.min(1, gradientLevel));
   const listRef = useRef<HTMLDivElement>(null);
   const [selectedIndex, setSelectedIndex] =
     useState<number>(initialSelectedIndex);
@@ -261,14 +262,14 @@ export function AnimatedList<T>({
             className="absolute top-0 left-0 right-0 h-[50px] pointer-events-none transition-opacity duration-300 ease"
             style={{
               opacity: topGradientOpacity,
-              background: `linear-gradient(to bottom, rgba(0,0,0,${gradientLevel}), transparent)`,
+              background: `linear-gradient(to bottom, rgba(0,0,0,${clampedGradientLevel}), transparent)`,
             }}
           />
           <div
             className="absolute bottom-0 left-0 right-0 h-[100px] pointer-events-none transition-opacity duration-300 ease"
             style={{
               opacity: bottomGradientOpacity,
-              background: `linear-gradient(to top, rgba(0,0,0,${gradientLevel}), transparent)`,
+              background: `linear-gradient(to top, rgba(0,0,0,${clampedGradientLevel}), transparent)`,
             }}
           />
         </>

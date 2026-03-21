@@ -311,6 +311,7 @@ export const PromptBoxActions = ({
 
       {tools.enhance && (
         <PromptInputButton
+          disabled // TODO: Implement enhance functionality
           tooltip={{ content: "Enhance message", side: "top" }}
           className={cn(
             "h-7 gap-1.5 px-2 rounded-full text-xs font-medium",
@@ -318,7 +319,6 @@ export const PromptBoxActions = ({
             "hover:bg-muted/60 hover:text-foreground hover:border-border/40",
             "transition-colors",
           )}
-          onClick={() => {}}
         >
           <SparklesIcon className={cn("size-3.5 shrink-0")} />
           <span>Enhance</span>

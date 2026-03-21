@@ -44,6 +44,11 @@ export const contactSessionIdAtom = atom(
   (get, set, value: Id<"contactSessions"> | null) => {
     const organizationId = get(organizationIdAtom);
     if (!organizationId) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          "Attempted to set contactSessionId without organizationId",
+        );
+      }
       return;
     }
     set(contactSessionIdAtomFamily(organizationId), value);

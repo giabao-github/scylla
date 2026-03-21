@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values";
 
 import { components, internal } from "@workspace/backend/_generated/api";
 import { mutation, query } from "@workspace/backend/_generated/server";
+import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import { getThreadById } from "@workspace/backend/system/conversations";
 
@@ -19,23 +20,7 @@ export const create = mutation({
     ctx,
     { conversationId, prompt, requestId },
   ): Promise<void> => {
-    const identity = await ctx.auth.getUserIdentity();
-
-    if (!identity) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "User is not authenticated",
-      });
-    }
-
-    if (!identity.orgId) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Organization not found",
-      });
-    }
-
-    const organizationId = identity.orgId as string;
+    const { identity, organizationId } = await getAuthenticatedOrgId(ctx);
 
     const conversation = await ctx.db.get(conversationId);
 
@@ -80,14 +65,21 @@ export const create = mutation({
 
     // TODO: implement subscription check
 
-    await saveMessage(ctx, components.agent, {
-      threadId: conversation.threadId,
-      agentName: identity.familyName ?? identity.name ?? "Operator",
-      message: {
-        role: "assistant",
-        content: prompt,
-      },
-    });
+    try {
+      await saveMessage(ctx, components.agent, {
+        threadId: conversation.threadId,
+        agentName: identity.name ?? identity.familyName ?? "Operator",
+        message: {
+          role: "assistant",
+          content: prompt,
+        },
+      });
+    } catch (err) {
+      await ctx.runMutation(internal.system.messageRequests.release, {
+        requestId,
+      });
+      throw err;
+    }
 
     // Post-generation sync should not reopen idempotency window
     try {
@@ -110,23 +102,7 @@ export const getMany = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-
-    if (!identity) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "User is not authenticated",
-      });
-    }
-
-    if (!identity.orgId) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Organization not found",
-      });
-    }
-
-    const organizationId = identity.orgId as string;
+    const { organizationId } = await getAuthenticatedOrgId(ctx);
 
     const conversation = await getThreadById(ctx, args.threadId);
 

@@ -5,13 +5,13 @@ import { Component, ReactNode } from "react";
 import { Button } from "@workspace/ui/components/button";
 
 export class ConversationErrorBoundary extends Component<
-  { children: ReactNode },
+  { children: ReactNode; onReset?: () => void },
   { hasError: boolean }
 > {
-  state = { hasError: false };
+  state = { hasError: false, error: null as Error | null };
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -22,7 +22,10 @@ export class ConversationErrorBoundary extends Component<
     );
   }
 
-  reset = () => this.setState({ hasError: false });
+  reset = () => {
+    this.props.onReset?.();
+    this.setState({ hasError: false });
+  };
 
   render() {
     if (this.state.hasError) {

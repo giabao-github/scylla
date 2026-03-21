@@ -115,12 +115,12 @@ export const WidgetLoadingScreen = ({
         setStep("done");
       })
       .catch(() => {
-        console.warn(
-          "Session validation failed, redirecting to authentication screen",
-        );
         if (cancelled) {
           return;
         }
+        console.warn(
+          "Session validation failed, redirecting to authentication screen",
+        );
         setSessionValid(false);
         setStep("done");
       });
@@ -140,11 +140,9 @@ export const WidgetLoadingScreen = ({
   }, [step, contactSessionId, sessionValid, setScreen]);
 
   return (
-    <>
-      <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
-        <div className="loader"></div>
-        <p>{loadingMessage || "Loading..."}</p>
-      </div>
-    </>
+    <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
+      <div className="loader"></div>
+      <p>{loadingMessage || "Loading..."}</p>
+    </div>
   );
 };

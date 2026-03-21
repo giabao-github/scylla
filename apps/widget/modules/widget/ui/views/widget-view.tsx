@@ -50,9 +50,10 @@ const getHeaderProps = (screen: WidgetScreen) => {
     case "contact":
     case "library":
       return null;
-    default:
+    default: {
       const _exhaustiveCheck: never = screen;
       return _exhaustiveCheck;
+    }
   }
 };
 
@@ -105,9 +106,10 @@ const getHeaderContent = (screen: WidgetScreen, onBack: () => void) => {
     case "contact":
     case "library":
       return null;
-    default:
+    default: {
       const _exhaustiveCheck: never = screen;
       return _exhaustiveCheck;
+    }
   }
 };
 

@@ -11,9 +11,10 @@ import { cn } from "@workspace/ui/lib/utils";
 interface ChatBubbleProps {
   text: string;
   variant: "user" | "agent";
-  status?: "generating" | "failed" | "sent";
+  status?: "generating" | "sending" | "failed" | "sent";
   error?: string;
   avatarSeed?: string;
+  isRetrying?: boolean;
   onRetry?: () => void;
 }
 
@@ -23,10 +24,11 @@ export const ChatBubble = ({
   status = "sent",
   error,
   avatarSeed,
+  isRetrying = false,
   onRetry,
 }: ChatBubbleProps) => {
   const isUser = variant === "user";
-  const isGenerating = status === "generating";
+  const isGenerating = status === "generating" || status === "sending";
   const isFailed = status === "failed";
 
   const gradient = isUser
@@ -91,10 +93,16 @@ export const ChatBubble = ({
             {onRetry && (
               <button
                 type="button"
+                disabled={isRetrying}
+                aria-label={
+                  isRetrying ? "Retrying message" : "Retry sending message"
+                }
                 onClick={onRetry}
-                className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors disabled:opacity-50"
               >
-                <RefreshCwIcon className="size-2.5" />
+                <RefreshCwIcon
+                  className={cn("size-2.5", isRetrying && "animate-spin")}
+                />
                 Retry
               </button>
             )}

@@ -70,6 +70,8 @@ const parseErrorMessage = (err: unknown): string => {
 const isVisibleMessage = (m: { role: string; text?: string }) =>
   m.role === "user" || !!m.text;
 
+const MESSAGE_PAGE_SIZE = 11;
+
 export const WidgetChatScreen = () => {
   const organizationId = useAtomValue(organizationIdAtom);
   const conversationId = useAtomValue(conversationIdAtom);
@@ -96,16 +98,24 @@ export const WidgetChatScreen = () => {
     conversation?.threadId && contactSessionId
       ? { threadId: conversation.threadId, contactSessionId }
       : "skip",
-    { initialNumItems: 11 },
+    { initialNumItems: MESSAGE_PAGE_SIZE },
   );
 
   const { topElementRef, handleLoadMore, canLoadMore, isLoadingMore } =
     useInfiniteScroll({
       status: messages.status,
       loadMore: messages.loadMore,
-      loadSize: 11,
+      loadSize: MESSAGE_PAGE_SIZE,
     });
 
+  const form = useForm<FormSchema>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { message: "" },
+  });
+
+  const message = form.watch("message");
+  const createMessage = useAction(api.public.messages.create);
+  const isGenerating = pendingSlots.some((s) => s.status === "generating");
   const messagesCount = messages.results?.length ?? 0;
   const pendingSlotsLen = pendingSlots.length;
   const lastMessageId = messages.results?.[messagesCount - 1]?._id;
@@ -141,11 +151,6 @@ export const WidgetChatScreen = () => {
     prevPendingSlotsLenRef.current = pendingSlotsLen;
   }, [lastMessageId, pendingSlotsLen, scrollToBottom]);
 
-  const form = useForm<FormSchema>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { message: "" },
-  });
-
   useEffect(() => {
     abortRef.current = false;
     return () => {
@@ -153,9 +158,52 @@ export const WidgetChatScreen = () => {
     };
   }, []);
 
-  const message = form.watch("message");
-  const createMessage = useAction(api.public.messages.create);
-  const isGenerating = pendingSlots.some((s) => s.status === "generating");
+  const sendMessage = useCallback(
+    async (localId: string, promptText: string) => {
+      if (!conversation || !contactSessionId) {
+        setPendingSlots((prev) =>
+          prev.map((s) =>
+            s.localId === localId
+              ? {
+                  ...s,
+                  status: "failed" as const,
+                  error: "Session unavailable.",
+                }
+              : s,
+          ),
+        );
+        return;
+      }
+      const requestId = nanoid();
+      try {
+        await createMessage({
+          threadId: conversation.threadId,
+          contactSessionId,
+          prompt: promptText,
+          modelId: selectedModel,
+          requestId,
+        });
+        if (!abortRef.current) {
+          setPendingSlots((prev) => prev.filter((s) => s.localId !== localId));
+        }
+      } catch (err) {
+        if (!abortRef.current) {
+          setPendingSlots((prev) =>
+            prev.map((s) =>
+              s.localId === localId
+                ? {
+                    ...s,
+                    status: "failed" as const,
+                    error: parseErrorMessage(err),
+                  }
+                : s,
+            ),
+          );
+        }
+      }
+    },
+    [conversation, contactSessionId, createMessage, selectedModel],
+  );
 
   if (!organizationId) return null;
 
@@ -164,8 +212,6 @@ export const WidgetChatScreen = () => {
     if (!conversation || !contactSessionId || !text) return;
 
     const localId = nanoid();
-    const requestId = nanoid();
-
     const snapshotIds = new Set<string>(
       toUIMessages(messages.results ?? [])
         .filter(isVisibleMessage)
@@ -184,39 +230,18 @@ export const WidgetChatScreen = () => {
       },
     ]);
 
-    try {
-      await createMessage({
-        threadId: conversation.threadId,
-        contactSessionId,
-        prompt: text,
-        modelId: selectedModel,
-        requestId,
-      });
-      if (!abortRef.current) {
-        setPendingSlots((prev) => prev.filter((s) => s.localId !== localId));
-      }
-    } catch (err) {
-      if (!abortRef.current) {
-        setPendingSlots((prev) =>
-          prev.map((s) =>
-            s.localId === localId
-              ? {
-                  ...s,
-                  status: "failed" as const,
-                  error: parseErrorMessage(err),
-                }
-              : s,
-          ),
-        );
-      }
-    }
+    await sendMessage(localId, text);
   };
 
   const handleRetry = async (localId: string) => {
     const slot = pendingSlots.find((s) => s.localId === localId);
-    if (!slot || isGenerating) return;
-    setPendingSlots((prev) => prev.filter((s) => s.localId !== localId));
-    await handleSubmit(slot.prompt);
+    if (!slot || isGenerating || !conversation || !contactSessionId) return;
+    setPendingSlots((prev) =>
+      prev.map((s) =>
+        s.localId === localId ? { ...s, status: "generating" as const } : s,
+      ),
+    );
+    await sendMessage(localId, slot.prompt.text.trim());
   };
 
   const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
@@ -292,7 +317,11 @@ export const WidgetChatScreen = () => {
                 variant="agent"
                 status={slot.status}
                 error={slot.status === "failed" ? slot.error : undefined}
-                onRetry={() => handleRetry(slot.localId)}
+                onRetry={
+                  slot.status === "failed"
+                    ? () => handleRetry(slot.localId)
+                    : undefined
+                }
               />
             </Message>
           </div>

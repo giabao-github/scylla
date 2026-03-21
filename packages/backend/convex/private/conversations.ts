@@ -3,40 +3,19 @@ import { ConvexError, v } from "convex/values";
 
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import { query } from "@workspace/backend/_generated/server";
+import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
 
 import {
   CONVERSATION_STATUS,
   ConversationStatus,
 } from "@workspace/shared/constants/conversation";
 
-const getAuthenticatedOrgId = async (ctx: {
-  auth: { getUserIdentity: () => Promise<any> };
-}): Promise<string> => {
-  const identity = await ctx.auth.getUserIdentity();
-
-  if (!identity) {
-    throw new ConvexError({
-      code: "UNAUTHORIZED",
-      message: "User is not authenticated",
-    });
-  }
-
-  if (!identity.orgId) {
-    throw new ConvexError({
-      code: "UNAUTHORIZED",
-      message: "Organization not found",
-    });
-  }
-
-  return identity.orgId as string;
-};
-
 export const getOne = query({
   args: {
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const organizationId = await getAuthenticatedOrgId(ctx);
+    const { organizationId } = await getAuthenticatedOrgId(ctx);
     const conversation = await ctx.db.get(args.conversationId);
 
     if (!conversation) {
@@ -82,7 +61,7 @@ export const getMany = query({
     ),
   },
   handler: async (ctx, args) => {
-    const organizationId = await getAuthenticatedOrgId(ctx);
+    const { organizationId } = await getAuthenticatedOrgId(ctx);
     let conversations: PaginationResult<Doc<"conversations">>;
 
     if (args.status) {
@@ -125,7 +104,7 @@ export const getMany = query({
             contactSession,
           };
         } catch (error) {
-          console.error(
+          console.warn(
             `Failed to process conversation '${conversation._id}':`,
             error instanceof Error ? error.message : error,
           );
@@ -142,7 +121,7 @@ export const getMany = query({
       conversationWithAdditionalData.length - validConversations.length;
 
     if (skipped > 0) {
-      console.error(
+      console.warn(
         `Skipped ${skipped} conversations in getMany for organization '${organizationId}'`,
       );
     }

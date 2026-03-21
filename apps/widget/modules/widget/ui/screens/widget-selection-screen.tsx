@@ -57,6 +57,7 @@ export const WidgetSelectionScreen = () => {
 
   const handleNewConversation = async (mode: "chat" | "voice" | "audio") => {
     if (!organizationId) {
+      setErrorMessage("Widget configuration error. Please try again later.");
       setScreen(WIDGET_SCREENS.ERROR);
       return;
     }

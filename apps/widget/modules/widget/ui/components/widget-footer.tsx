@@ -29,7 +29,7 @@ export const WidgetFooter = () => {
     >
       {/* Glass base */}
       <span
-        className="absolute inset-0 z-0 rounded-sm transition-colors duration-200 pointer-events-none bg-primary/20"
+        className="absolute inset-0 z-0 rounded-b-none transition-colors duration-200 pointer-events-none md:rounded-b-sm bg-primary/20"
         style={{
           boxShadow: "0 4px 15px rgba(0,0,0,0.15)",
         }}

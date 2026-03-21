@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import { internalMutation } from "@workspace/backend/_generated/server";
 
@@ -10,9 +10,17 @@ export const claim = internalMutation({
   },
   handler: async (ctx, { requestId, contactSessionId, conversationId }) => {
     if (!contactSessionId && !conversationId) {
-      throw new Error(
-        "Either contactSessionId or conversationId must be provided",
-      );
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Either contactSessionId or conversationId must be provided",
+      });
+    }
+    if (contactSessionId && conversationId) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message:
+          "Only one of contactSessionId or conversationId should be provided",
+      });
     }
 
     const existing = await ctx.db

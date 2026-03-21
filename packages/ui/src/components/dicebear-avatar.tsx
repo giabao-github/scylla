@@ -86,12 +86,13 @@ export const AgentAvatar = ({
   <div
     className={cn(
       "shrink-0 flex items-center justify-center",
-      "size-8 rounded-full mt-0.5",
+      "rounded-full mt-0.5",
       "border-2 transition-colors",
       "bg-primary/10 border-primary/20",
       isThinking && "animate-pulse",
       className,
     )}
+    style={{ width: size, height: size }}
   >
     <DicebearAvatar seed={seed} size={size} />
   </div>
