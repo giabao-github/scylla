@@ -4,6 +4,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
+import {
+  contactSessionIdAtom,
+  organizationIdAtom,
+  widgetScreenAtom,
+} from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import {
   getCountryFromCode,
@@ -25,14 +30,8 @@ import { ArrowBigRightIcon, MailIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import z from "zod";
 
-import {
-  contactSessionIdAtom,
-  organizationIdAtom,
-  widgetScreenAtom,
-} from "@/modules/widget/atoms/widget-atoms";
 import { Field } from "@/modules/widget/ui/components/field";
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
-import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 
 const formSchema = z.object({
   name: z
@@ -222,13 +221,6 @@ export const WidgetAuthScreen = () => {
 
   return (
     <>
-      <WidgetHeader>
-        <div className="flex flex-col gap-y-2 justify-between px-4 py-6 font-semibold">
-          <p className="text-3xl">Hi there! 👋</p>
-          <p className="text-lg">Let&apos;s get you started.</p>
-        </div>
-      </WidgetHeader>
-
       <Form {...form}>
         <form
           className="flex flex-col flex-1 gap-y-4 items-center p-4 mt-12 md:p-6"

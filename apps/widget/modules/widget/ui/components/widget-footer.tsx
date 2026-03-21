@@ -1,10 +1,9 @@
+import { widgetScreenAtom } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue, useSetAtom } from "jotai";
 import { HomeIcon, InboxIcon, LibraryBigIcon, MailIcon } from "lucide-react";
-
-import { widgetScreenAtom } from "@/modules/widget/atoms/widget-atoms";
 
 const footerItems = [
   { icon: HomeIcon, itemScreen: WIDGET_SCREENS.SELECTION, label: "Home" },
@@ -23,7 +22,7 @@ export const WidgetFooter = () => {
 
   return (
     <footer
-      className="flex relative justify-between items-center"
+      className="flex relative justify-between items-center rounded-b-none shrink-0 md:rounded-b-sm"
       style={{
         boxShadow: "0 -1px 0 hsla(0, 0%, 100%, 0.1) inset",
       }}
@@ -36,7 +35,7 @@ export const WidgetFooter = () => {
         }}
       />
       <div
-        className="absolute inset-0 border-t backdrop-blur-md pointer-events-none bg-white/10 border-white/30"
+        className="absolute inset-0 rounded-b-none border-t backdrop-blur-md pointer-events-none md:rounded-b-sm bg-white/10 border-white/30"
         style={{
           boxShadow: "0 0 0 1px hsla(0, 0%, 100%, 0.2) inset",
         }}

@@ -3,6 +3,13 @@
 import { useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
+import {
+  contactSessionIdAtom,
+  conversationIdAtom,
+  errorMessageAtom,
+  organizationIdAtom,
+  widgetScreenAtom,
+} from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { GlassButton } from "@workspace/ui/components/glass/glass-button";
@@ -15,15 +22,7 @@ import {
   PhoneIcon,
 } from "lucide-react";
 
-import {
-  contactSessionIdAtom,
-  conversationIdAtom,
-  errorMessageAtom,
-  organizationIdAtom,
-  widgetScreenAtom,
-} from "@/modules/widget/atoms/widget-atoms";
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
-import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 
 const buttonOptions = [
   { icon: MessageCircleIcon, label: "Start chat", mode: "chat" as const },
@@ -45,26 +44,20 @@ export const WidgetSelectionScreen = () => {
   );
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
-  const isValidating = !!contactSessionId && validation === undefined;
 
   const createConversation = useMutation(api.public.conversations.create);
   const [isPending, setIsPending] = useState(false);
-
-  if (!organizationId) {
-    return null;
-  }
 
   const selectionButtonProps = {
     idleAlpha: 0.06,
     hoverAlpha: 0.2,
     glowAlpha: 0.15,
-    disabled: isPending || isNew || isExpired || isValidating,
+    disabled: isPending || isNew || isExpired,
   };
 
   const handleNewConversation = async (mode: "chat" | "voice" | "audio") => {
     if (!organizationId) {
       setScreen(WIDGET_SCREENS.ERROR);
-      setErrorMessage("Missing organization ID");
       return;
     }
 
@@ -94,12 +87,6 @@ export const WidgetSelectionScreen = () => {
 
   return (
     <>
-      <WidgetHeader>
-        <div className="flex flex-col gap-y-2 justify-between px-4 py-6 font-semibold">
-          <p className="text-2xl md:text-3xl">Hi there! 👋</p>
-          <p className="text-base md:text-lg">Let&apos;s get you started.</p>
-        </div>
-      </WidgetHeader>
       {isNew && (
         <CTAModal
           open

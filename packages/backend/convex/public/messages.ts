@@ -41,9 +41,9 @@ const agentForModel = (modelId: string | undefined): typeof supportAgent =>
 
 export const create = action({
   args: {
+    prompt: v.string(),
     threadId: v.string(),
     contactSessionId: v.id("contactSessions"),
-    prompt: v.string(),
     modelId: v.optional(v.string()),
     requestId: v.string(),
   },
@@ -98,7 +98,7 @@ export const create = action({
 
     const { duplicate } = await ctx.runMutation(
       internal.system.messageRequests.claim,
-      { requestId, contactSessionId },
+      { requestId, contactSessionId, conversationId: conversation._id },
     );
 
     if (duplicate) return;

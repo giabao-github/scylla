@@ -3,18 +3,16 @@
 import { useEffect, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
-import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
-import { useAction, useConvex } from "convex/react";
-import { useAtomValue, useSetAtom } from "jotai";
-
 import {
   contactSessionIdAtom,
   errorMessageAtom,
   loadingMessageAtom,
   organizationIdAtom,
   widgetScreenAtom,
-} from "@/modules/widget/atoms/widget-atoms";
-import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
+} from "@workspace/shared/atoms/atoms";
+import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { useAction, useConvex } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
 
 type InitStep = "organization" | "session" | "settings" | "vapi" | "done";
 
@@ -117,6 +115,9 @@ export const WidgetLoadingScreen = ({
         setStep("done");
       })
       .catch(() => {
+        console.warn(
+          "Session validation failed, redirecting to authentication screen",
+        );
         if (cancelled) {
           return;
         }
@@ -140,12 +141,6 @@ export const WidgetLoadingScreen = ({
 
   return (
     <>
-      <WidgetHeader>
-        <div className="flex flex-col gap-y-2 justify-between px-4 py-6 font-semibold">
-          <p className="text-3xl">Hi there! 👋</p>
-          <p className="text-lg">Let&apos;s get you started.</p>
-        </div>
-      </WidgetHeader>
       <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
         <div className="loader"></div>
         <p>{loadingMessage || "Loading..."}</p>

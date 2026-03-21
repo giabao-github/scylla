@@ -1,4 +1,5 @@
 import { SidebarProvider } from "@workspace/ui/components/sidebar";
+import { Provider } from "jotai";
 import { cookies } from "next/headers";
 
 import { AuthGuard } from "@/modules/auth/ui/components/auth-guard";
@@ -16,10 +17,12 @@ export const DashboardLayout = async ({
   return (
     <AuthGuard>
       <OrganizationGuard>
-        <SidebarProvider defaultOpen={defaultOpen}>
-          <DashboardSidebar />
-          <main className="flex flex-col flex-1">{children}</main>
-        </SidebarProvider>
+        <Provider>
+          <SidebarProvider defaultOpen={defaultOpen}>
+            <DashboardSidebar />
+            <main className="flex flex-col flex-1">{children}</main>
+          </SidebarProvider>
+        </Provider>
       </OrganizationGuard>
     </AuthGuard>
   );

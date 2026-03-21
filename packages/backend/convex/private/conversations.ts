@@ -9,6 +9,67 @@ import {
   ConversationStatus,
 } from "@workspace/shared/constants/conversation";
 
+const getAuthenticatedOrgId = async (ctx: {
+  auth: { getUserIdentity: () => Promise<any> };
+}): Promise<string> => {
+  const identity = await ctx.auth.getUserIdentity();
+
+  if (!identity) {
+    throw new ConvexError({
+      code: "UNAUTHORIZED",
+      message: "User is not authenticated",
+    });
+  }
+
+  if (!identity.orgId) {
+    throw new ConvexError({
+      code: "UNAUTHORIZED",
+      message: "Organization not found",
+    });
+  }
+
+  return identity.orgId as string;
+};
+
+export const getOne = query({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const organizationId = await getAuthenticatedOrgId(ctx);
+    const conversation = await ctx.db.get(args.conversationId);
+
+    if (!conversation) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Conversation not found",
+      });
+    }
+
+    if (conversation.organizationId !== organizationId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "User is not authorized to access this conversation",
+      });
+    }
+
+    const contactSession = await ctx.db.get(conversation.contactSessionId);
+
+    if (!contactSession) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Contact session not found",
+      });
+    }
+
+    return {
+      ...conversation,
+      lastMessage: conversation.lastMessage ?? null,
+      contactSession,
+    };
+  },
+});
+
 export const getMany = query({
   args: {
     paginationOpts: paginationOptsValidator,
@@ -21,24 +82,7 @@ export const getMany = query({
     ),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-
-    if (!identity) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "User is not authenticated",
-      });
-    }
-
-    if (!identity.orgId) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Organization not found",
-      });
-    }
-
-    const organizationId = identity.orgId as string;
-
+    const organizationId = await getAuthenticatedOrgId(ctx);
     let conversations: PaginationResult<Doc<"conversations">>;
 
     if (args.status) {

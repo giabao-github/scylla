@@ -16,6 +16,8 @@ interface DicebearAvatarProps {
 }
 
 interface AgentAvatarProps {
+  seed?: string;
+  size?: number;
   isThinking?: boolean;
   className?: string;
 }
@@ -76,7 +78,9 @@ export const DicebearAvatar = ({
 };
 
 export const AgentAvatar = ({
+  seed = "assistant",
   isThinking = false,
+  size = 32,
   className,
 }: AgentAvatarProps) => (
   <div
@@ -89,6 +93,6 @@ export const AgentAvatar = ({
       className,
     )}
   >
-    <DicebearAvatar seed="assistant" size={32} />
+    <DicebearAvatar seed={seed} size={size} />
   </div>
 );

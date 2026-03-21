@@ -1,14 +1,20 @@
 import { v } from "convex/values";
 
-import { internal } from "@workspace/backend/_generated/api";
 import { internalMutation } from "@workspace/backend/_generated/server";
 
 export const claim = internalMutation({
   args: {
     requestId: v.string(),
-    contactSessionId: v.id("contactSessions"),
+    contactSessionId: v.optional(v.id("contactSessions")),
+    conversationId: v.optional(v.id("conversations")),
   },
-  handler: async (ctx, { requestId, contactSessionId }) => {
+  handler: async (ctx, { requestId, contactSessionId, conversationId }) => {
+    if (!contactSessionId && !conversationId) {
+      throw new Error(
+        "Either contactSessionId or conversationId must be provided",
+      );
+    }
+
     const existing = await ctx.db
       .query("messageRequests")
       .withIndex("by_request_id", (q) => q.eq("requestId", requestId))
@@ -19,6 +25,7 @@ export const claim = internalMutation({
     await ctx.db.insert("messageRequests", {
       requestId,
       contactSessionId,
+      conversationId,
       createdAt: Date.now(),
     });
 

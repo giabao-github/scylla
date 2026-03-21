@@ -55,12 +55,14 @@ interface AnimatedListProps<T> {
    * Render each item. Receives the item and whether it is currently selected.
    * When omitted, items are expected to be strings and a default renderer is used.
    */
-  renderItem?: (item: T, isSelected: boolean, index?: number) => ReactNode;
+  renderItem?: (item: T, isSelected?: boolean, index?: number) => ReactNode;
   /** Called when an item is clicked or activated via keyboard. */
   onItemSelect?: (item: T, index: number) => void;
   /** Unique key extractor. Defaults to index if omitted. */
   getKey?: (item: T, index: number) => string | number;
   showGradients?: boolean;
+  /** Alpha level for gradient overlays (0-1). Defaults to 0.4. */
+  gradientLevel?: number;
   enableArrowNavigation?: boolean;
   className?: string;
   itemClassName?: string;
@@ -85,6 +87,7 @@ export function AnimatedList<T>({
   onItemSelect,
   getKey,
   showGradients = true,
+  gradientLevel = 0.4,
   enableArrowNavigation = true,
   className = "",
   itemClassName = "",
@@ -181,8 +184,16 @@ export function AnimatedList<T>({
   useEffect(() => {
     const container = listRef.current;
     if (!container || !showGradients) return;
+
     updateGradientOpacity(container);
-  }, [items, showGradients, updateGradientOpacity]);
+
+    const observer = new ResizeObserver(() => {
+      updateGradientOpacity(container);
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [showGradients, updateGradientOpacity, items.length]);
 
   return (
     <div
@@ -209,7 +220,7 @@ export function AnimatedList<T>({
         {items.map((item, index) => (
           <AnimatedItem
             key={getKey ? getKey(item, index) : index}
-            delay={Math.min(index * 0.02, 0.2)}
+            delay={Math.min(index * 0.01, 0.1)}
             index={index}
             className={itemClassName}
             onMouseEnter={() => handleItemMouseEnter(index)}
@@ -250,16 +261,14 @@ export function AnimatedList<T>({
             className="absolute top-0 left-0 right-0 h-[50px] pointer-events-none transition-opacity duration-300 ease"
             style={{
               opacity: topGradientOpacity,
-              background:
-                "linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)",
+              background: `linear-gradient(to bottom, rgba(0,0,0,${gradientLevel}), transparent)`,
             }}
           />
           <div
             className="absolute bottom-0 left-0 right-0 h-[100px] pointer-events-none transition-opacity duration-300 ease"
             style={{
               opacity: bottomGradientOpacity,
-              background:
-                "linear-gradient(to top, rgba(0,0,0,0.4), transparent)",
+              background: `linear-gradient(to top, rgba(0,0,0,${gradientLevel}), transparent)`,
             }}
           />
         </>

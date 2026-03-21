@@ -65,9 +65,12 @@ export default defineSchema({
     .index("by_updated_at", ["updatedAt"]),
   messageRequests: defineTable({
     requestId: v.string(),
-    contactSessionId: v.id("contactSessions"),
+    contactSessionId: v.optional(v.id("contactSessions")),
+    conversationId: v.optional(v.id("conversations")),
     createdAt: v.number(),
   })
     .index("by_request_id", ["requestId"])
-    .index("by_created_at", ["createdAt"]),
+    .index("by_created_at", ["createdAt"])
+    .index("by_contact_session_id", ["contactSessionId"])
+    .index("by_conversation_id", ["conversationId"]),
 });
