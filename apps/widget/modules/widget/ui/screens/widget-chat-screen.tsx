@@ -80,7 +80,8 @@ const parseErrorMessage = (err: unknown): string => {
   if (uncaughtMatch?.[1]) return ensureTrailingPeriod(uncaughtMatch[1]);
   const convexMatch = raw.match(/Server Error\s+(.+?)(?:\s*Called by|$)/);
   if (convexMatch?.[1]) return ensureTrailingPeriod(convexMatch[1]);
-  return "Something went wrong.";
+
+  return ensureTrailingPeriod(raw);
 };
 
 const isVisibleMessage = (m: { role: string; text?: string }) =>
@@ -154,28 +155,6 @@ export const WidgetChatScreen = () => {
       el.scrollHeight - el.scrollTop - el.clientHeight < 50;
   }, []);
 
-  useEffect(() => {
-    const slotsIncreased = pendingSlotsLen > prevPendingSlotsLenRef.current;
-    const isNewMessage = lastVisibleId !== prevLastMessageIdRef.current;
-
-    if (slotsIncreased) {
-      scrollToBottom();
-      isAtBottomRef.current = true;
-    } else if (isNewMessage && isAtBottomRef.current) {
-      scrollToBottom();
-    }
-
-    prevLastMessageIdRef.current = lastVisibleId;
-    prevPendingSlotsLenRef.current = pendingSlotsLen;
-  }, [lastVisibleId, pendingSlotsLen, scrollToBottom]);
-
-  useEffect(() => {
-    abortRef.current = false;
-    return () => {
-      abortRef.current = true;
-    };
-  }, []);
-
   const sendMessage = useCallback(
     async (localId: string, promptText: string) => {
       if (!conversation || !contactSessionId) {
@@ -192,14 +171,13 @@ export const WidgetChatScreen = () => {
         );
         return;
       }
-      const requestId = nanoid();
       try {
         await createMessage({
           threadId: conversation.threadId,
           contactSessionId,
           prompt: promptText,
           modelId: selectedModel,
-          requestId,
+          requestId: localId,
         });
         if (!abortRef.current) {
           setPendingSlots((prev) => prev.filter((s) => s.localId !== localId));
@@ -222,6 +200,35 @@ export const WidgetChatScreen = () => {
     },
     [conversation, contactSessionId, createMessage, selectedModel],
   );
+
+  useEffect(() => {
+    const slotsIncreased = pendingSlotsLen > prevPendingSlotsLenRef.current;
+    const isNewMessage = lastVisibleId !== prevLastMessageIdRef.current;
+
+    if (slotsIncreased) {
+      scrollToBottom();
+      isAtBottomRef.current = true;
+    } else if (isNewMessage && isAtBottomRef.current) {
+      scrollToBottom();
+    }
+
+    prevLastMessageIdRef.current = lastVisibleId;
+    prevPendingSlotsLenRef.current = pendingSlotsLen;
+  }, [lastVisibleId, pendingSlotsLen, scrollToBottom]);
+
+  useEffect(() => {
+    abortRef.current = false;
+    return () => {
+      abortRef.current = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setPendingSlots([]);
+    prevLastMessageIdRef.current = undefined;
+    prevPendingSlotsLenRef.current = 0;
+    isAtBottomRef.current = true;
+  }, [conversationId]);
 
   if (!organizationId) return null;
 

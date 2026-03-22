@@ -33,10 +33,14 @@ import { z } from "zod";
 
 type PendingSlot = {
   localId: string;
+  requestId: string;
   text: string;
   prompt: PromptInputMessage;
   snapshotIds: Set<string>;
-} & ({ status: "sending" } | { status: "failed"; error: string });
+} & (
+  | { status: "sending" }
+  | { status: "failed"; error: string; retryable: boolean }
+);
 
 const formSchema = z.object({
   message: z.string().trim().min(1, "Please type a message"),
@@ -101,8 +105,11 @@ export const ConversationIdView = ({
       el.scrollHeight - el.scrollTop - el.clientHeight < 50;
   }, []);
 
-  const sendMessage = async (localId: string, text: string) => {
-    const requestId = nanoid();
+  const sendMessage = async (
+    localId: string,
+    text: string,
+    requestId: string,
+  ) => {
     try {
       await createMessage({
         conversationId: conversationId as Id<"conversations">,
@@ -112,13 +119,19 @@ export const ConversationIdView = ({
       setPendingSlots((prev) => prev.filter((s) => s.localId !== localId));
     } catch (error) {
       console.error("Failed to send message:", error);
+      const isResolvedConversation =
+        error instanceof Error &&
+        (error as { code?: string }).code === "CONVERSATION_RESOLVED";
       setPendingSlots((prev) =>
         prev.map((s) =>
           s.localId === localId
             ? {
                 ...s,
                 status: "failed" as const,
-                error: "Failed to send. Please retry.",
+                error: isResolvedConversation
+                  ? "Conversation is resolved. Sending is disabled."
+                  : "Failed to send. Please retry.",
+                retryable: !isResolvedConversation,
               }
             : s,
         ),
@@ -161,6 +174,7 @@ export const ConversationIdView = ({
     if (!conversation || !text || isSending) return;
 
     const localId = nanoid();
+    const requestId = nanoid();
     const snapshotIds = new Set<string>(
       toUIMessages(messages.results ?? [])
         .filter(isVisibleMessage)
@@ -170,15 +184,23 @@ export const ConversationIdView = ({
     form.setValue("message", "");
     setPendingSlots((prev) => [
       ...prev,
-      { localId, text, prompt: promptMessage, snapshotIds, status: "sending" },
+      {
+        localId,
+        requestId,
+        text,
+        prompt: promptMessage,
+        snapshotIds,
+        status: "sending",
+      },
     ]);
 
-    await sendMessage(localId, text);
+    await sendMessage(localId, text, requestId);
   };
 
   const handleRetry = async (localId: string) => {
     const slot = pendingSlots.find((s) => s.localId === localId);
     if (!slot || isSending) return;
+    if (slot.status === "failed" && !slot.retryable) return;
 
     setPendingSlots((prev) =>
       prev.map((s) =>
@@ -186,7 +208,7 @@ export const ConversationIdView = ({
       ),
     );
 
-    await sendMessage(localId, slot.prompt.text.trim());
+    await sendMessage(localId, slot.prompt.text.trim(), slot.requestId);
   };
 
   if (conversation === undefined) {
@@ -215,7 +237,11 @@ export const ConversationIdView = ({
   return (
     <div className="flex flex-col h-full bg-muted">
       <header className="flex items-center justify-between border-b bg-background p-2.5 shrink-0">
-        <Button size="sm" variant="ghost">
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label="Open conversation actions"
+        >
           <MoreHorizontalIcon />
         </Button>
       </header>
@@ -275,7 +301,7 @@ export const ConversationIdView = ({
               status={slot.status}
               error={slot.status === "failed" ? slot.error : undefined}
               onRetry={
-                slot.status === "failed"
+                slot.status === "failed" && slot.retryable
                   ? () => handleRetry(slot.localId)
                   : undefined
               }
