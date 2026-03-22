@@ -14,13 +14,20 @@
     "./constants/*": {
       "types": "./dist/constants/*.d.ts",
       "default": "./dist/constants/*.js"
+    },
+    "./atoms/*": {
+      "types": "./dist/atoms/*.d.ts",
+      "default": "./dist/atoms/*.js"
     }
   },
   "devDependencies": {
+    "@types/node": "^25.3.3",
     "@workspace/typescript-config": "workspace:*",
     "typescript": "latest"
   },
   "dependencies": {
-    "countries-and-timezones": "^3.8.0"
+    "countries-and-timezones": "^3.8.0",
+    "jotai": "^2.18.0",
+    "jotai-family": "^1.0.1"
   }
 }

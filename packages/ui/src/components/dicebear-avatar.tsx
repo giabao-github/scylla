@@ -16,6 +16,8 @@ interface DicebearAvatarProps {
 }
 
 interface AgentAvatarProps {
+  seed?: string;
+  size?: number;
   isThinking?: boolean;
   className?: string;
 }
@@ -76,19 +78,22 @@ export const DicebearAvatar = ({
 };
 
 export const AgentAvatar = ({
+  seed = "assistant",
   isThinking = false,
+  size = 32,
   className,
 }: AgentAvatarProps) => (
   <div
     className={cn(
       "shrink-0 flex items-center justify-center",
-      "size-8 rounded-full mt-0.5",
+      "rounded-full mt-0.5",
       "border-2 transition-colors",
       "bg-primary/10 border-primary/20",
       isThinking && "animate-pulse",
       className,
     )}
+    style={{ width: size, height: size }}
   >
-    <DicebearAvatar seed="assistant" size={32} />
+    <DicebearAvatar seed={seed} size={size} />
   </div>
 );

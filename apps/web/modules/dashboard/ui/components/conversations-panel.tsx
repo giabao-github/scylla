@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
+import { statusFilterAtom } from "@workspace/shared/atoms/atoms";
 import {
   CONVERSATION_STATUS,
   ConversationStatus,
@@ -37,8 +38,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-import { statusFilterAtom } from "@/modules/dashboard/atoms";
 
 const isValidStatusFilter = (
   value: string,

@@ -9,7 +9,7 @@ export const WidgetHeader = ({
   color2 = "#8B5CF6",
   color3 = "#7C3AED",
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
   timeSpeed?: number;
   color1?: string;
@@ -19,7 +19,7 @@ export const WidgetHeader = ({
   return (
     <header
       className={cn(
-        "flex overflow-hidden relative justify-between items-center p-2 w-full shrink-0 md:p-4 text-primary-foreground",
+        "flex overflow-hidden relative justify-between items-center p-2 w-full rounded-t-none md:rounded-t-sm shrink-0 md:p-4 text-primary-foreground",
         className,
       )}
     >

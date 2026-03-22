@@ -1,27 +1,23 @@
 "use client";
 
 import { api } from "@workspace/backend/_generated/api";
-import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
-import { Button } from "@workspace/ui/components/button";
-import { ConversationStatusIcon } from "@workspace/ui/components/conversation-status-icon";
-import { CTAModal } from "@workspace/ui/components/cta-modal";
-import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
-import { GlassButton } from "@workspace/ui/components/glass/glass-button";
-import { InfiniteScrollTrigger } from "@workspace/ui/components/infinite-scroll-trigger";
-import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
-import { usePaginatedQuery, useQuery } from "convex/react";
-import { formatDistanceToNow } from "date-fns";
-import { useAtomValue, useSetAtom } from "jotai";
-import { ArrowLeftIcon } from "lucide-react";
-
 import {
   contactSessionIdAtom,
   conversationIdAtom,
   organizationIdAtom,
   widgetScreenAtom,
-} from "@/modules/widget/atoms/widget-atoms";
+} from "@workspace/shared/atoms/atoms";
+import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { AnimatedList } from "@workspace/ui/components/animated-list";
+import { ConversationStatusIcon } from "@workspace/ui/components/conversation-status-icon";
+import { CTAModal } from "@workspace/ui/components/cta-modal";
+import { GlassButton } from "@workspace/ui/components/glass/glass-button";
+import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
+import { usePaginatedQuery, useQuery } from "convex/react";
+import { formatDistanceToNow } from "date-fns";
+import { useAtomValue, useSetAtom } from "jotai";
+
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
-import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 
 const chatButtonProps = {
   idleAlpha: 0.06,
@@ -71,34 +67,15 @@ export const WidgetInboxScreen = () => {
   const isNew = !contactSessionId;
   const isValidationLoading = contactSessionId && validation === undefined;
   const isExpired = validation?.valid === false;
-  const isSkipped = isNew || isExpired || isValidationLoading;
+  const isSkipped = isNew || isExpired;
 
-  const isLoading = conversations.status === "LoadingFirstPage";
+  const isLoading =
+    conversations.status === "LoadingFirstPage" || isValidationLoading;
   const isEmpty =
     !isLoading && !isSkipped && conversations.results.length === 0;
 
   return (
-    <>
-      <WidgetHeader
-        timeSpeed={0.4}
-        color1="#5B21B6"
-        color2="#6D28D9"
-        color3="#7C3AED"
-      >
-        <div className="flex gap-x-6 items-center p-2 md:p-1">
-          <FrostLens blur={0} distortion={0} radius={50}>
-            <Button
-              variant="transparent"
-              aria-label="Back to selection screen"
-              className="size-10 hover:bg-primary/40"
-              onClick={() => setScreen(WIDGET_SCREENS.SELECTION)}
-            >
-              <ArrowLeftIcon strokeWidth={3} />
-            </Button>
-          </FrostLens>
-          <p className="text-2xl font-semibold">Inbox</p>
-        </div>
-      </WidgetHeader>
+    <div className="flex flex-col flex-1 min-h-0">
       {isNew && (
         <CTAModal
           open
@@ -118,71 +95,81 @@ export const WidgetInboxScreen = () => {
         />
       )}
       {!isSkipped ? (
-        <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4 mt-4">
+        <div className="flex flex-col flex-1 min-h-0">
           {isLoading ? (
-            <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
+            <div className="flex flex-col flex-1 gap-y-6 justify-center items-center text-muted-foreground">
               <div className="loader" />
               <p>Loading conversations...</p>
             </div>
           ) : isEmpty ? (
-            <div className="flex flex-col flex-1 justify-center items-center p-4 text-muted-foreground">
+            <div className="flex flex-1 justify-center items-center text-muted-foreground">
               <p>No conversations</p>
             </div>
           ) : (
-            <>
-              {conversations.results.map((conversation) => (
-                <GlassButton
-                  key={conversation._id}
-                  {...chatButtonProps}
-                  aria-label={`Open conversation: ${conversation.lastMessage?.text || "Untitled"}`}
-                  onClick={() => {
-                    setConversationId(conversation._id);
-                    setScreen(WIDGET_SCREENS.CHAT);
-                  }}
-                  className="justify-between w-full h-16 rounded-sm md:h-20"
-                >
-                  <div className="flex overflow-hidden flex-col gap-4 w-full text-start">
-                    <div className="flex gap-x-2 justify-between items-center w-full">
-                      <p className="text-xs text-muted-foreground">Chat</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(conversation._creationTime, {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex gap-x-2 justify-between items-center w-full">
-                      {conversation.lastMessage?.text ? (
-                        <p className="text-sm truncate">
-                          {conversation.lastMessage.text}
+            <AnimatedList
+              items={conversations.results}
+              getKey={(c) => c._id}
+              showGradients
+              gradientLevel={0.2}
+              enableArrowNavigation
+              displayScrollbar
+              className="flex flex-col flex-1 min-h-0"
+              scrollContainerClassName="flex flex-col gap-y-3 p-4 flex-1 min-h-0"
+              infiniteScroll={{
+                triggerElementRef: loadMoreTriggerRef,
+                handleLoadMore,
+                canLoadMore,
+                isLoadingMore,
+                loadMoreText: "Load more conversations",
+                noMoreText: "",
+                mode: "manual",
+              }}
+              renderItem={(conversation) => {
+                return (
+                  <GlassButton
+                    {...chatButtonProps}
+                    aria-label={`Open conversation: ${conversation.lastMessage?.text || "Untitled"}`}
+                    onClick={() => {
+                      setConversationId(conversation._id);
+                      setScreen(WIDGET_SCREENS.CHAT);
+                    }}
+                    className="justify-between w-full h-16 rounded-sm shrink-0 md:h-[72px]"
+                  >
+                    <div className="flex overflow-hidden flex-col gap-4 w-full text-start">
+                      <div className="flex gap-x-2 justify-between items-center w-full">
+                        <p className="text-xs text-muted-foreground">Chat</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(conversation._creationTime, {
+                            addSuffix: true,
+                          })}
                         </p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground/80">
-                          Untitled
-                        </p>
-                      )}
-                      <ConversationStatusIcon
-                        status={conversation.status}
-                        className="shrink-0"
-                      />
+                      </div>
+                      <div className="flex gap-x-2 justify-between items-center w-full">
+                        {conversation.lastMessage?.text ? (
+                          <p className="text-sm truncate">
+                            {conversation.lastMessage.text}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground/80">
+                            Untitled
+                          </p>
+                        )}
+                        <ConversationStatusIcon
+                          status={conversation.status}
+                          className="shrink-0"
+                        />
+                      </div>
                     </div>
-                  </div>
-                </GlassButton>
-              ))}
-              <InfiniteScrollTrigger
-                ref={loadMoreTriggerRef}
-                canLoadMore={canLoadMore}
-                loadMoreText="Load more chat"
-                noMoreText=""
-                isLoadingMore={isLoadingMore}
-                onLoadMore={handleLoadMore}
-              />
-            </>
+                  </GlassButton>
+                );
+              }}
+            />
           )}
         </div>
       ) : (
-        <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4 mt-4" />
+        <div className="flex-1 min-h-0" />
       )}
       <WidgetFooter />
-    </>
+    </div>
   );
 };

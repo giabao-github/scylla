@@ -1,13 +1,16 @@
 {
   "extends": "@workspace/typescript-config/base.json",
   "compilerOptions": {
+    "module": "preserve",
+    "moduleResolution": "bundler",
     "outDir": "dist",
     "rootDir": "src",
     "declaration": true,
     "baseUrl": ".",
     "paths": {
       "@workspace/ui/*": ["../ui/src/*"],
-      "@workspace/shared/*": ["./src/*"]
+      "@workspace/shared/*": ["./src/*"],
+      "@workspace/backend/*": ["../backend/convex/*"]
     }
   },
   "include": ["src"],

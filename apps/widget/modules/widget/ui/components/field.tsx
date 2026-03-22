@@ -105,7 +105,10 @@ export const Field = ({
         </div>
 
         {hint && (
-          <span className="text-[11px] text-muted-foreground/80 cursor-default">
+          <span
+            id={`${id}-hint`}
+            className="text-[11px] text-muted-foreground/80 cursor-default"
+          >
             {hint}
           </span>
         )}
@@ -132,6 +135,22 @@ export const Field = ({
 
         {/* Glass input */}
         <input
+          id={id}
+          aria-invalid={hasError || undefined}
+          aria-describedby={
+            [hint ? `${id}-hint` : null, hasError ? `${id}-error` : null]
+              .filter(Boolean)
+              .join(" ") || undefined
+          }
+          placeholder={placeholder}
+          type={type}
+          value={value}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur(e.target.value);
+          }}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setFocused(true)}
           className={cn(
             "relative z-10 px-11 w-full h-12 text-sm font-normal rounded-sm border backdrop-blur-md transition-all duration-200 outline-none bg-white/10 text-foreground placeholder:text-muted-foreground/70",
             showError
@@ -145,18 +164,6 @@ export const Field = ({
           style={{
             boxShadow: "0 0 0 1px hsla(0, 0%, 100%, 0.2) inset",
           }}
-          id={id}
-          aria-invalid={hasError || undefined}
-          aria-describedby={hasError ? `${id}-error` : undefined}
-          placeholder={placeholder}
-          type={type}
-          value={value}
-          onBlur={(e) => {
-            setFocused(false);
-            onBlur(e.target.value);
-          }}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => setFocused(true)}
         />
 
         <span

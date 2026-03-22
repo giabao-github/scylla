@@ -1,22 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
+import {
+  contactSessionIdAtom,
+  conversationIdAtom,
+  organizationIdAtom,
+  selectedModelAtom,
+} from "@workspace/shared/atoms/atoms";
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
-import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
+import { Message } from "@workspace/ui/components/ai/message";
 import {
-  Conversation,
-  ConversationContent,
-} from "@workspace/ui/components/ai/conversation";
-import {
-  Message,
-  MessageContent,
-  MessageResponse,
-} from "@workspace/ui/components/ai/message";
+  PromptBox,
+  PromptBoxDefaultTools,
+  PromptInputAttachmentsDisplay,
+} from "@workspace/ui/components/ai/prompt-box";
 import {
   PromptInputBody,
   PromptInputFooter,
@@ -24,75 +27,22 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@workspace/ui/components/ai/prompt-input";
-import { Button } from "@workspace/ui/components/button";
-import { AgentAvatar } from "@workspace/ui/components/dicebear-avatar";
 import { Form, FormField } from "@workspace/ui/components/form";
-import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
-import { InfiniteScrollTrigger } from "@workspace/ui/components/infinite-scroll-trigger";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAction, useQuery } from "convex/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { ArrowLeftIcon, MenuIcon, RefreshCwIcon, UserIcon } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { Loader2Icon } from "lucide-react";
 import { nanoid } from "nanoid";
 import z from "zod";
 
-import {
-  contactSessionIdAtom,
-  conversationIdAtom,
-  organizationIdAtom,
-  selectedModelAtom,
-  widgetScreenAtom,
-} from "@/modules/widget/atoms/widget-atoms";
-import {
-  PromptBox,
-  PromptBoxDefaultTools,
-  PromptInputAttachmentsDisplay,
-} from "@/modules/widget/ui/components/prompt-box";
-import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
-
-const ThinkingEllipsis = () => (
-  <div className="flex items-center gap-1 px-1 py-0.5">
-    {[0, 1, 2].map((i) => (
-      <span
-        key={i}
-        className="bg-current rounded-full opacity-40 animate-bounce size-1"
-        style={{ animationDelay: `${i * 150}ms`, animationDuration: "1s" }}
-      />
-    ))}
-  </div>
-);
-
-const ErrorMessage = ({
-  message,
-  onRetry,
-  disabled,
-}: {
-  message: string;
-  onRetry?: () => void;
-  disabled?: boolean;
-}) => (
-  <div className="flex gap-x-2">
-    <span className="text-xs text-rose-400">{message}</span>
-    {onRetry && (
-      <button
-        onClick={onRetry}
-        disabled={disabled}
-        aria-label="Retry sending message"
-        className={cn(
-          "flex gap-1 items-center ml-1 text-xs text-rose-400",
-          "underline-offset-2 hover:underline hover:text-rose-300",
-          "transition-colors shrink-0",
-          disabled &&
-            "opacity-50 cursor-not-allowed hover:no-underline hover:text-rose-400",
-        )}
-      >
-        <RefreshCwIcon className="size-3" />
-        Retry
-      </button>
-    )}
-  </div>
-);
+type PendingSlot = {
+  localId: string;
+  userText: string;
+  prompt: PromptInputMessage;
+  submittedAt: number;
+  snapshotIds: Set<string>;
+} & ({ status: "generating" } | { status: "failed"; error: string });
 
 const formSchema = z.object({
   message: z.string().trim().min(1, "Please type a message"),
@@ -105,21 +55,166 @@ const ensureTrailingPeriod = (str: string): string => {
   return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
 };
 
+const parseErrorMessage = (err: unknown): string => {
+  const structuredMessage =
+    typeof err === "object" &&
+    err !== null &&
+    "data" in err &&
+    typeof (err as { data?: { message?: unknown } }).data?.message === "string"
+      ? (err as { data: { message: string } }).data.message
+      : null;
+  if (structuredMessage) return ensureTrailingPeriod(structuredMessage);
+
+  const raw =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : "Something went wrong.";
+
+  const retryMatch = raw.match(/Last error:\s*(.+?)(?:\.\s*For more|$)/);
+  if (retryMatch?.[1]) return ensureTrailingPeriod(retryMatch[1]);
+  const uncaughtMatch = raw.match(
+    /Uncaught\s+\w+:\s*(.+?)(?:\.\s*Called by|$)/,
+  );
+  if (uncaughtMatch?.[1]) return ensureTrailingPeriod(uncaughtMatch[1]);
+  const convexMatch = raw.match(/Server Error\s+(.+?)(?:\s*Called by|$)/);
+  if (convexMatch?.[1]) return ensureTrailingPeriod(convexMatch[1]);
+
+  return ensureTrailingPeriod(raw);
+};
+
+const isVisibleMessage = (m: { role: string; text?: string }) =>
+  m.role === "user" || !!m.text;
+
+const MESSAGE_PAGE_SIZE = 11;
+
 export const WidgetChatScreen = () => {
   const organizationId = useAtomValue(organizationIdAtom);
   const conversationId = useAtomValue(conversationIdAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
   const selectedModel = useAtomValue(selectedModelAtom);
 
-  const setScreen = useSetAtom(widgetScreenAtom);
-  const setConversationId = useSetAtom(conversationIdAtom);
-
-  const [userMessage, setUserMessage] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
-  const [lastPrompt, setLastPrompt] = useState<PromptInputMessage | null>(null);
+  const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
 
   const abortRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevLastMessageIdRef = useRef<string | undefined>(undefined);
+  const prevPendingSlotsLenRef = useRef(0);
+  const isAtBottomRef = useRef(true);
+
+  const conversation = useQuery(
+    api.public.conversations.getOne,
+    conversationId && contactSessionId
+      ? { conversationId, contactSessionId }
+      : "skip",
+  );
+
+  const messages = useThreadMessages(
+    api.public.messages.getMany,
+    conversation?.threadId && contactSessionId
+      ? { threadId: conversation.threadId, contactSessionId }
+      : "skip",
+    { initialNumItems: MESSAGE_PAGE_SIZE },
+  );
+
+  const { topElementRef, handleLoadMore, canLoadMore, isLoadingMore } =
+    useInfiniteScroll({
+      status: messages.status,
+      loadMore: messages.loadMore,
+      loadSize: MESSAGE_PAGE_SIZE,
+    });
+
+  const form = useForm<FormSchema>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { message: "" },
+  });
+
+  const message = form.watch("message");
+  const createMessage = useAction(api.public.messages.create);
+  const isGenerating = pendingSlots.some((s) => s.status === "generating");
+
+  const pendingSlotsLen = pendingSlots.length;
+  const uiMessages = toUIMessages(messages.results ?? []);
+  const visibleMessages = uiMessages.filter(isVisibleMessage);
+  const lastVisibleId = visibleMessages[visibleMessages.length - 1]?.id;
+
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    });
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    isAtBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+  }, []);
+
+  const sendMessage = useCallback(
+    async (localId: string, promptText: string) => {
+      if (!conversation || !contactSessionId) {
+        setPendingSlots((prev) =>
+          prev.map((s) =>
+            s.localId === localId
+              ? {
+                  ...s,
+                  status: "failed" as const,
+                  error: "Session unavailable.",
+                }
+              : s,
+          ),
+        );
+        return;
+      }
+      try {
+        await createMessage({
+          threadId: conversation.threadId,
+          contactSessionId,
+          prompt: promptText,
+          modelId: selectedModel,
+          requestId: localId,
+        });
+        if (!abortRef.current) {
+          setPendingSlots((prev) => prev.filter((s) => s.localId !== localId));
+        }
+      } catch (err) {
+        if (!abortRef.current) {
+          setPendingSlots((prev) =>
+            prev.map((s) =>
+              s.localId === localId
+                ? {
+                    ...s,
+                    status: "failed" as const,
+                    error: parseErrorMessage(err),
+                  }
+                : s,
+            ),
+          );
+        }
+      }
+    },
+    [conversation, contactSessionId, createMessage, selectedModel],
+  );
+
+  useEffect(() => {
+    const slotsIncreased = pendingSlotsLen > prevPendingSlotsLenRef.current;
+    const isNewMessage = lastVisibleId !== prevLastMessageIdRef.current;
+
+    if (slotsIncreased) {
+      scrollToBottom();
+      isAtBottomRef.current = true;
+    } else if (isNewMessage && isAtBottomRef.current) {
+      scrollToBottom();
+    }
+
+    prevLastMessageIdRef.current = lastVisibleId;
+    prevPendingSlotsLenRef.current = pendingSlotsLen;
+  }, [lastVisibleId, pendingSlotsLen, scrollToBottom]);
 
   useEffect(() => {
     abortRef.current = false;
@@ -128,126 +223,68 @@ export const WidgetChatScreen = () => {
     };
   }, []);
 
-  const onBack = () => {
-    abortRef.current = true;
-    setScreen(WIDGET_SCREENS.SELECTION);
-    setConversationId(null);
-  };
+  useEffect(() => {
+    setPendingSlots([]);
+    prevLastMessageIdRef.current = undefined;
+    prevPendingSlotsLenRef.current = 0;
+    isAtBottomRef.current = true;
+  }, [conversationId]);
 
-  const conversation = useQuery(
-    api.public.conversations.getOne,
-    conversationId && contactSessionId
-      ? {
-          conversationId,
-          contactSessionId,
-        }
-      : "skip",
-  );
-
-  const messages = useThreadMessages(
-    api.public.messages.getMany,
-    conversation?.threadId && contactSessionId
-      ? {
-          threadId: conversation.threadId,
-          contactSessionId,
-        }
-      : "skip",
-    { initialNumItems: 10 },
-  );
-
-  const { topElementRef, handleLoadMore, canLoadMore, isLoadingMore } =
-    useInfiniteScroll({
-      status: messages.status,
-      loadMore: messages.loadMore,
-      loadSize: 10,
-    });
-
-  const form = useForm<FormSchema>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      message: "",
-    },
-  });
-  const message = form.watch("message");
-
-  const parseErrorMessage = (err: unknown): string => {
-    const raw = err instanceof Error ? err.message : "Something went wrong.";
-
-    const retryMatch = raw.match(/Last error:\s*(.+?)(?:\.\s*For more|$)/);
-    if (retryMatch?.[1]) {
-      return ensureTrailingPeriod(retryMatch[1]);
-    }
-
-    const uncaughtMatch = raw.match(
-      /Uncaught\s+\w+:\s*(.+?)(?:\.\s*Called by|$)/,
-    );
-    if (uncaughtMatch?.[1]) {
-      return ensureTrailingPeriod(uncaughtMatch[1]);
-    }
-
-    const convexMatch = raw.match(/Server Error\s+(.+?)(?:\s*Called by|$)/);
-    if (convexMatch?.[1]) {
-      return ensureTrailingPeriod(convexMatch[1]);
-    }
-
-    return "Something went wrong.";
-  };
-
-  const createMessage = useAction(api.public.messages.create);
-  const submitIds = useRef<Set<string>>(new Set());
-
-  if (!organizationId) {
-    return null;
-  }
+  if (!organizationId) return null;
 
   const handleSubmit = async (promptMessage: PromptInputMessage) => {
     const text = promptMessage.text.trim();
-    if (!conversation || !contactSessionId || !text) {
-      return;
-    }
+    if (!conversation || !contactSessionId || !text) return;
 
-    const requestId = nanoid();
-    form.setValue("message", "");
-
-    const currentUiMessages = toUIMessages(messages.results ?? []);
-    submitIds.current = new Set(
-      currentUiMessages
-        .filter((m) => m.role === "user" || !!m.text)
+    const localId = nanoid();
+    const snapshotIds = new Set<string>(
+      toUIMessages(messages.results ?? [])
+        .filter(isVisibleMessage)
         .map((m) => m.id),
     );
 
-    setUserMessage(promptMessage.text);
-    setLastPrompt(promptMessage);
-    setGenerationError(null);
-    setIsGenerating(true);
+    form.setValue("message", "");
+    setPendingSlots((prev) => [
+      ...prev,
+      {
+        localId,
+        userText: text,
+        prompt: promptMessage,
+        submittedAt: Date.now(),
+        snapshotIds,
+        status: "generating",
+      },
+    ]);
 
-    try {
-      await createMessage({
-        threadId: conversation.threadId,
-        contactSessionId,
-        prompt: text,
-        modelId: selectedModel,
-        requestId,
-      });
-      if (!abortRef.current) {
-        setUserMessage(null);
-        setGenerationError(null);
-      }
-    } catch (err) {
-      if (!abortRef.current) {
-        setGenerationError(parseErrorMessage(err));
-      }
-    } finally {
-      if (!abortRef.current) {
-        setIsGenerating(false);
-      }
-    }
+    await sendMessage(localId, text);
   };
 
-  const handleRetry = async () => {
-    if (lastPrompt) {
-      await handleSubmit(lastPrompt);
-    }
+  const handleRetry = async (localId: string) => {
+    const slot = pendingSlots.find((s) => s.localId === localId);
+    if (!slot || isGenerating || !conversation || !contactSessionId) return;
+
+    const freshSnapshotIds = new Set<string>(
+      toUIMessages(messages.results ?? [])
+        .filter(isVisibleMessage)
+        .map((m) => m.id),
+    );
+
+    setPendingSlots((prev) =>
+      prev.map((s) =>
+        s.localId === localId
+          ? {
+              localId: s.localId,
+              userText: s.userText,
+              prompt: s.prompt,
+              submittedAt: s.submittedAt,
+              snapshotIds: freshSnapshotIds,
+              status: "generating" as const,
+            }
+          : s,
+      ),
+    );
+
+    await sendMessage(localId, slot.prompt.text.trim());
   };
 
   const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
@@ -258,194 +295,113 @@ export const WidgetChatScreen = () => {
     !conversation ||
     !contactSessionId;
 
-  const uiMessages = toUIMessages(messages.results ?? []);
-  const visibleMessages = uiMessages.filter((message) => {
-    if (message.role === "user") return true;
-    if (message.text) return true;
-    return false;
-  });
+  const generatingSlot = pendingSlots.find((s) => s.status === "generating");
+  const confirmedMessages = generatingSlot
+    ? visibleMessages.filter((m) => generatingSlot.snapshotIds.has(m.id))
+    : visibleMessages;
 
-  const displayMessages = (() => {
-    if (generationError && lastPrompt && !isGenerating) {
-      const lastMessage = visibleMessages[visibleMessages.length - 1];
-      const hasFailedMessage =
-        lastMessage?.role === "user" &&
-        lastMessage?.text?.trim() === lastPrompt.text?.trim();
-
-      const baseMessages = hasFailedMessage
-        ? visibleMessages
-        : [
-            ...visibleMessages,
-            {
-              id: "__failed_user__",
-              role: "user" as const,
-              text: lastPrompt.text,
-              parts: [],
-            },
-          ];
-
-      return [
-        ...baseMessages,
-        { id: "__error__", role: "assistant" as const, text: "", parts: [] },
-      ];
-    }
-
-    if (!isGenerating || !userMessage) {
-      return visibleMessages;
-    }
-
-    const stableHistory = uiMessages.filter(
-      (message) =>
-        submitIds.current.has(message.id) &&
-        (message.role === "user" || !!message.text),
-    );
-
-    return [
-      ...stableHistory,
-      {
-        id: "__optimistic__",
-        role: "user" as const,
-        text: userMessage,
-        parts: [],
-      },
-      { id: "__thinking__", role: "assistant" as const, text: "", parts: [] },
-    ];
-  })();
+  const timeline = useMemo(
+    () =>
+      [
+        ...confirmedMessages.map((m) => ({
+          type: "confirmed" as const,
+          submittedAt: m._creationTime,
+          data: m,
+        })),
+        ...pendingSlots.map((s) => ({
+          type: "pending" as const,
+          submittedAt: s.submittedAt,
+          data: s,
+        })),
+      ].sort((a, b) => a.submittedAt - b.submittedAt),
+    [confirmedMessages, pendingSlots],
+  );
 
   return (
-    <div className="flex overflow-hidden absolute inset-0 flex-col bg-muted">
-      <WidgetHeader
-        timeSpeed={0.4}
-        color1="#5B21B6"
-        color2="#6D28D9"
-        color3="#7C3AED"
+    <div className="flex flex-col flex-1 min-h-0">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex overflow-y-auto flex-col flex-1 gap-5 px-4 py-6"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#C4B5FD transparent",
+        }}
       >
-        <div className="flex justify-between p-2 md:p-1">
-          <div className="flex gap-x-6 items-center">
-            <FrostLens blur={0} distortion={0} radius={50}>
-              <Button
-                variant="transparent"
-                aria-label="Back to selection screen"
-                className="size-10 hover:bg-primary/40"
-                onClick={onBack}
-              >
-                <ArrowLeftIcon strokeWidth={3} />
-              </Button>
-            </FrostLens>
-            <p className="text-2xl font-semibold">Scylla AI</p>
-          </div>
-          <FrostLens blur={0} distortion={0} radius={50}>
-            {/* TODO: Implement menu functionality */}
-            <Button
-              disabled
-              variant="transparent"
-              aria-label="Open menu"
-              className="size-10 hover:bg-primary/40"
+        <div>
+          {isLoadingMore && (
+            <div className="flex justify-center py-2">
+              <Loader2Icon className="animate-spin size-4 text-muted-foreground" />
+            </div>
+          )}
+          {canLoadMore && !isLoadingMore && (
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              className="w-full text-xs text-center transition-colors text-muted-foreground hover:text-foreground"
             >
-              <MenuIcon strokeWidth={3} />
-            </Button>
-          </FrostLens>
+              Load earlier messages
+            </button>
+          )}
         </div>
-      </WidgetHeader>
 
-      <div className="flex relative flex-col flex-1 w-full min-h-0">
-        {/* Top smooth blur */}
-        <div className="absolute top-0 left-0 right-[14px] h-12 pointer-events-none z-10 bg-linear-to-b from-[#6D28D9]/20 to-transparent backdrop-blur-[3px] mask-[linear-gradient(to_bottom,black_0%,transparent_100%)]" />
+        <div ref={topElementRef} className="h-px" />
 
-        <Conversation className="overflow-y-auto flex-1 w-full min-h-0">
-          <ConversationContent className="gap-5 px-4 py-6">
-            <InfiniteScrollTrigger
-              ref={topElementRef}
-              canLoadMore={canLoadMore}
-              isLoadingMore={isLoadingMore}
-              onLoadMore={handleLoadMore}
-              loadingText="Loading messages..."
-              noMoreText=""
-            />
-            {displayMessages.map((message) => {
-              const isUser = message.role === "user";
-              const isEmpty = !message.text;
+        {timeline.map((entry) => {
+          if (entry.type === "confirmed") {
+            const msg = entry.data;
+            const isUser = msg.role === "user";
+            return (
+              <Message
+                from={isUser ? "user" : "assistant"}
+                key={msg.id}
+                className="max-w-2/3"
+              >
+                <ChatBubble
+                  text={msg.text}
+                  variant={isUser ? "user" : "agent"}
+                />
+              </Message>
+            );
+          }
 
-              const isThinking = !isUser && isEmpty && isGenerating;
-
-              return (
-                <Message
-                  from={isUser ? "user" : "assistant"}
-                  key={message.id}
-                  className="max-w-[88%]"
-                >
-                  {!isUser && (
-                    <div className="flex items-start gap-2.5">
-                      <AgentAvatar isThinking={isThinking} />
-                      <MessageContent
-                        className={cn(
-                          "px-4 py-3 rounded-2xl rounded-tl-sm",
-                          "border shadow-sm text-sm leading-relaxed",
-                          isEmpty && !isGenerating
-                            ? "bg-destructive/10 border-destructive/30 text-destructive"
-                            : "bg-muted/60 border-border/40 text-foreground",
-                        )}
-                      >
-                        {isEmpty && isGenerating && <ThinkingEllipsis />}
-                        {isEmpty && !isGenerating && (
-                          <ErrorMessage
-                            message={generationError || "Something went wrong."}
-                            onRetry={handleRetry}
-                            disabled={isGenerating}
-                          />
-                        )}
-                        {!isEmpty && (
-                          <MessageResponse>{message.text}</MessageResponse>
-                        )}
-                      </MessageContent>
-                    </div>
-                  )}
-
-                  {isUser && (
-                    <div className="flex items-start gap-2.5 ml-auto">
-                      <MessageContent
-                        className={cn(
-                          "px-4 py-3 rounded-2xl rounded-tr-sm",
-                          "bg-primary text-primary-foreground",
-                          "text-sm leading-relaxed shadow-sm",
-                        )}
-                      >
-                        <MessageResponse>{message.text}</MessageResponse>
-                      </MessageContent>
-                      <div className="flex items-center justify-center size-7 rounded-full bg-secondary border border-border/40 mt-0.5">
-                        <UserIcon
-                          className="size-4 text-foreground/70"
-                          strokeWidth={2.3}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </Message>
-              );
-            })}
-          </ConversationContent>
-        </Conversation>
-
-        {/* Bottom smooth blur */}
-        <div className="absolute bottom-0 left-0 right-[14px] h-12 pointer-events-none z-10 bg-linear-to-t from-muted/60 to-transparent backdrop-blur-[3px] mask-[linear-gradient(to_top,black_0%,transparent_100%)]" />
+          const slot = entry.data;
+          return (
+            <div key={slot.localId} className="contents">
+              <Message from="user" className="max-w-2/3">
+                <ChatBubble text={slot.userText} variant="user" />
+              </Message>
+              <Message from="assistant" className="max-w-2/3">
+                <ChatBubble
+                  text=""
+                  variant="agent"
+                  status={slot.status}
+                  error={slot.status === "failed" ? slot.error : undefined}
+                  onRetry={
+                    slot.status === "failed"
+                      ? () => handleRetry(slot.localId)
+                      : undefined
+                  }
+                />
+              </Message>
+            </div>
+          );
+        })}
       </div>
-      {/* TODO: add suggestions */}
+
       <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent shrink-0">
         <div className="mx-auto max-w-4xl">
           <Form {...form}>
             <PromptBox
-              disabled={submitDisabled}
-              type="submit"
               onSubmit={handleSubmit}
               className={cn(
-                "rounded-xl border border-border/60",
-                "shadow-lg shadow-black/6",
+                "rounded-xl border shadow-lg border-border/60 shadow-black/6",
                 "bg-transparent backdrop-blur-sm",
-                "focus-within:shadow-xl focus-within:shadow-black/10",
-                "focus-within:border-border",
+                "focus-within:shadow-xl focus-within:shadow-black/10 focus-within:border-border",
                 "transition-all duration-200",
               )}
             >
+              {/** TODO: implement file sending */}
               <PromptInputAttachmentsDisplay />
               <PromptInputBody>
                 <FormField
