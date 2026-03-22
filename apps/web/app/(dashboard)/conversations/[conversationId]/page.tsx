@@ -8,7 +8,7 @@ const Page = async ({
 }) => {
   const { conversationId } = await params;
   return (
-    <ConversationErrorBoundary>
+    <ConversationErrorBoundary key={conversationId}>
       <ConversationIdView conversationId={conversationId} />
     </ConversationErrorBoundary>
   );

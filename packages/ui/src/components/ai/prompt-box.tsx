@@ -267,7 +267,7 @@ interface PromptBoxToolsConfig {
 
 const DEFAULT_TOOLS: PromptBoxToolsConfig = {
   attachments: true,
-  search: true,
+  search: false,
   enhance: false,
   modelSelector: true,
 };
@@ -353,14 +353,12 @@ export const PromptBoxDefaultTools = ({
 };
 
 interface PromptBoxProps {
-  disabled?: boolean;
-  type?: "submit" | "button";
   className?: string;
   onSubmit: (
     message: PromptInputMessage,
     event: FormEvent<HTMLFormElement>,
   ) => void | Promise<void>;
-  children?: ReactNode;
+  children: ReactNode;
 }
 
 export const PromptBox = ({

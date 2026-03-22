@@ -42,6 +42,7 @@ export const WidgetSelectionScreen = () => {
     api.public.contactSessions.validate,
     contactSessionId ? { contactSessionId } : "skip",
   );
+  const isValidating = !!contactSessionId && validation === undefined;
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
 
@@ -52,7 +53,7 @@ export const WidgetSelectionScreen = () => {
     idleAlpha: 0.06,
     hoverAlpha: 0.2,
     glowAlpha: 0.15,
-    disabled: isPending || isNew || isExpired,
+    disabled: isPending || isNew || isExpired || isValidating,
   };
 
   const handleNewConversation = async (mode: "chat" | "voice" | "audio") => {

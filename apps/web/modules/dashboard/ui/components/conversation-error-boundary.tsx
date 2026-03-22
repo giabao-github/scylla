@@ -6,7 +6,7 @@ import { Button } from "@workspace/ui/components/button";
 
 export class ConversationErrorBoundary extends Component<
   { children: ReactNode; onReset?: () => void },
-  { hasError: boolean }
+  { hasError: boolean; error: Error | null }
 > {
   state = { hasError: false, error: null as Error | null };
 
@@ -32,7 +32,7 @@ export class ConversationErrorBoundary extends Component<
       return (
         <div className="flex flex-col justify-center items-center h-full">
           <p className="text-muted-foreground">
-            This conversation no longer exists
+            An error occurred while loading this conversation
           </p>
           <div className="dino-loader [--dino-loader-height:200px]">
             <div className="dino-runner"></div>

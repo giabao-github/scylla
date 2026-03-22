@@ -56,7 +56,6 @@ export const create = mutation({
       internal.system.messageRequests.claim,
       {
         requestId,
-        contactSessionId: conversation.contactSessionId,
         conversationId,
       },
     );

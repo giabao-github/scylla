@@ -5,9 +5,13 @@ interface OrgUserIdentity extends UserIdentity {
   orgId?: string;
 }
 
+interface ValidatedOrgUserIdentity extends UserIdentity {
+  orgId: string;
+}
+
 export const getAuthenticatedOrgId = async (ctx: {
   auth: { getUserIdentity: () => Promise<OrgUserIdentity | null> };
-}): Promise<{ identity: OrgUserIdentity; organizationId: string }> => {
+}): Promise<{ identity: ValidatedOrgUserIdentity; organizationId: string }> => {
   const identity = await ctx.auth.getUserIdentity();
 
   if (!identity) {
@@ -24,5 +28,8 @@ export const getAuthenticatedOrgId = async (ctx: {
     });
   }
 
-  return { identity, organizationId: identity.orgId };
+  return {
+    identity: identity as ValidatedOrgUserIdentity,
+    organizationId: identity.orgId,
+  };
 };

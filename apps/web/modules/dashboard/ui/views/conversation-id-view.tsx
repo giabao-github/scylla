@@ -101,47 +101,8 @@ export const ConversationIdView = ({
       el.scrollHeight - el.scrollTop - el.clientHeight < 50;
   }, []);
 
-  useEffect(() => {
-    const slotsIncreased = pendingSlotsLen > prevPendingSlotsLenRef.current;
-    const isNewMessage = lastMessageId !== prevLastMessageIdRef.current;
-
-    if (slotsIncreased) {
-      scrollToBottom();
-      isAtBottomRef.current = true;
-    } else if (isNewMessage && isAtBottomRef.current) {
-      scrollToBottom();
-    }
-
-    prevLastMessageIdRef.current = lastMessageId;
-    prevPendingSlotsLenRef.current = pendingSlotsLen;
-  }, [lastMessageId, pendingSlotsLen, scrollToBottom]);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { message: "" },
-  });
-
-  const message = form.watch("message");
-  const isSending = pendingSlots.some((s) => s.status === "sending");
-
-  const handleSubmit = async (promptMessage: PromptInputMessage) => {
-    const text = promptMessage.text.trim();
-    if (!conversation || !text || isSending) return;
-
-    const localId = nanoid();
+  const sendMessage = async (localId: string, text: string) => {
     const requestId = nanoid();
-
-    const uiMsgs = toUIMessages(messages.results ?? []);
-    const snapshotIds = new Set<string>(
-      uiMsgs.filter(isVisibleMessage).map((m) => m.id),
-    );
-
-    form.setValue("message", "");
-    setPendingSlots((prev) => [
-      ...prev,
-      { localId, text, prompt: promptMessage, snapshotIds, status: "sending" },
-    ]);
-
     try {
       await createMessage({
         conversationId: conversationId as Id<"conversations">,
@@ -165,40 +126,67 @@ export const ConversationIdView = ({
     }
   };
 
+  useEffect(() => {
+    const slotsIncreased = pendingSlotsLen > prevPendingSlotsLenRef.current;
+    const isNewMessage = lastMessageId !== prevLastMessageIdRef.current;
+
+    if (slotsIncreased) {
+      scrollToBottom();
+      isAtBottomRef.current = true;
+    } else if (isNewMessage && isAtBottomRef.current) {
+      scrollToBottom();
+    }
+
+    prevLastMessageIdRef.current = lastMessageId;
+    prevPendingSlotsLenRef.current = pendingSlotsLen;
+  }, [lastMessageId, pendingSlotsLen, scrollToBottom]);
+
+  useEffect(() => {
+    prevLastMessageIdRef.current = undefined;
+    prevPendingSlotsLenRef.current = 0;
+    isAtBottomRef.current = true;
+    setPendingSlots([]);
+  }, [conversationId]);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { message: "" },
+  });
+
+  const message = form.watch("message");
+  const isSending = pendingSlots.some((s) => s.status === "sending");
+
+  const handleSubmit = async (promptMessage: PromptInputMessage) => {
+    const text = promptMessage.text.trim();
+    if (!conversation || !text || isSending) return;
+
+    const localId = nanoid();
+    const snapshotIds = new Set<string>(
+      toUIMessages(messages.results ?? [])
+        .filter(isVisibleMessage)
+        .map((m) => m.id),
+    );
+
+    form.setValue("message", "");
+    setPendingSlots((prev) => [
+      ...prev,
+      { localId, text, prompt: promptMessage, snapshotIds, status: "sending" },
+    ]);
+
+    await sendMessage(localId, text);
+  };
+
   const handleRetry = async (localId: string) => {
     const slot = pendingSlots.find((s) => s.localId === localId);
     if (!slot || isSending) return;
+
     setPendingSlots((prev) =>
       prev.map((s) =>
         s.localId === localId ? { ...s, status: "sending" as const } : s,
       ),
     );
 
-    const text = slot.prompt.text.trim();
-    if (!conversation || !text) return;
-
-    const requestId = nanoid();
-    try {
-      await createMessage({
-        conversationId: conversationId as Id<"conversations">,
-        prompt: text,
-        requestId,
-      });
-      setPendingSlots((prev) => prev.filter((s) => s.localId !== localId));
-    } catch (error) {
-      console.error("Failed to send message:", error);
-      setPendingSlots((prev) =>
-        prev.map((s) =>
-          s.localId === localId
-            ? {
-                ...s,
-                status: "failed" as const,
-                error: "Failed to send. Please retry.",
-              }
-            : s,
-        ),
-      );
-    }
+    await sendMessage(localId, slot.prompt.text.trim());
   };
 
   if (conversation === undefined) {
@@ -301,7 +289,6 @@ export const ConversationIdView = ({
           <div className="mx-auto max-w-full">
             <Form {...form}>
               <PromptBox
-                type="submit"
                 onSubmit={handleSubmit}
                 className={cn(
                   "bg-transparent backdrop-blur-sm",
@@ -329,7 +316,7 @@ export const ConversationIdView = ({
                 </PromptInputBody>
                 <PromptInputFooter>
                   <PromptBoxDefaultTools
-                    tools={{ attachments: true, enhance: true }}
+                    tools={{ enhance: true }} // TODO: implement enhancing text
                   />
                   <PromptInputSubmit
                     disabled={submitDisabled}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
@@ -40,6 +40,7 @@ type PendingSlot = {
   localId: string;
   userText: string;
   prompt: PromptInputMessage;
+  submittedAt: number;
   snapshotIds: Set<string>;
 } & ({ status: "generating" } | { status: "failed"; error: string });
 
@@ -225,6 +226,7 @@ export const WidgetChatScreen = () => {
         localId,
         userText: text,
         prompt: promptMessage,
+        submittedAt: Date.now(),
         snapshotIds,
         status: "generating",
       },
@@ -236,11 +238,28 @@ export const WidgetChatScreen = () => {
   const handleRetry = async (localId: string) => {
     const slot = pendingSlots.find((s) => s.localId === localId);
     if (!slot || isGenerating || !conversation || !contactSessionId) return;
+
+    const freshSnapshotIds = new Set<string>(
+      toUIMessages(messages.results ?? [])
+        .filter(isVisibleMessage)
+        .map((m) => m.id),
+    );
+
     setPendingSlots((prev) =>
       prev.map((s) =>
-        s.localId === localId ? { ...s, status: "generating" as const } : s,
+        s.localId === localId
+          ? {
+              localId: s.localId,
+              userText: s.userText,
+              prompt: s.prompt,
+              submittedAt: s.submittedAt,
+              snapshotIds: freshSnapshotIds,
+              status: "generating" as const,
+            }
+          : s,
       ),
     );
+
     await sendMessage(localId, slot.prompt.text.trim());
   };
 
@@ -256,9 +275,26 @@ export const WidgetChatScreen = () => {
   const visibleMessages = uiMessages.filter(isVisibleMessage);
 
   const generatingSlot = pendingSlots.find((s) => s.status === "generating");
-  const baseMessages = generatingSlot
+  const confirmedMessages = generatingSlot
     ? visibleMessages.filter((m) => generatingSlot.snapshotIds.has(m.id))
     : visibleMessages;
+
+  const timeline = useMemo(
+    () =>
+      [
+        ...confirmedMessages.map((m) => ({
+          type: "confirmed" as const,
+          submittedAt: m._creationTime,
+          data: m,
+        })),
+        ...pendingSlots.map((s) => ({
+          type: "pending" as const,
+          submittedAt: s.submittedAt,
+          data: s,
+        })),
+      ].sort((a, b) => a.submittedAt - b.submittedAt),
+    [confirmedMessages, pendingSlots],
+  );
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -290,50 +326,52 @@ export const WidgetChatScreen = () => {
 
         <div ref={topElementRef} className="h-px" />
 
-        {baseMessages.map((msg) => {
-          const isUser = msg.role === "user";
+        {timeline.map((entry) => {
+          if (entry.type === "confirmed") {
+            const msg = entry.data;
+            const isUser = msg.role === "user";
+            return (
+              <Message
+                from={isUser ? "user" : "assistant"}
+                key={msg.id}
+                className="max-w-2/3"
+              >
+                <ChatBubble
+                  text={msg.text}
+                  variant={isUser ? "user" : "agent"}
+                />
+              </Message>
+            );
+          }
+
+          const slot = entry.data;
           return (
-            <Message
-              from={isUser ? "user" : "assistant"}
-              key={msg.id}
-              className="max-w-2/3"
-            >
-              <ChatBubble
-                text={msg.text}
-                variant={msg.role === "user" ? "user" : "agent"}
-              />
-            </Message>
+            <div key={slot.localId} className="contents">
+              <Message from="user" className="max-w-2/3">
+                <ChatBubble text={slot.userText} variant="user" />
+              </Message>
+              <Message from="assistant" className="max-w-2/3">
+                <ChatBubble
+                  text=""
+                  variant="agent"
+                  status={slot.status}
+                  error={slot.status === "failed" ? slot.error : undefined}
+                  onRetry={
+                    slot.status === "failed"
+                      ? () => handleRetry(slot.localId)
+                      : undefined
+                  }
+                />
+              </Message>
+            </div>
           );
         })}
-
-        {pendingSlots.map((slot) => (
-          <div key={slot.localId} className="contents">
-            <Message from="user" className="max-w-2/3">
-              <ChatBubble text={slot.userText} variant="user" />
-            </Message>
-            <Message from="assistant" className="max-w-2/3">
-              <ChatBubble
-                text=""
-                variant="agent"
-                status={slot.status}
-                error={slot.status === "failed" ? slot.error : undefined}
-                onRetry={
-                  slot.status === "failed"
-                    ? () => handleRetry(slot.localId)
-                    : undefined
-                }
-              />
-            </Message>
-          </div>
-        ))}
       </div>
 
       <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent shrink-0">
         <div className="mx-auto max-w-4xl">
           <Form {...form}>
             <PromptBox
-              disabled={submitDisabled}
-              type="submit"
               onSubmit={handleSubmit}
               className={cn(
                 "rounded-xl border shadow-lg border-border/60 shadow-black/6",
