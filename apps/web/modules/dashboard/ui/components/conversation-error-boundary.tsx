@@ -23,8 +23,11 @@ export class ConversationErrorBoundary extends Component<
   }
 
   reset = () => {
-    this.props.onReset?.();
-    this.setState({ hasError: false, error: null });
+    try {
+      this.props.onReset?.();
+    } finally {
+      this.setState({ hasError: false, error: null });
+    }
   };
 
   render() {
@@ -38,7 +41,10 @@ export class ConversationErrorBoundary extends Component<
           <p className="text-muted-foreground">
             An error occurred while loading this conversation
           </p>
-          <div className="dino-loader [--dino-loader-height:200px]">
+          <div
+            className="dino-loader [--dino-loader-height:200px]"
+            aria-hidden="true"
+          >
             <div className="dino-runner"></div>
             <div className="dino-obstacle"></div>
             <div className="dino-ground"></div>

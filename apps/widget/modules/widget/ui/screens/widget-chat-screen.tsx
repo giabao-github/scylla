@@ -132,9 +132,11 @@ export const WidgetChatScreen = () => {
   const message = form.watch("message");
   const createMessage = useAction(api.public.messages.create);
   const isGenerating = pendingSlots.some((s) => s.status === "generating");
-  const messagesCount = messages.results?.length ?? 0;
+
   const pendingSlotsLen = pendingSlots.length;
-  const lastMessageId = messages.results?.[messagesCount - 1]?._id;
+  const uiMessages = toUIMessages(messages.results ?? []);
+  const visibleMessages = uiMessages.filter(isVisibleMessage);
+  const lastVisibleId = visibleMessages[visibleMessages.length - 1]?.id;
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -154,7 +156,7 @@ export const WidgetChatScreen = () => {
 
   useEffect(() => {
     const slotsIncreased = pendingSlotsLen > prevPendingSlotsLenRef.current;
-    const isNewMessage = lastMessageId !== prevLastMessageIdRef.current;
+    const isNewMessage = lastVisibleId !== prevLastMessageIdRef.current;
 
     if (slotsIncreased) {
       scrollToBottom();
@@ -163,9 +165,9 @@ export const WidgetChatScreen = () => {
       scrollToBottom();
     }
 
-    prevLastMessageIdRef.current = lastMessageId;
+    prevLastMessageIdRef.current = lastVisibleId;
     prevPendingSlotsLenRef.current = pendingSlotsLen;
-  }, [lastMessageId, pendingSlotsLen, scrollToBottom]);
+  }, [lastVisibleId, pendingSlotsLen, scrollToBottom]);
 
   useEffect(() => {
     abortRef.current = false;
@@ -286,9 +288,6 @@ export const WidgetChatScreen = () => {
     !conversation ||
     !contactSessionId;
 
-  const uiMessages = toUIMessages(messages.results ?? []);
-  const visibleMessages = uiMessages.filter(isVisibleMessage);
-
   const generatingSlot = pendingSlots.find((s) => s.status === "generating");
   const confirmedMessages = generatingSlot
     ? visibleMessages.filter((m) => generatingSlot.snapshotIds.has(m.id))
@@ -395,6 +394,7 @@ export const WidgetChatScreen = () => {
                 "transition-all duration-200",
               )}
             >
+              {/** TODO: implement file sending */}
               <PromptInputAttachmentsDisplay />
               <PromptInputBody>
                 <FormField

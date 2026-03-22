@@ -299,6 +299,7 @@ export const ConversationIdView = ({
                   "transition-all duration-200",
                 )}
               >
+                {/** TODO: implement file sending */}
                 <PromptInputAttachmentsDisplay />
                 <PromptInputBody>
                   <FormField

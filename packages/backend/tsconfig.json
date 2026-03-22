@@ -6,7 +6,8 @@
       "@workspace/ui/*": ["../ui/src/*"],
       "@workspace/backend/*": ["./convex/*"],
       "@workspace/shared/*": ["../shared/src/*"]
-    }
+    },
+    "noEmit": true
   },
   "include": ["."],
   "exclude": ["node_modules"]

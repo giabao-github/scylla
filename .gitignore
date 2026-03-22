@@ -23,6 +23,9 @@ coverage
 
 # Convex
 .convex-tmp
+packages/backend/convex/schema.js
+packages/backend/convex/schema.d.ts
+packages/backend/convex/schema.d.ts.map
 
 # Vercel
 .vercel
