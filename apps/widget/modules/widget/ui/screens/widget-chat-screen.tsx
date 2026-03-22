@@ -56,7 +56,22 @@ const ensureTrailingPeriod = (str: string): string => {
 };
 
 const parseErrorMessage = (err: unknown): string => {
-  const raw = err instanceof Error ? err.message : "Something went wrong.";
+  const structuredMessage =
+    typeof err === "object" &&
+    err !== null &&
+    "data" in err &&
+    typeof (err as { data?: { message?: unknown } }).data?.message === "string"
+      ? (err as { data: { message: string } }).data.message
+      : null;
+  if (structuredMessage) return ensureTrailingPeriod(structuredMessage);
+
+  const raw =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : "Something went wrong.";
+
   const retryMatch = raw.match(/Last error:\s*(.+?)(?:\.\s*For more|$)/);
   if (retryMatch?.[1]) return ensureTrailingPeriod(retryMatch[1]);
   const uncaughtMatch = raw.match(

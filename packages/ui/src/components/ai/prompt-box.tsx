@@ -273,13 +273,14 @@ const DEFAULT_TOOLS: PromptBoxToolsConfig = {
 };
 
 export const PromptBoxActions = ({
-  tools = DEFAULT_TOOLS,
+  tools,
 }: {
   tools?: PromptBoxToolsConfig;
 }) => {
+  const resolvedTools = { ...DEFAULT_TOOLS, ...tools };
   return (
     <div className="flex flex-row gap-x-1">
-      {tools.attachments && (
+      {resolvedTools.attachments && (
         <PromptInputActionMenu>
           <PromptInputActionMenuTrigger
             tooltip={{ content: "Attach files", side: "top" }}
@@ -293,7 +294,7 @@ export const PromptBoxActions = ({
         </PromptInputActionMenu>
       )}
 
-      {tools.search && (
+      {resolvedTools.search && (
         <PromptInputButton
           disabled
           tooltip={{ content: "Search the web", side: "top" }}
@@ -309,7 +310,7 @@ export const PromptBoxActions = ({
         </PromptInputButton>
       )}
 
-      {tools.enhance && (
+      {resolvedTools.enhance && (
         <PromptInputButton
           disabled // TODO: Implement enhance functionality
           tooltip={{ content: "Enhance message", side: "top" }}
@@ -329,24 +330,28 @@ export const PromptBoxActions = ({
 };
 
 export const PromptBoxDefaultTools = ({
-  tools = DEFAULT_TOOLS,
+  tools,
 }: {
   tools?: PromptBoxToolsConfig;
 }) => {
+  const resolvedTools = { ...DEFAULT_TOOLS, ...tools };
   const showDivider =
-    tools.modelSelector && (tools.attachments || tools.search || tools.enhance);
+    resolvedTools.modelSelector &&
+    (resolvedTools.attachments ||
+      resolvedTools.search ||
+      resolvedTools.enhance);
 
   return (
     <TooltipProvider>
       <PromptInputTools className="gap-0.5">
-        <PromptBoxActions tools={tools} />
+        <PromptBoxActions tools={resolvedTools} />
         {showDivider && (
           <div
             aria-hidden
             className="self-center mx-1 w-px h-4 shrink-0 bg-border/50"
           />
         )}
-        {tools.modelSelector && <PromptBoxModelSelector />}
+        {resolvedTools.modelSelector && <PromptBoxModelSelector />}
       </PromptInputTools>
     </TooltipProvider>
   );

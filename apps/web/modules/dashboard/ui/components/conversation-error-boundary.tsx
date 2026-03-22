@@ -24,13 +24,17 @@ export class ConversationErrorBoundary extends Component<
 
   reset = () => {
     this.props.onReset?.();
-    this.setState({ hasError: false });
+    this.setState({ hasError: false, error: null });
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col justify-center items-center h-full">
+        <div
+          className="flex flex-col justify-center items-center h-full"
+          role="alert"
+          aria-live="assertive"
+        >
           <p className="text-muted-foreground">
             An error occurred while loading this conversation
           </p>

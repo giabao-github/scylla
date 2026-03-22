@@ -56,6 +56,15 @@ export const WidgetSelectionScreen = () => {
     disabled: isPending || isNew || isExpired || isValidating,
   };
 
+  const routeToAuthOrError = () => {
+    if (!organizationId) {
+      setErrorMessage("Widget configuration error. Please try again later.");
+      setScreen(WIDGET_SCREENS.ERROR);
+      return;
+    }
+    setScreen(WIDGET_SCREENS.AUTH);
+  };
+
   const handleNewConversation = async (mode: "chat" | "voice" | "audio") => {
     if (!organizationId) {
       setErrorMessage("Widget configuration error. Please try again later.");
@@ -64,7 +73,7 @@ export const WidgetSelectionScreen = () => {
     }
 
     if (!contactSessionId) {
-      setScreen(WIDGET_SCREENS.AUTH);
+      routeToAuthOrError();
       return;
     }
 
@@ -95,7 +104,7 @@ export const WidgetSelectionScreen = () => {
           title="Authentication Required"
           description="Please provide your information to continue."
           buttonText="Sign in"
-          onAction={() => setScreen(WIDGET_SCREENS.AUTH)}
+          onAction={routeToAuthOrError}
         />
       )}
       {isExpired && (
@@ -104,7 +113,7 @@ export const WidgetSelectionScreen = () => {
           title="Session Expired"
           description="Your session has expired. Please sign in again to continue."
           buttonText="Sign in again"
-          onAction={() => setScreen(WIDGET_SCREENS.AUTH)}
+          onAction={routeToAuthOrError}
         />
       )}
       <div className="flex overflow-y-auto flex-col flex-1 gap-y-4 p-4 mt-4">
