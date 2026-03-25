@@ -1,12 +1,14 @@
+import { google } from "@ai-sdk/google";
 import { saveMessage } from "@convex-dev/agent";
+import { generateText } from "ai";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { components, internal } from "@workspace/backend/_generated/api";
-import { mutation, query } from "@workspace/backend/_generated/server";
+import { action, mutation, query } from "@workspace/backend/_generated/server";
 import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
-import { getThreadById } from "@workspace/backend/system/conversations";
+import { getConversationByThreadId } from "@workspace/backend/system/utils";
 
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 
@@ -85,6 +87,7 @@ export const create = mutation({
       await ctx.runMutation(internal.system.conversations.updateLastMessage, {
         threadId: conversation.threadId,
         lastMessage: { text: prompt, role: "assistant" },
+        messageAt: Date.now(),
       });
     } catch (err) {
       console.error(
@@ -103,7 +106,7 @@ export const getMany = query({
   handler: async (ctx, args) => {
     const { organizationId } = await getAuthenticatedOrgId(ctx);
 
-    const conversation = await getThreadById(ctx, args.threadId);
+    const conversation = await getConversationByThreadId(ctx, args.threadId);
 
     if (!conversation) {
       throw new ConvexError({
@@ -125,5 +128,58 @@ export const getMany = query({
     });
 
     return paginated;
+  },
+});
+
+const enhancePrompt = `You are a senior customer support and UX writing specialist for Scylla.
+
+Your task is to REWRITE and POLISH the provided message. 
+
+CRITICAL RULES:
+- DO NOT answer the customer's question.
+- DO NOT add new information, instructions, or follow-up questions.
+- DO NOT add greetings (like "Hello {{name}}") or signatures unless they were in the original text.
+- ONLY improve the existing words, grammar, and tone of the input.
+- If the input is one sentence, the output should generally be one or two sentences.
+
+Objectives:
+- Fix grammar, spelling, and awkward phrasing.
+- Ensure a professional, friendly, and human tone.
+- Maintain the exact same scope of information as the original.
+
+Output format:
+- Provide ONLY the improved text. 
+- No explanations, no "Here is the improved version," no conversational filler.
+`;
+
+export const enhanceResponse = action({
+  args: {
+    prompt: v.string(),
+  },
+  handler: async (ctx, { prompt }) => {
+    await getAuthenticatedOrgId(ctx);
+
+    if (!prompt.trim()) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Prompt cannot be empty",
+      });
+    }
+
+    const response = await generateText({
+      model: google("gemini-flash-lite-latest"),
+      messages: [
+        {
+          role: "system",
+          content: enhancePrompt,
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+
+    return response.text;
   },
 });

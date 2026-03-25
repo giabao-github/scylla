@@ -1,6 +1,13 @@
 import { ConvexError, v } from "convex/values";
 
-import { internalMutation } from "@workspace/backend/_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+} from "@workspace/backend/_generated/server";
+
+import { getMessageRequest, requireMessageRequest } from "./utils";
+
+const STALE_TIMEOUT = 30_000;
 
 export const claim = internalMutation({
   args: {
@@ -9,47 +16,45 @@ export const claim = internalMutation({
     conversationId: v.optional(v.id("conversations")),
   },
   handler: async (ctx, { requestId, contactSessionId, conversationId }) => {
-    if (!contactSessionId && !conversationId) {
-      throw new ConvexError({
-        code: "BAD_REQUEST",
-        message: "Either contactSessionId or conversationId must be provided",
+    const existing = await getMessageRequest(ctx, requestId);
+
+    if (existing) return { duplicate: true };
+
+    try {
+      const now = Date.now();
+      await ctx.db.insert("messageRequests", {
+        requestId,
+        contactSessionId,
+        conversationId,
+        status: "processing",
+        createdAt: now,
+        updatedAt: now,
       });
-    }
-    if (contactSessionId && conversationId) {
-      throw new ConvexError({
-        code: "BAD_REQUEST",
-        message:
-          "Only one of contactSessionId or conversationId should be provided",
+      return { duplicate: false };
+    } catch (err) {
+      console.error("Claim insert failed", {
+        requestId,
+        contactSessionId,
+        conversationId,
+        error: err,
       });
+      return { duplicate: true };
     }
-
-    const existing = await ctx.db
-      .query("messageRequests")
-      .withIndex("by_request_id", (q) => q.eq("requestId", requestId))
-      .unique();
-
-    if (existing) return { duplicate: true } as const;
-
-    await ctx.db.insert("messageRequests", {
-      requestId,
-      contactSessionId,
-      conversationId,
-      createdAt: Date.now(),
-    });
-
-    return { duplicate: false } as const;
   },
 });
 
 export const release = internalMutation({
   args: { requestId: v.string() },
   handler: async (ctx, { requestId }) => {
-    const existing = await ctx.db
-      .query("messageRequests")
-      .withIndex("by_request_id", (q) => q.eq("requestId", requestId))
-      .unique();
+    const existing = await getMessageRequest(ctx, requestId);
 
-    if (existing) await ctx.db.delete(existing._id);
+    if (existing?.status === "processing") return { skipped: true };
+
+    if (existing?.status === "completed" || existing?.status === "error") {
+      await ctx.db.delete(existing._id);
+    }
+
+    return { skipped: false };
   },
 });
 
@@ -58,11 +63,169 @@ export const cleanup = internalMutation({
   handler: async (ctx) => {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
 
-    const stale = await ctx.db
-      .query("messageRequests")
-      .withIndex("by_created_at", (q) => q.lt("createdAt", cutoff))
-      .collect();
+    const [completed, errored] = await Promise.all([
+      ctx.db
+        .query("messageRequests")
+        .withIndex("by_status_and_updated_at", (q) =>
+          q.eq("status", "completed").lt("updatedAt", cutoff),
+        )
+        .take(100),
+
+      ctx.db
+        .query("messageRequests")
+        .withIndex("by_status_and_updated_at", (q) =>
+          q.eq("status", "error").lt("updatedAt", cutoff),
+        )
+        .take(100),
+    ]);
+
+    const stale = [...completed, ...errored];
 
     await Promise.all(stale.map((r) => ctx.db.delete(r._id)));
+  },
+});
+
+export const updateStatus = internalMutation({
+  args: {
+    requestId: v.string(),
+    status: v.union(
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("error"),
+    ),
+  },
+  handler: async (ctx, { requestId, status }) => {
+    const existing = await requireMessageRequest(ctx, requestId);
+
+    if (existing.status === "completed") {
+      throw new ConvexError({
+        code: "IMMUTABLE_STATE",
+        message: "Completed request cannot be modified",
+      });
+    }
+
+    if (existing.status === status) {
+      return;
+    }
+
+    const validTransitions: Record<
+      "processing" | "completed" | "error",
+      readonly ("processing" | "completed" | "error")[]
+    > = {
+      processing: ["completed", "error"],
+      error: ["processing"],
+      completed: [],
+    };
+
+    if (!validTransitions[existing.status].includes(status)) {
+      throw new ConvexError({
+        code: "INVALID_STATUS_TRANSITION",
+        message: "Invalid message request status transition",
+        context: { from: existing.status, to: status },
+      });
+    }
+
+    await ctx.db.patch(existing._id, {
+      status,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const claimAndSaveUserMessage = internalMutation({
+  args: {
+    requestId: v.string(),
+    contactSessionId: v.id("contactSessions"),
+  },
+  handler: async (ctx, { requestId, contactSessionId }) => {
+    const existing = await getMessageRequest(ctx, requestId);
+    const now = Date.now();
+
+    if (existing) {
+      if (existing.status === "completed") {
+        return {
+          status: "already_done",
+          userMessageId: existing.userMessageId,
+        };
+      }
+      if (
+        existing.status === "processing" &&
+        now - existing.updatedAt < STALE_TIMEOUT
+      ) {
+        return { status: "in_progress", userMessageId: null };
+      }
+
+      await ctx.db.patch(existing._id, {
+        status: "processing",
+        updatedAt: now,
+      });
+
+      return { status: "retry", userMessageId: existing.userMessageId ?? null };
+    }
+
+    await ctx.db.insert("messageRequests", {
+      requestId,
+      contactSessionId,
+      status: "processing",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { status: "new", userMessageId: null };
+  },
+});
+
+export const markUserMessageSaved = internalMutation({
+  args: {
+    requestId: v.string(),
+    messageId: v.string(),
+  },
+  handler: async (ctx, { requestId, messageId }) => {
+    const existing = await requireMessageRequest(ctx, requestId);
+
+    if (existing.userMessageId) {
+      if (existing.userMessageId !== messageId) {
+        console.warn("markUserMessageSaved called with different messageId", {
+          requestId,
+          existingMessageId: existing.userMessageId,
+          newMessageId: messageId,
+        });
+      }
+      return;
+    }
+
+    if (existing.status === "completed") {
+      throw new ConvexError({
+        code: "IMMUTABLE_STATE",
+        message: "Completed request cannot be modified",
+      });
+    }
+
+    await ctx.db.patch(existing._id, {
+      userMessageId: messageId,
+      status: "completed",
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const getMessageIds = internalQuery({
+  args: {
+    requestIds: v.array(v.string()),
+  },
+  handler: async (ctx, { requestIds }) => {
+    const results = await Promise.all(
+      requestIds.map((requestId) => getMessageRequest(ctx, requestId)),
+    );
+
+    const requestToMessageId: Record<string, string> = {};
+
+    for (const result of results) {
+      if (result?.userMessageId) {
+        requestToMessageId[result.requestId] = result.userMessageId;
+      }
+    }
+
+    return requestToMessageId;
   },
 });

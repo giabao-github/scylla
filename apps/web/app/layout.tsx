@@ -1,5 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@workspace/ui/components/sonner";
+import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import "@workspace/ui/globals.css";
 import type { Metadata } from "next";
 import { Geist_Mono, Noto_Sans } from "next/font/google";
@@ -9,13 +10,13 @@ import { Providers } from "@/components/providers";
 const fontSans = Noto_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["200", "400", "500", "600", "700", "800"],
 });
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["200", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -34,10 +35,12 @@ export default function RootLayout({
         className={`${fontSans.variable} ${fontMono.variable} font-sans font-medium antialiased overflow-hidden`}
       >
         <ClerkProvider>
-          <Providers>
-            {children}
-            <Toaster />
-          </Providers>
+          <TooltipProvider>
+            <Providers>
+              {children}
+              <Toaster />
+            </Providers>
+          </TooltipProvider>
         </ClerkProvider>
       </body>
     </html>

@@ -4,7 +4,6 @@ import { api } from "@workspace/backend/_generated/api";
 import {
   contactSessionIdAtom,
   conversationIdAtom,
-  organizationIdAtom,
   widgetScreenAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
@@ -29,24 +28,19 @@ export const WidgetInboxScreen = () => {
   const setScreen = useSetAtom(widgetScreenAtom);
   const setConversationId = useSetAtom(conversationIdAtom);
 
-  const organizationId = useAtomValue(organizationIdAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
-
-  const conversations = usePaginatedQuery(
-    api.public.conversations.getMany,
-    contactSessionId
-      ? {
-          contactSessionId,
-        }
-      : "skip",
-    {
-      initialNumItems: 10,
-    },
-  );
 
   const validation = useQuery(
     api.public.contactSessions.validate,
     contactSessionId ? { contactSessionId } : "skip",
+  );
+
+  const isValidSession = validation?.valid === true;
+
+  const conversations = usePaginatedQuery(
+    api.public.conversations.getMany,
+    contactSessionId && isValidSession ? { contactSessionId } : "skip",
+    { initialNumItems: 10 },
   );
 
   const {
@@ -60,15 +54,10 @@ export const WidgetInboxScreen = () => {
     loadSize: 10,
   });
 
-  if (!organizationId) {
-    return null;
-  }
-
+  const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
   const isValidationLoading = contactSessionId && validation === undefined;
-  const isExpired = validation?.valid === false;
   const isSkipped = isNew || isExpired;
-
   const isLoading =
     conversations.status === "LoadingFirstPage" || isValidationLoading;
   const isEmpty =

@@ -36,6 +36,10 @@ Escalate to a human agent when:
 
 When escalating, summarize the issue clearly for the handoff and let the user know a human will follow up. Do not promise specific response times unless you have confirmed SLA data.
 
+## Tools
+- escalateConversation: Escalate a conversation - when the user expresses dissatisfaction with the resolution or explicitly requests to escalate the conversation, or requests to talk to a human
+- resolveConversation: Resolve a conversation - when the user expresses satisfaction with the resolution or explicitly requests to finalize the conversation
+
 ## Response Format
 - Keep responses focused — one clear answer or one clarifying question per turn
 - Use short paragraphs or a brief numbered list when walking through steps; avoid long bullet-point walls
@@ -51,6 +55,6 @@ When escalating, summarize the issue clearly for the handoff and let the user kn
 
 export const supportAgent = new Agent(components.agent, {
   name: "Scylla Support Agent",
-  languageModel: google.chat("gemini-3.1-flash-lite-preview") as LanguageModel,
+  languageModel: google.chat("gemini-flash-lite-latest") as LanguageModel,
   instructions,
 });

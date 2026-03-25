@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import { statusFilterAtom } from "@workspace/shared/atoms/atoms";
@@ -47,6 +47,9 @@ const isValidStatusFilter = (
   value === CONVERSATION_STATUS.ESCALATED ||
   value === CONVERSATION_STATUS.RESOLVED;
 
+const PAGE_SIZE = 20;
+const MAX_AUTO_FETCH = PAGE_SIZE * 5;
+
 export const ConversationsPanel = () => {
   const pathname = usePathname();
   const statusFilter = useAtomValue(statusFilterAtom);
@@ -59,7 +62,7 @@ export const ConversationsPanel = () => {
   const conversations = usePaginatedQuery(
     api.private.conversations.getMany,
     { status: safeStatusFilter === "all" ? undefined : safeStatusFilter },
-    { initialNumItems: 20 },
+    { initialNumItems: PAGE_SIZE },
   );
 
   const {
@@ -70,7 +73,7 @@ export const ConversationsPanel = () => {
   } = useInfiniteScroll({
     status: conversations.status,
     loadMore: conversations.loadMore,
-    loadSize: 20,
+    loadSize: PAGE_SIZE,
     mode: "manual",
   });
 
@@ -88,6 +91,27 @@ export const ConversationsPanel = () => {
     [conversations.results],
   );
 
+  const filteredCount = conversationsWithSession.length;
+
+  useEffect(() => {
+    if (
+      canLoadMore &&
+      !isLoadingMore &&
+      conversations.status === "CanLoadMore" &&
+      filteredCount < PAGE_SIZE &&
+      conversations.results.length < MAX_AUTO_FETCH
+    ) {
+      handleLoadMore();
+    }
+  }, [
+    canLoadMore,
+    isLoadingMore,
+    conversations.status,
+    filteredCount,
+    conversations.results.length,
+    handleLoadMore,
+  ]);
+
   return (
     <div
       className="flex flex-col w-full h-full bg-center bg-cover text-sidebar-foreground"
@@ -95,7 +119,7 @@ export const ConversationsPanel = () => {
         backgroundImage: "url(/panel-background.jpg)",
       }}
     >
-      <div className="flex flex-col gap-3.5 border-b p-2 backdrop-blur-sm bg-white/10">
+      <div className="flex flex-row justify-between items-center p-2 border-b backdrop-blur-sm bg-white/10">
         <Select
           value={safeStatusFilter}
           onValueChange={(value) => {
@@ -132,6 +156,7 @@ export const ConversationsPanel = () => {
             </SelectItem>
           </SelectContent>
         </Select>
+        <div className="px-4 text-xs">{`${filteredCount} conversation${filteredCount !== 1 ? "s" : ""}`}</div>
       </div>
 
       {conversations.status === "LoadingFirstPage" ? (

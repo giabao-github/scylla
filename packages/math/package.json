@@ -2,18 +2,11 @@
   "name": "@workspace/math",
   "type": "module",
   "scripts": {
-    "dev": "tsc --watch",
-    "build": "tsc"
+    "lint": "eslint . --max-warnings 0"
   },
   "exports": {
-    "./add": {
-      "types": "./src/add.ts",
-      "default": "./dist/add.js"
-    },
-    "./subtract": {
-      "types": "./src/subtract.ts",
-      "default": "./dist/subtract.js"
-    }
+    "./add": "./src/add.ts",
+    "./subtract": "./src/subtract.ts"
   },
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*",

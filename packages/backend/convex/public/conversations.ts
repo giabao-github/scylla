@@ -1,4 +1,4 @@
-import { MessageDoc, saveMessage } from "@convex-dev/agent";
+import { saveMessage } from "@convex-dev/agent";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
@@ -8,27 +8,19 @@ import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 
+import { validateSession } from "./utils";
+
 export const create = mutation({
   args: {
     organizationId: v.string(),
     contactSessionId: v.id("contactSessions"),
   },
   handler: async (ctx, args) => {
-    const session = await ctx.db.get(args.contactSessionId);
-
-    if (!session || session.organizationId !== args.organizationId) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Invalid session",
-      });
-    }
-
-    if (session.expiresAt < Date.now()) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Expired session",
-      });
-    }
+    const session = await validateSession(
+      ctx,
+      args.contactSessionId,
+      args.organizationId,
+    );
 
     const { threadId } = await supportAgent.createThread(ctx, {
       userId: args.organizationId,
@@ -45,16 +37,19 @@ export const create = mutation({
       },
     });
 
+    const now = Date.now();
+
     const conversationId = await ctx.db.insert("conversations", {
       contactSessionId: session._id,
       status: CONVERSATION_STATUS.UNRESOLVED,
       organizationId: session.organizationId,
       threadId,
-      createdAt: Date.now(),
+      createdAt: now,
       lastMessage: {
         text: initialMessage,
         role: "assistant",
       },
+      lastMessageAt: now,
     });
 
     return conversationId;
@@ -67,29 +62,12 @@ export const getOne = query({
     contactSessionId: v.id("contactSessions"),
   },
   handler: async (ctx, args) => {
-    const session = await ctx.db.get(args.contactSessionId);
-
-    if (!session) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Invalid session",
-      });
-    }
-
-    if (session.expiresAt < Date.now()) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Expired session",
-      });
-    }
+    const session = await validateSession(ctx, args.contactSessionId);
 
     const conversation = await ctx.db.get(args.conversationId);
 
     if (!conversation) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Conversation not found",
-      });
+      return null;
     }
 
     if (
@@ -117,21 +95,7 @@ export const getMany = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const contactSession = await ctx.db.get(args.contactSessionId);
-
-    if (!contactSession) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Invalid session",
-      });
-    }
-
-    if (contactSession.expiresAt < Date.now()) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Expired session",
-      });
-    }
+    const contactSession = await validateSession(ctx, args.contactSessionId);
 
     const conversations = await ctx.db
       .query("conversations")

@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
+import { MESSAGE_REQUEST_STATUS } from "@workspace/shared/constants/message-request";
 
 /** Run `npx convex dev` in backend directory after editing this file */
 export default defineSchema({
@@ -57,6 +58,7 @@ export default defineSchema({
         role: v.union(v.literal("user"), v.literal("assistant")),
       }),
     ),
+    lastMessageAt: v.number(),
   })
     .index("by_organization_id", ["organizationId"])
     .index("by_contact_session_id", ["contactSessionId"])
@@ -67,10 +69,21 @@ export default defineSchema({
     requestId: v.string(),
     contactSessionId: v.optional(v.id("contactSessions")),
     conversationId: v.optional(v.id("conversations")),
+    status: v.union(
+      v.literal(MESSAGE_REQUEST_STATUS.PROCESSING),
+      v.literal(MESSAGE_REQUEST_STATUS.COMPLETED),
+      v.literal(MESSAGE_REQUEST_STATUS.ERROR),
+    ),
+
+    userMessageId: v.optional(v.string()),
     createdAt: v.number(),
+    updatedAt: v.number(),
   })
+    .index("by_status", ["status"])
     .index("by_request_id", ["requestId"])
-    .index("by_created_at", ["createdAt"])
+    .index("by_conversation_id", ["conversationId"])
     .index("by_contact_session_id", ["contactSessionId"])
-    .index("by_conversation_id", ["conversationId"]),
+    .index("by_created_at", ["createdAt"])
+    .index("by_updated_at", ["updatedAt"])
+    .index("by_status_and_updated_at", ["status", "updatedAt"]),
 });

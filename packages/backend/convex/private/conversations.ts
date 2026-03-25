@@ -2,7 +2,7 @@ import { PaginationResult, paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { Doc } from "@workspace/backend/_generated/dataModel";
-import { query } from "@workspace/backend/_generated/server";
+import { mutation, query } from "@workspace/backend/_generated/server";
 import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
 
 import {
@@ -93,7 +93,7 @@ export const getMany = query({
 
           if (!contactSession) {
             console.warn(
-              `Skipping conversation '${conversation._id}': missing contact session '${conversation.contactSessionId}'`,
+              `Skipping conversation [${conversation._id}]: missing contact session [${conversation.contactSessionId}]`,
             );
             return null;
           }
@@ -105,7 +105,7 @@ export const getMany = query({
           };
         } catch (error) {
           console.warn(
-            `Failed to process conversation '${conversation._id}':`,
+            `Failed to process conversation [${conversation._id}]:`,
             error instanceof Error ? error.message : error,
           );
           return null;
@@ -122,7 +122,7 @@ export const getMany = query({
 
     if (skipped > 0) {
       console.warn(
-        `Skipped ${skipped} conversations in getMany for organization '${organizationId}'`,
+        `Skipped ${skipped} conversations in getMany for organization [${organizationId}]`,
       );
     }
 
@@ -130,5 +130,39 @@ export const getMany = query({
       ...conversations,
       page: validConversations,
     };
+  },
+});
+
+export const updateStatus = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    status: v.union(
+      v.literal(CONVERSATION_STATUS.UNRESOLVED),
+      v.literal(CONVERSATION_STATUS.ESCALATED),
+      v.literal(CONVERSATION_STATUS.RESOLVED),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const { organizationId } = await getAuthenticatedOrgId(ctx);
+
+    const conversation = await ctx.db.get(args.conversationId);
+
+    if (!conversation) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Conversation not found",
+      });
+    }
+
+    if (conversation.organizationId !== organizationId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "User is not authorized to access this conversation",
+      });
+    }
+
+    await ctx.db.patch(args.conversationId, {
+      status: args.status,
+    });
   },
 });

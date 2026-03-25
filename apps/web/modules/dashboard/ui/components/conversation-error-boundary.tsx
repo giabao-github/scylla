@@ -39,7 +39,12 @@ export class ConversationErrorBoundary extends Component<
           aria-live="assertive"
         >
           <p className="text-muted-foreground">
-            An error occurred while loading this conversation
+            {this.state.error?.message?.includes("permission") ||
+            this.state.error?.message?.includes("access")
+              ? "You don't have permission to view this conversation."
+              : this.state.error?.message?.includes("not found")
+                ? "This conversation is no longer available."
+                : "An error occurred while loading this conversation."}
           </p>
           <div
             className="dino-loader [--dino-loader-height:200px]"
