@@ -4,55 +4,60 @@ import { ConvexError, v } from "convex/values";
 
 import { components } from "@workspace/backend/_generated/api";
 import { mutation, query } from "@workspace/backend/_generated/server";
+import { validateSession } from "@workspace/backend/public/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 
-import { validateSession } from "./utils";
-
 export const create = mutation({
   args: {
-    organizationId: v.string(),
     contactSessionId: v.id("contactSessions"),
   },
   handler: async (ctx, args) => {
-    const session = await validateSession(
-      ctx,
-      args.contactSessionId,
-      args.organizationId,
-    );
+    const session = await validateSession(ctx, args.contactSessionId);
+    const organizationId = session.organizationId;
 
     const { threadId } = await supportAgent.createThread(ctx, {
-      userId: args.organizationId,
+      userId: organizationId,
     });
 
     const initialMessage = "Hello, how can I help you today?";
-
-    await saveMessage(ctx, components.agent, {
-      threadId,
-      message: {
-        role: "assistant",
-        // TODO: Later modify to widget settings' initial message
-        content: initialMessage,
-      },
-    });
-
     const now = Date.now();
 
-    const conversationId = await ctx.db.insert("conversations", {
-      contactSessionId: session._id,
-      status: CONVERSATION_STATUS.UNRESOLVED,
-      organizationId: session.organizationId,
-      threadId,
-      createdAt: now,
-      lastMessage: {
-        text: initialMessage,
-        role: "assistant",
-      },
-      lastMessageAt: now,
-    });
+    try {
+      await saveMessage(ctx, components.agent, {
+        threadId,
+        message: {
+          role: "assistant",
+          content: initialMessage,
+        },
+      });
 
-    return conversationId;
+      const conversationId = await ctx.db.insert("conversations", {
+        contactSessionId: session._id,
+        status: CONVERSATION_STATUS.UNRESOLVED,
+        organizationId: session.organizationId,
+        threadId,
+        createdAt: now,
+        lastMessage: {
+          text: initialMessage,
+          role: "assistant",
+        },
+        lastMessageAt: now,
+      });
+
+      return conversationId;
+    } catch (err) {
+      try {
+        await supportAgent.deleteThreadAsync(ctx, { threadId });
+      } catch (cleanupErr) {
+        console.error(
+          `Failed to clean up orphaned thread [${threadId}]:`,
+          cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
+        );
+      }
+      throw err;
+    }
   },
 });
 
@@ -66,6 +71,7 @@ export const getOne = query({
 
     const conversation = await ctx.db.get(args.conversationId);
 
+    // Don't throw error, handle in frontend (displays a CTA modal to start a new conversation)
     if (!conversation) {
       return null;
     }
@@ -99,7 +105,7 @@ export const getMany = query({
 
     const conversations = await ctx.db
       .query("conversations")
-      .withIndex("by_contact_session_id", (q) =>
+      .withIndex("by_contact_session_id_and_last_message_at", (q) =>
         q.eq("contactSessionId", args.contactSessionId),
       )
       .order("desc")
@@ -111,7 +117,7 @@ export const getMany = query({
       page: conversations.page.map((conversation) => ({
         _id: conversation._id,
         _creationTime: conversation._creationTime,
-        lastUpdatedAt: conversation.updatedAt ?? conversation.createdAt,
+        lastUpdatedAt: conversation.lastMessageAt ?? conversation.createdAt,
         status: conversation.status,
         organizationId: conversation.organizationId,
         threadId: conversation.threadId,

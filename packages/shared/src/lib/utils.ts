@@ -7,6 +7,9 @@ const PATTERNS = {
     /(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}]|\u200D|\uFE0F)/u,
   emojiStrip:
     /(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}]|\u200D|\uFE0F)/gu,
+  errorRetry: /Last error:\s*(.+?)(?:\.\s*For more|$)/,
+  errorUncaught: /Uncaught\s+\w+:\s*(.+?)(?:\.\s*Called by|$)/,
+  errorServer: /Server Error\s+(.+?)(?:\s*Called by|$)/,
 };
 
 type Input = "input" | "name" | "username" | "email" | "phone";
@@ -347,7 +350,7 @@ export const isUnauthorizedError = (error: unknown): boolean => {
 
 export const ensureTrailingPeriod = (str: string): string => {
   const trimmed = str.trim();
-  if (!trimmed) return "";
+  if (!trimmed) return "Something went wrong.";
   return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
 };
 
@@ -368,13 +371,11 @@ export const parseErrorMessage = (err: unknown): string => {
         ? err
         : "Something went wrong.";
 
-  const retryMatch = raw.match(/Last error:\s*(.+?)(?:\.\s*For more|$)/);
+  const retryMatch = raw.match(PATTERNS.errorRetry);
   if (retryMatch?.[1]) return ensureTrailingPeriod(retryMatch[1]);
-  const uncaughtMatch = raw.match(
-    /Uncaught\s+\w+:\s*(.+?)(?:\.\s*Called by|$)/,
-  );
+  const uncaughtMatch = raw.match(PATTERNS.errorUncaught);
   if (uncaughtMatch?.[1]) return ensureTrailingPeriod(uncaughtMatch[1]);
-  const convexMatch = raw.match(/Server Error\s+(.+?)(?:\s*Called by|$)/);
+  const convexMatch = raw.match(PATTERNS.errorServer);
   if (convexMatch?.[1]) return ensureTrailingPeriod(convexMatch[1]);
 
   return ensureTrailingPeriod(raw);

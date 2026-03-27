@@ -318,7 +318,7 @@ export const PromptBoxActions = ({
 
       {resolvedTools.enhance && (
         <PromptInputButton
-          disabled={enhanceDisabled}
+          disabled={enhanceDisabled ?? !onEnhance}
           onClick={onEnhance}
           tooltip={{ content: "Enhance message", side: "top" }}
           className={cn(

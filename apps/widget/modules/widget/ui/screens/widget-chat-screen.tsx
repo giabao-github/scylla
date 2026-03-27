@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
+import {
+  UIMessage,
+  toUIMessages,
+  useThreadMessages,
+} from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import {
@@ -58,11 +62,22 @@ const formSchema = z.object({
 
 type FormSchema = z.infer<typeof formSchema>;
 
-const MESSAGE_PAGE_SIZE = 15;
+const MESSAGE_PAGE_SIZE = 10;
 const AI_PLACEHOLDER_OFFSET_MS = 2000;
 
 const isVisibleMessage = (m: { role: string; text?: string }) =>
   m.role === "user" || !!m.text;
+
+const isUserMessageConfirmed = (
+  slot: PendingSlot,
+  messages: UIMessage[],
+  confirmedId?: string,
+): boolean =>
+  messages.some((m) => {
+    if (slot.snapshotIds.has(m.id) || m.role !== "user") return false;
+    if (confirmedId) return m.id === confirmedId;
+    return m.text?.trim() === slot.userText.trim();
+  });
 
 export const WidgetChatScreen = () => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
@@ -128,10 +143,10 @@ export const WidgetChatScreen = () => {
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
   const isInvalidConversation = !conversationId || conversation === null;
-  const isGenerating = pendingSlots.some((s) => s.status === "generating");
   const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
   const isEscalated = conversation?.status === CONVERSATION_STATUS.ESCALATED;
   const isSessionReady = !!conversation && !!contactSessionId;
+  const isGenerating = pendingSlots.some((s) => s.status === "generating");
   const isBlocked =
     !conversation || isResolved || isGenerating || form.formState.isSubmitting;
   const submitDisabled = isBlocked || !form.formState.isValid;
@@ -177,6 +192,34 @@ export const WidgetChatScreen = () => {
       ].sort((a, b) => a.submittedAt - b.submittedAt),
     [visibleMessages, pendingSlots, isEscalated],
   );
+
+  const modalConfig = useMemo(() => {
+    if (isNew)
+      return {
+        title: "Authentication Required",
+        description:
+          "Please provide your information to view your conversations.",
+        buttonText: "Sign in",
+        onAction: () => setScreen(WIDGET_SCREENS.AUTH),
+      };
+    if (isExpired)
+      return {
+        title: "Session Expired",
+        description:
+          "Your session has expired. Please sign in again to continue.",
+        buttonText: "Sign in",
+        onAction: () => setScreen(WIDGET_SCREENS.AUTH),
+      };
+    if (isInvalidConversation)
+      return {
+        title: "Invalid Conversation",
+        description:
+          "This conversation is no longer available. Please start a new conversation.",
+        buttonText: "Start new conversation",
+        onAction: () => setScreen(WIDGET_SCREENS.SELECTION),
+      };
+    return null;
+  }, [isNew, isExpired, isInvalidConversation, setScreen]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -259,14 +302,11 @@ export const WidgetChatScreen = () => {
 
     const freshSnapshotIds = new Set(visibleMessages.map((m) => m.id));
 
-    const userMessageConfirmed = (() => {
-      const confirmedMessageId = messageIdsByRequestId?.[slot.localId];
-      return visibleMessages.some((m) => {
-        if (slot.snapshotIds.has(m.id) || m.role !== "user") return false;
-        if (confirmedMessageId) return m.id === confirmedMessageId;
-        return m.text?.trim() === slot.userText.trim();
-      });
-    })();
+    const userMessageConfirmed = isUserMessageConfirmed(
+      slot,
+      visibleMessages,
+      messageIdsByRequestId?.[slot.localId],
+    );
 
     setPendingSlots((prev) =>
       prev.map((s) =>
@@ -317,12 +357,11 @@ export const WidgetChatScreen = () => {
     setPendingSlots((prev) =>
       prev
         .map((slot) => {
-          const confirmedMessageId = messageIdsByRequestId?.[slot.localId];
-          const userConfirmed = visibleMessages.some((m) => {
-            if (slot.snapshotIds.has(m.id) || m.role !== "user") return false;
-            if (confirmedMessageId) return m.id === confirmedMessageId;
-            return m.text?.trim() === slot.userText.trim();
-          });
+          const userConfirmed = isUserMessageConfirmed(
+            slot,
+            visibleMessages,
+            messageIdsByRequestId?.[slot.localId],
+          );
           return userConfirmed && !slot.isRetry
             ? { ...slot, isRetry: true }
             : slot;
@@ -340,48 +379,26 @@ export const WidgetChatScreen = () => {
           }
 
           if (slot.status === "sent") {
-            const confirmedMessageId = messageIdsByRequestId?.[slot.localId];
-            const userConfirmed = visibleMessages.some((m) => {
-              if (slot.snapshotIds.has(m.id) || m.role !== "user") return false;
-              if (confirmedMessageId) return m.id === confirmedMessageId;
-              return m.text?.trim() === slot.userText.trim();
-            });
+            const userConfirmed = isUserMessageConfirmed(
+              slot,
+              visibleMessages,
+              messageIdsByRequestId?.[slot.localId],
+            );
             if (userConfirmed) return false;
           }
 
           return true;
         }),
     );
+    // visibleMessages intentionally omitted — messages are currently immutable once saved,
+    // so it only changes meaningfully when lastVisibleId changes.
+    // If message editing/deletion is added, revisit this dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastVisibleId, messageIdsByRequestId]);
 
   return (
     <>
-      {isNew ? (
-        <CTAModal
-          open
-          title="Authentication Required"
-          description="Please provide your information to view your conversations."
-          buttonText="Sign in"
-          onAction={() => setScreen(WIDGET_SCREENS.AUTH)}
-        />
-      ) : isExpired ? (
-        <CTAModal
-          open
-          title="Session Expired"
-          description="Your session has expired. Please sign in again to continue."
-          buttonText="Sign in"
-          onAction={() => setScreen(WIDGET_SCREENS.AUTH)}
-        />
-      ) : isInvalidConversation ? (
-        <CTAModal
-          open
-          title="Invalid Conversation"
-          description="This conversation is no longer available. Please start a new conversation."
-          buttonText="Start new conversation"
-          onAction={() => setScreen(WIDGET_SCREENS.SELECTION)}
-        />
-      ) : null}
+      {modalConfig && <CTAModal open {...modalConfig} />}
       <div className="flex flex-col flex-1 min-h-0">
         <div
           ref={scrollRef}
@@ -498,7 +515,12 @@ export const WidgetChatScreen = () => {
                     <PromptBoxDefaultTools />
                     <PromptInputSubmit
                       disabled={submitDisabled}
-                      status={isGenerating ? "streaming" : "ready"}
+                      status={
+                        isGenerating &&
+                        conversation?.status === CONVERSATION_STATUS.UNRESOLVED
+                          ? "streaming"
+                          : "ready"
+                      }
                       type="submit"
                     />
                   </PromptInputFooter>

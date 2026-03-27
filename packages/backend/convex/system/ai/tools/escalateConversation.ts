@@ -13,9 +13,12 @@ export const escalateConversation = createTool({
       throw new ConvexError({
         message: "Cannot escalate conversation: missing thread ID",
         code: "MISSING_THREAD_ID",
-        context: { threadId: ctx.threadId },
       });
     }
+
+    await ctx.runMutation(internal.system.conversations.escalate, {
+      threadId: ctx.threadId,
+    });
 
     await saveMessage(ctx, components.agent, {
       threadId: ctx.threadId,
@@ -23,10 +26,6 @@ export const escalateConversation = createTool({
         role: "assistant",
         content: "Conversation escalated to a human operator.",
       },
-    });
-
-    await ctx.runMutation(internal.system.conversations.escalate, {
-      threadId: ctx.threadId,
     });
 
     return "Conversation escalated to a human operator.";

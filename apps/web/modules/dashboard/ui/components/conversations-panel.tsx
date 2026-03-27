@@ -97,7 +97,6 @@ export const ConversationsPanel = () => {
     if (
       canLoadMore &&
       !isLoadingMore &&
-      conversations.status === "CanLoadMore" &&
       filteredCount < PAGE_SIZE &&
       conversations.results.length < MAX_AUTO_FETCH
     ) {
@@ -106,7 +105,6 @@ export const ConversationsPanel = () => {
   }, [
     canLoadMore,
     isLoadingMore,
-    conversations.status,
     filteredCount,
     conversations.results.length,
     handleLoadMore,
@@ -156,7 +154,10 @@ export const ConversationsPanel = () => {
             </SelectItem>
           </SelectContent>
         </Select>
-        <div className="px-4 text-xs">{`${filteredCount} conversation${filteredCount !== 1 ? "s" : ""}`}</div>
+        <div className="px-4 text-xs">
+          {`${filteredCount} conversation${filteredCount !== 1 ? "s" : ""}`}
+          {canLoadMore && "+"}
+        </div>
       </div>
 
       {conversations.status === "LoadingFirstPage" ? (
@@ -183,7 +184,7 @@ export const ConversationsPanel = () => {
             const metadata = conversation.contactSession.metadata;
             const country = metadata?.countryCode
               ? { code: metadata.countryCode, name: metadata.country || "" }
-              : getCountryFromTimezone(metadata?.timezone);
+              : getCountryFromTimezone(metadata?.timezone ?? undefined);
 
             const countryFlagUrl = country?.code
               ? (getCountryFlagUrl(country.code) ?? undefined)
@@ -224,7 +225,9 @@ export const ConversationsPanel = () => {
                       {conversation.contactSession.name}
                     </span>
                     <span className="ml-auto text-xs shrink-0 text-slate-600">
-                      {formatDistanceToNow(conversation._creationTime)}
+                      {formatDistanceToNow(conversation._creationTime, {
+                        addSuffix: true,
+                      })}
                     </span>
                   </div>
                   <div className="flex gap-2 justify-between items-center">

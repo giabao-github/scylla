@@ -57,7 +57,7 @@ const formSchema = z.object({
 const isVisibleMessage = (m: { role: string; text?: string }) =>
   m.role === "user" || !!m.text;
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 7;
 const MESSAGES = [
   { isUser: false, width: "w-52" },
   { isUser: true, width: "w-64" },
@@ -68,6 +68,7 @@ const MESSAGES = [
   { isUser: false, width: "w-44" },
   { isUser: true, width: "w-52" },
 ] as const;
+const MESSAGE_CONTAINER_MAX_HEIGHT = "calc(100vh - 190px)";
 
 export const ConversationIdView = ({
   conversationId,
@@ -115,7 +116,6 @@ export const ConversationIdView = ({
   const sendingSlot = pendingSlots.find((s) => s.status === "sending");
   const isSending = !!sendingSlot;
   const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
-  const isEscalated = conversation?.status === CONVERSATION_STATUS.ESCALATED;
   const isBlocked = !conversation || isResolved || isSending || isEnhancing;
   const submitDisabled =
     isBlocked || !form.formState.isValid || form.formState.isSubmitting;
@@ -318,7 +318,7 @@ export const ConversationIdView = ({
         onScroll={handleScroll}
         className="flex overflow-y-auto flex-col gap-5 px-4 py-6 h-full"
         style={{
-          maxHeight: "calc(100vh - 190px)",
+          maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT,
           scrollbarWidth: "thin",
           scrollbarColor: "#C4B5FD transparent",
         }}
@@ -453,7 +453,7 @@ export const ConversationIdViewSkeleton = () => {
       {/* Message feed */}
       <div
         className="flex flex-col gap-5 px-4 py-6 h-full"
-        style={{ maxHeight: "calc(100vh - 190px)" }}
+        style={{ maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT }}
       >
         {MESSAGES.map(({ isUser, width }, index) => (
           <div

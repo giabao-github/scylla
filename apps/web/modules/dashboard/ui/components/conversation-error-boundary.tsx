@@ -14,6 +14,19 @@ export class ConversationErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
+  private getErrorMessage(): string {
+    const error = this.state.error as any;
+    const code = error?.data?.code;
+
+    if (code === "UNAUTHORIZED") {
+      return "You don't have permission to view this conversation.";
+    }
+    if (code === "NOT_FOUND") {
+      return "This conversation is no longer available.";
+    }
+    return "An error occurred while loading this conversation.";
+  }
+
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error(
       "ConversationErrorBoundary has caught an error:",
@@ -38,14 +51,7 @@ export class ConversationErrorBoundary extends Component<
           role="alert"
           aria-live="assertive"
         >
-          <p className="text-muted-foreground">
-            {this.state.error?.message?.includes("permission") ||
-            this.state.error?.message?.includes("access")
-              ? "You don't have permission to view this conversation."
-              : this.state.error?.message?.includes("not found")
-                ? "This conversation is no longer available."
-                : "An error occurred while loading this conversation."}
-          </p>
+          <p className="text-muted-foreground">{this.getErrorMessage()}</p>
           <div
             className="dino-loader [--dino-loader-height:200px]"
             aria-hidden="true"

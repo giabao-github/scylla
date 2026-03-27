@@ -23,7 +23,7 @@ export const ConversationStatusButton = ({
         <Hint text="Mark as unresolved">
           <Button
             disabled={disabled}
-            variant="tertiary"
+            variant="success"
             size="sm"
             onClick={onClick}
           >
@@ -62,7 +62,7 @@ export const ConversationStatusButton = ({
       );
     default: {
       const _exhaustiveCheck: never = status;
-      return _exhaustiveCheck;
+      throw new Error(`Unhandled conversation status: ${_exhaustiveCheck}`);
     }
   }
 };

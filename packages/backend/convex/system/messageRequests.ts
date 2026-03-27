@@ -8,6 +8,7 @@ import {
 import { getMessageRequest, requireMessageRequest } from "./utils";
 
 const STALE_TIMEOUT = 30_000;
+const MAX_REQUEST_IDS = 100;
 
 export const claim = internalMutation({
   args: {
@@ -17,44 +18,33 @@ export const claim = internalMutation({
   },
   handler: async (ctx, { requestId, contactSessionId, conversationId }) => {
     const existing = await getMessageRequest(ctx, requestId);
-
     if (existing) return { duplicate: true };
 
-    try {
-      const now = Date.now();
-      await ctx.db.insert("messageRequests", {
-        requestId,
-        contactSessionId,
-        conversationId,
-        status: "processing",
-        createdAt: now,
-        updatedAt: now,
-      });
-      return { duplicate: false };
-    } catch (err) {
-      console.error("Claim insert failed", {
-        requestId,
-        contactSessionId,
-        conversationId,
-        error: err,
-      });
-      return { duplicate: true };
-    }
+    const now = Date.now();
+    await ctx.db.insert("messageRequests", {
+      requestId,
+      contactSessionId,
+      conversationId,
+      status: "processing",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { duplicate: false };
   },
 });
 
-export const release = internalMutation({
+export const removeStaleRequest = internalMutation({
   args: { requestId: v.string() },
   handler: async (ctx, { requestId }) => {
     const existing = await getMessageRequest(ctx, requestId);
 
-    if (existing?.status === "processing") return { skipped: true };
+    if (!existing) return { skipped: false, deleted: false };
+    if (existing.status === "processing")
+      return { skipped: true, deleted: false };
 
-    if (existing?.status === "completed" || existing?.status === "error") {
-      await ctx.db.delete(existing._id);
-    }
-
-    return { skipped: false };
+    await ctx.db.delete(existing._id);
+    return { skipped: false, deleted: true };
   },
 });
 
@@ -160,7 +150,11 @@ export const claimAndSaveUserMessage = internalMutation({
         updatedAt: now,
       });
 
-      return { status: "retry", userMessageId: existing.userMessageId ?? null };
+      return {
+        status: "retry",
+        userMessageId: existing.userMessageId ?? null,
+        aiResponseSaved: existing.aiResponseSaved ?? false,
+      };
     }
 
     await ctx.db.insert("messageRequests", {
@@ -175,35 +169,13 @@ export const claimAndSaveUserMessage = internalMutation({
   },
 });
 
-export const markUserMessageSaved = internalMutation({
-  args: {
-    requestId: v.string(),
-    messageId: v.string(),
-  },
-  handler: async (ctx, { requestId, messageId }) => {
+export const markAiResponseSaved = internalMutation({
+  args: { requestId: v.string() },
+  handler: async (ctx, { requestId }) => {
     const existing = await requireMessageRequest(ctx, requestId);
-
-    if (existing.userMessageId) {
-      if (existing.userMessageId !== messageId) {
-        console.warn("markUserMessageSaved called with different messageId", {
-          requestId,
-          existingMessageId: existing.userMessageId,
-          newMessageId: messageId,
-        });
-      }
-      return;
-    }
-
-    if (existing.status === "completed") {
-      throw new ConvexError({
-        code: "IMMUTABLE_STATE",
-        message: "Completed request cannot be modified",
-      });
-    }
-
+    if (existing.aiResponseSaved) return;
     await ctx.db.patch(existing._id, {
-      userMessageId: messageId,
-      status: "completed",
+      aiResponseSaved: true,
       updatedAt: Date.now(),
     });
   },
@@ -214,6 +186,13 @@ export const getMessageIds = internalQuery({
     requestIds: v.array(v.string()),
   },
   handler: async (ctx, { requestIds }) => {
+    if (requestIds.length > MAX_REQUEST_IDS) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: `Too many request IDs (maximum: ${MAX_REQUEST_IDS})`,
+      });
+    }
+
     const results = await Promise.all(
       requestIds.map((requestId) => getMessageRequest(ctx, requestId)),
     );
@@ -227,5 +206,35 @@ export const getMessageIds = internalQuery({
     }
 
     return requestToMessageId;
+  },
+});
+
+export const setUserMessageId = internalMutation({
+  args: {
+    requestId: v.string(),
+    messageId: v.string(),
+  },
+  handler: async (ctx, { requestId, messageId }) => {
+    const existing = await requireMessageRequest(ctx, requestId);
+
+    if (existing.userMessageId) {
+      if (existing.userMessageId !== messageId) {
+        console.error(
+          "[MessageRequest] invariant violated: conflicting userMessageId",
+          {
+            event: "MESSAGE_ID_CONFLICT",
+            requestId,
+            existingMessageId: existing.userMessageId,
+            newMessageId: messageId,
+          },
+        );
+      }
+      return;
+    }
+
+    await ctx.db.patch(existing._id, {
+      userMessageId: messageId,
+      updatedAt: Date.now(),
+    });
   },
 });

@@ -5,8 +5,7 @@
     "lint": "eslint . --max-warnings 0"
   },
   "exports": {
-    "./add": "./src/add.ts",
-    "./subtract": "./src/subtract.ts"
+    "./add": "./src/add.ts"
   },
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*",

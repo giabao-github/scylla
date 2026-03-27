@@ -82,10 +82,12 @@ export const ChatBubble = ({
             ) : (
               <MessageResponse
                 className={cn(
-                  isFailed && "text-rose-300 italic font-light text-xs",
+                  isFailed &&
+                    !isUser &&
+                    "text-rose-300 italic font-light text-xs",
                 )}
               >
-                {isFailed ? "Response failed" : text}
+                {isFailed && !isUser ? "Response failed" : text}
               </MessageResponse>
             )}
           </div>
@@ -93,7 +95,7 @@ export const ChatBubble = ({
 
         {isFailed && (
           <div className="flex gap-2 items-center px-1 mt-2">
-            <span className="text-[10px] font-medium text-rose-500 tracking-wider">
+            <span className="text-[10px] font-medium text-rose-500 tracking-wide">
               {error || "Failed"}
             </span>
             {onRetry && (

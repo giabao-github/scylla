@@ -13,8 +13,6 @@ const buttonVariants = cva(
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive:
           "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        danger:
-          "bg-rose-500 text-white hover:bg-rose-600 focus-visible:ring-rose-500/20 dark:focus-visible:ring-rose-500/40",
         outline:
           "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
         secondary:
@@ -24,10 +22,12 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         transparent:
           "bg-transparent text-primary-foreground hover:bg-transparent",
-        tertiary:
-          "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white hover:to-emerald-600/80 focus-visible:ring-emerald-500/20 dark:focus-visible:ring-emerald-500/40",
+        success:
+          "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 focus-visible:ring-emerald-500/20 dark:focus-visible:ring-emerald-500/40",
         warning:
-          "bg-gradient-to-b from-amber-500 to-amber-600 text-white hover:to-amber-600/80 focus-visible:ring-amber-500/20 dark:focus-visible:ring-amber-500/40",
+          "bg-gradient-to-b from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 focus-visible:ring-amber-500/20 dark:focus-visible:ring-amber-500/40",
+        danger:
+          "bg-rose-500 text-white hover:bg-rose-600 focus-visible:ring-rose-500/20 dark:focus-visible:ring-rose-500/40",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

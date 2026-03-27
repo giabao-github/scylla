@@ -10,7 +10,7 @@ export const validateSession = async (
 ): Promise<Doc<"contactSessions">> => {
   const session = await ctx.db.get(sessionId);
 
-  if (!session || session.expiresAt < Date.now()) {
+  if (!session || session.expiresAt <= Date.now()) {
     throw new ConvexError({
       code: "UNAUTHORIZED",
       message: "Invalid or expired session",

@@ -1,6 +1,6 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError } from "convex/values";
 
-import { QueryCtx, internalQuery } from "@workspace/backend/_generated/server";
+import { QueryCtx } from "@workspace/backend/_generated/server";
 
 export const getConversationByThreadId = async (
   ctx: QueryCtx,
@@ -40,9 +40,9 @@ export const requireMessageRequest = async (
   ctx: QueryCtx,
   requestId: string,
 ) => {
-  const existing = await getMessageRequest(ctx, requestId);
+  const messageRequest = await getMessageRequest(ctx, requestId);
 
-  if (!existing) {
+  if (!messageRequest) {
     throw new ConvexError({
       code: "MESSAGE_REQUEST_NOT_FOUND",
       message: "Message request not found",
@@ -50,5 +50,5 @@ export const requireMessageRequest = async (
     });
   }
 
-  return existing;
+  return messageRequest;
 };

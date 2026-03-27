@@ -10,6 +10,12 @@ import {
   ConversationStatus,
 } from "@workspace/shared/constants/conversation";
 
+const statusValidator = v.union(
+  v.literal(CONVERSATION_STATUS.UNRESOLVED),
+  v.literal(CONVERSATION_STATUS.ESCALATED),
+  v.literal(CONVERSATION_STATUS.RESOLVED),
+);
+
 export const getOne = query({
   args: {
     conversationId: v.id("conversations"),
@@ -44,7 +50,17 @@ export const getOne = query({
     return {
       ...conversation,
       lastMessage: conversation.lastMessage ?? null,
-      contactSession,
+      contactSession: {
+        _id: contactSession._id,
+        name: contactSession.name,
+        metadata: contactSession.metadata
+          ? {
+              countryCode: contactSession.metadata.countryCode ?? null,
+              country: contactSession.metadata.country ?? null,
+              timezone: contactSession.metadata.timezone ?? null,
+            }
+          : null,
+      },
     };
   },
 });
@@ -52,13 +68,7 @@ export const getOne = query({
 export const getMany = query({
   args: {
     paginationOpts: paginationOptsValidator,
-    status: v.optional(
-      v.union(
-        v.literal(CONVERSATION_STATUS.UNRESOLVED),
-        v.literal(CONVERSATION_STATUS.ESCALATED),
-        v.literal(CONVERSATION_STATUS.RESOLVED),
-      ),
-    ),
+    status: v.optional(statusValidator),
   },
   handler: async (ctx, args) => {
     const { organizationId } = await getAuthenticatedOrgId(ctx);
@@ -67,7 +77,7 @@ export const getMany = query({
     if (args.status) {
       conversations = await ctx.db
         .query("conversations")
-        .withIndex("by_organization_id_and_status", (q) =>
+        .withIndex("by_organization_id_and_status_and_last_message_at", (q) =>
           q
             .eq("organizationId", organizationId)
             .eq("status", args.status as ConversationStatus),
@@ -77,7 +87,7 @@ export const getMany = query({
     } else {
       conversations = await ctx.db
         .query("conversations")
-        .withIndex("by_organization_id", (q) =>
+        .withIndex("by_organization_id_and_last_message_at", (q) =>
           q.eq("organizationId", organizationId),
         )
         .order("desc")
@@ -101,7 +111,17 @@ export const getMany = query({
           return {
             ...conversation,
             lastMessage: conversation.lastMessage ?? null,
-            contactSession,
+            contactSession: {
+              _id: contactSession._id,
+              name: contactSession.name,
+              metadata: contactSession.metadata
+                ? {
+                    countryCode: contactSession.metadata.countryCode ?? null,
+                    country: contactSession.metadata.country ?? null,
+                    timezone: contactSession.metadata.timezone ?? null,
+                  }
+                : null,
+            },
           };
         } catch (error) {
           console.warn(
@@ -117,17 +137,18 @@ export const getMany = query({
       (c): c is NonNullable<typeof c> => c !== null,
     );
 
-    const skipped =
+    const skippedCount =
       conversationWithAdditionalData.length - validConversations.length;
 
-    if (skipped > 0) {
+    if (skippedCount > 0) {
       console.warn(
-        `Skipped ${skipped} conversations in getMany for organization [${organizationId}]`,
+        `Skipped ${skippedCount} conversations in getMany for organization [${organizationId}]`,
       );
     }
 
     return {
       ...conversations,
+      skippedCount,
       page: validConversations,
     };
   },
@@ -136,11 +157,7 @@ export const getMany = query({
 export const updateStatus = mutation({
   args: {
     conversationId: v.id("conversations"),
-    status: v.union(
-      v.literal(CONVERSATION_STATUS.UNRESOLVED),
-      v.literal(CONVERSATION_STATUS.ESCALATED),
-      v.literal(CONVERSATION_STATUS.RESOLVED),
-    ),
+    status: statusValidator,
   },
   handler: async (ctx, args) => {
     const { organizationId } = await getAuthenticatedOrgId(ctx);
@@ -161,8 +178,33 @@ export const updateStatus = mutation({
       });
     }
 
+    if (conversation.status === args.status) {
+      return;
+    }
+
+    const validTransitions: Record<ConversationStatus, ConversationStatus[]> = {
+      [CONVERSATION_STATUS.UNRESOLVED]: [
+        CONVERSATION_STATUS.ESCALATED,
+        CONVERSATION_STATUS.RESOLVED,
+      ],
+      [CONVERSATION_STATUS.ESCALATED]: [
+        CONVERSATION_STATUS.RESOLVED,
+        CONVERSATION_STATUS.UNRESOLVED,
+      ],
+      [CONVERSATION_STATUS.RESOLVED]: [CONVERSATION_STATUS.UNRESOLVED],
+    };
+
+    if (!validTransitions[conversation.status].includes(args.status)) {
+      throw new ConvexError({
+        code: "INVALID_STATUS_TRANSITION",
+        message: "Invalid conversation status transition",
+        context: { from: conversation.status, to: args.status },
+      });
+    }
+
     await ctx.db.patch(args.conversationId, {
       status: args.status,
+      updatedAt: Date.now(),
     });
   },
 });

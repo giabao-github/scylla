@@ -64,7 +64,20 @@ export default defineSchema({
     .index("by_contact_session_id", ["contactSessionId"])
     .index("by_thread_id", ["threadId"])
     .index("by_organization_id_and_status", ["organizationId", "status"])
-    .index("by_updated_at", ["updatedAt"]),
+    .index("by_updated_at", ["updatedAt"])
+    .index("by_contact_session_id_and_last_message_at", [
+      "contactSessionId",
+      "lastMessageAt",
+    ])
+    .index("by_organization_id_and_last_message_at", [
+      "organizationId",
+      "lastMessageAt",
+    ])
+    .index("by_organization_id_and_status_and_last_message_at", [
+      "organizationId",
+      "status",
+      "lastMessageAt",
+    ]),
   messageRequests: defineTable({
     requestId: v.string(),
     contactSessionId: v.optional(v.id("contactSessions")),
@@ -74,8 +87,8 @@ export default defineSchema({
       v.literal(MESSAGE_REQUEST_STATUS.COMPLETED),
       v.literal(MESSAGE_REQUEST_STATUS.ERROR),
     ),
-
     userMessageId: v.optional(v.string()),
+    aiResponseSaved: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

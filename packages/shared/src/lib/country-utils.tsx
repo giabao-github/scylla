@@ -1,7 +1,7 @@
 import * as ct from "countries-and-timezones";
 
 export function getCountryFromTimezone(
-  timezone?: string,
+  timezone?: string | null,
 ): { code: string; name: string } | null {
   if (!timezone) {
     return null;

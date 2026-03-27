@@ -13,9 +13,12 @@ export const resolveConversation = createTool({
       throw new ConvexError({
         message: "Cannot resolve conversation: missing thread ID",
         code: "MISSING_THREAD_ID",
-        context: { threadId: ctx.threadId },
       });
     }
+
+    await ctx.runMutation(internal.system.conversations.resolve, {
+      threadId: ctx.threadId,
+    });
 
     await saveMessage(ctx, components.agent, {
       threadId: ctx.threadId,
@@ -23,10 +26,6 @@ export const resolveConversation = createTool({
         role: "assistant",
         content: "Conversation resolved.",
       },
-    });
-
-    await ctx.runMutation(internal.system.conversations.resolve, {
-      threadId: ctx.threadId,
     });
 
     return "Conversation resolved.";

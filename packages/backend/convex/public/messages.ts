@@ -15,6 +15,7 @@ import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { modelCatalog } from "@workspace/shared/constants/model-catalog";
 
 const MAX_REQUEST_IDS = 100;
+const MAX_PROMPT_LENGTH = 10_000;
 const ALLOWED_MODEL_IDS = new Set<string>(modelCatalog.map((m) => m.id));
 
 const resolveModel = (modelId: string) => {
@@ -33,17 +34,27 @@ const resolveModel = (modelId: string) => {
   });
 };
 
-const agentForModel = (modelId: string | undefined) =>
-  modelId
+const agentForModel = (modelId: string | undefined, status: string) => {
+  const tools: Record<string, any> = {};
+
+  if (status === CONVERSATION_STATUS.UNRESOLVED) {
+    tools.resolveConversation = resolveConversation;
+    tools.escalateConversation = escalateConversation;
+  }
+
+  const base = modelId
     ? new Agent(components.agent, {
         ...supportAgent.options,
         languageModel: resolveModel(modelId),
-        tools: {
-          resolveConversation,
-          escalateConversation,
-        },
+        tools,
       })
-    : supportAgent;
+    : new Agent(components.agent, {
+        ...supportAgent.options,
+        tools,
+      });
+
+  return base;
+};
 
 export const create = action({
   args: {
@@ -88,6 +99,20 @@ export const create = action({
       });
     }
 
+    if (!prompt.trim()) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Prompt cannot be empty",
+      });
+    }
+
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: `Prompt exceeds maximum allowed length of ${MAX_PROMPT_LENGTH}`,
+      });
+    }
+
     const result = await ctx.runMutation(
       internal.system.messageRequests.claimAndSaveUserMessage,
       { requestId, contactSessionId },
@@ -99,33 +124,56 @@ export const create = action({
 
     try {
       if (!result.userMessageId) {
-        const { messageId } = await saveMessage(ctx, components.agent, {
-          threadId,
-          message: { role: "user", content: prompt },
-        });
+        const { messageId, message } = await saveMessage(
+          ctx,
+          components.agent,
+          {
+            threadId,
+            message: { role: "user", content: prompt },
+          },
+        );
 
         await ctx.runMutation(
-          internal.system.messageRequests.markUserMessageSaved,
-          { requestId, messageId },
+          internal.system.messageRequests.setUserMessageId,
+          {
+            requestId,
+            messageId,
+          },
         );
 
         await ctx.runMutation(internal.system.conversations.updateLastMessage, {
           threadId,
           lastMessage: { text: prompt, role: "user" },
-          messageAt: Date.now(),
+          messageAt: message._creationTime,
         });
       }
-      const agent = agentForModel(modelId);
-      const { thread } = await agent.continueThread(ctx, { threadId });
 
-      const aiResponse = await thread.generateText({});
+      if (conversation.status === CONVERSATION_STATUS.UNRESOLVED) {
+        const agent = agentForModel(modelId, conversation.status);
+        const { thread } = await agent.continueThread(ctx, { threadId });
 
-      if (aiResponse.text) {
-        await ctx.runMutation(internal.system.conversations.updateLastMessage, {
-          threadId,
-          lastMessage: { text: aiResponse.text, role: "assistant" },
-          messageAt: Date.now(),
-        });
+        if (!result.aiResponseSaved) {
+          const aiMessageAt = Date.now();
+          const aiResponse = await thread.generateText({});
+
+          if (aiResponse.text) {
+            await ctx.runMutation(
+              internal.system.conversations.updateLastMessage,
+              {
+                threadId,
+                lastMessage: { text: aiResponse.text, role: "assistant" },
+                messageAt: aiMessageAt,
+              },
+            );
+          }
+
+          await ctx.runMutation(
+            internal.system.messageRequests.markAiResponseSaved,
+            {
+              requestId,
+            },
+          );
+        }
       }
 
       await ctx.runMutation(internal.system.messageRequests.updateStatus, {
@@ -140,12 +188,20 @@ export const create = action({
         });
       } catch (updateErr) {
         console.error(
-          `Failed to update error status for ${requestId}:`,
+          `Failed to update error status for request [${requestId}]:`,
           updateErr,
         );
+        console.error("[AI] generation failed (original error):", err);
+        throw new ConvexError({
+          code: "INTERNAL",
+          message: `Failed to mark request [${requestId}] as errored after processing failure`,
+        });
       }
 
-      console.error(`AI generation failed for request ${requestId}:`, err);
+      console.error("[AI] generation failed", {
+        requestId,
+        error: err,
+      });
       throw err;
     }
   },
@@ -160,17 +216,10 @@ export const getMany = query({
   handler: async (ctx, args) => {
     const contactSession = await ctx.db.get(args.contactSessionId);
 
-    if (!contactSession) {
+    if (!contactSession || contactSession.expiresAt < Date.now()) {
       throw new ConvexError({
         code: "UNAUTHORIZED",
-        message: "Invalid session",
-      });
-    }
-
-    if (contactSession.expiresAt < Date.now()) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Expired session",
+        message: "Invalid or expired session",
       });
     }
 
@@ -207,7 +256,7 @@ export const getMessageIdsByRequestIds = query({
   handler: async (
     ctx,
     { requestIds, contactSessionId },
-  ): Promise<Record<string, string>> => {
+  ): Promise<Record<string, string> | null> => {
     if (requestIds.length > MAX_REQUEST_IDS) {
       console.error("Too many request IDs", {
         count: requestIds.length,
@@ -227,10 +276,7 @@ export const getMessageIdsByRequestIds = query({
     const contactSession = await ctx.db.get(contactSessionId);
 
     if (!contactSession || contactSession.expiresAt < Date.now()) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Invalid or expired session",
-      });
+      return null;
     }
 
     const results = await Promise.all(
