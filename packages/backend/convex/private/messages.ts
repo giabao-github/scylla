@@ -80,12 +80,14 @@ export const create = mutation({
       try {
         await ctx.runMutation(
           internal.system.messageRequests.removeStaleRequest,
-          { requestId },
+          {
+            requestId,
+          },
         );
       } catch (cleanupErr) {
         console.error(
-          `Failed to remove stale request [${requestId}] after saveMessage failure — retry with this request ID will be silently dropped`,
-          cleanupErr,
+          `Failed to remove stale request [${requestId}] after saveMessage failure:`,
+          cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
         );
       }
       throw err;
