@@ -95,6 +95,7 @@ export const WidgetChatScreen = () => {
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
+    mode: "onChange",
     defaultValues: { message: "" },
   });
 
@@ -372,7 +373,10 @@ export const WidgetChatScreen = () => {
           const aiConfirmed =
             isOldestActive &&
             visibleMessages.some(
-              (m) => !slot.snapshotIds.has(m.id) && m.role === "assistant",
+              (m) =>
+                !slot.snapshotIds.has(m.id) &&
+                m.role === "assistant" &&
+                m._creationTime >= slot.submittedAt,
             );
 
           if (

@@ -3,9 +3,10 @@
 import { Component, ReactNode } from "react";
 
 import { Button } from "@workspace/ui/components/button";
+import Link from "next/link";
 
 export class ConversationErrorBoundary extends Component<
-  { children: ReactNode; onReset?: () => void },
+  { children: ReactNode },
   { hasError: boolean; error: Error | null }
 > {
   state = { hasError: false, error: null as Error | null };
@@ -35,14 +36,6 @@ export class ConversationErrorBoundary extends Component<
     );
   }
 
-  reset = () => {
-    try {
-      this.props.onReset?.();
-    } finally {
-      this.setState({ hasError: false, error: null });
-    }
-  };
-
   render() {
     if (this.state.hasError) {
       return (
@@ -60,8 +53,8 @@ export class ConversationErrorBoundary extends Component<
             <div className="dino-obstacle"></div>
             <div className="dino-ground"></div>
           </div>
-          <Button variant="outline" size="sm" onClick={this.reset}>
-            Try again
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/conversations">Go to conversations</Link>
           </Button>
         </div>
       );

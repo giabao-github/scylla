@@ -34,6 +34,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { Loader2Icon, MoreHorizontalIcon } from "lucide-react";
 import { nanoid } from "nanoid";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -303,7 +304,7 @@ export const ConversationIdView = ({
       <div
         className="flex flex-col gap-y-16 justify-center items-center h-full"
         role="alert"
-        aria-live="assertive"
+        aria-live="polite"
       >
         <p className="text-muted-foreground">
           This conversation is no longer available.
@@ -316,12 +317,8 @@ export const ConversationIdView = ({
           <div className="dino-obstacle"></div>
           <div className="dino-ground"></div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => router.push("/dashboard/conversations")}
-        >
-          Go to conversations
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/conversations">Go to conversations</Link>
         </Button>
       </div>
     );

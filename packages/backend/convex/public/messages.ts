@@ -158,8 +158,8 @@ export const create = action({
         const { thread } = await agent.continueThread(ctx, { threadId });
 
         if (!aiResponseSaved) {
-          const aiMessageAt = Date.now();
           const aiResponse = await thread.generateText({});
+          const aiMessageAt = Date.now();
 
           if (aiResponse.text) {
             if (aiResponse.text) {
