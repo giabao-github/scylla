@@ -73,9 +73,17 @@ export const cleanup = internalMutation({
         .take(100),
     ]);
 
-    const stale = [...completed, ...errored];
+    const stuck = await ctx.db
+      .query("messageRequests")
+      .withIndex("by_status_and_updated_at", (q) =>
+        q.eq("status", "processing").lt("updatedAt", cutoff),
+      )
+      .take(100);
+
+    const stale = [...completed, ...errored, ...stuck];
     await Promise.all(stale.map((r) => ctx.db.delete(r._id)));
-    return { deleted: stale.length, hasMore: stale.length === 200 };
+
+    return { deleted: stale.length, hasMore: stale.length === 300 };
   },
 });
 
@@ -221,15 +229,15 @@ export const setUserMessageId = internalMutation({
 
     if (existing.userMessageId) {
       if (existing.userMessageId !== messageId) {
-        console.error(
-          "[MessageRequest] invariant violated: conflicting userMessageId",
-          {
-            event: "MESSAGE_ID_CONFLICT",
+        throw new ConvexError({
+          code: "INVARIANT_VIOLATION",
+          message: "Conflicting userMessageId for request",
+          context: {
             requestId,
             existingMessageId: existing.userMessageId,
             newMessageId: messageId,
           },
-        );
+        });
       }
       return;
     }

@@ -159,30 +159,30 @@ export const create = action({
 
         if (!aiResponseSaved) {
           const aiResponse = await thread.generateText({});
-          const aiMessageAt = Date.now();
+          const lastSavedMessage =
+            aiResponse.savedMessages[aiResponse.savedMessages.length - 1];
+          const aiMessageAt = lastSavedMessage?._creationTime ?? Date.now();
 
           if (aiResponse.text) {
-            if (aiResponse.text) {
-              await ctx.runMutation(
-                internal.system.messageRequests.markAiResponseSaved,
-                { requestId },
-              );
+            await ctx.runMutation(
+              internal.system.messageRequests.markAiResponseSaved,
+              { requestId },
+            );
 
-              try {
-                await ctx.runMutation(
-                  internal.system.conversations.updateLastMessage,
-                  {
-                    threadId,
-                    lastMessage: { text: aiResponse.text, role: "assistant" },
-                    messageAt: aiMessageAt,
-                  },
-                );
-              } catch (err) {
-                console.error(
-                  "Failed to sync last message after AI generation",
-                  err,
-                );
-              }
+            try {
+              await ctx.runMutation(
+                internal.system.conversations.updateLastMessage,
+                {
+                  threadId,
+                  lastMessage: { text: aiResponse.text, role: "assistant" },
+                  messageAt: aiMessageAt,
+                },
+              );
+            } catch (err) {
+              console.error(
+                "Failed to sync last message after AI generation",
+                err,
+              );
             }
           }
         }
@@ -203,13 +203,7 @@ export const create = action({
           `Failed to update error status for request [${requestId}]:`,
           updateErr,
         );
-        console.error("[AI] generation failed (original error):", err);
-        throw new ConvexError({
-          code: "INTERNAL",
-          message: `Failed to mark request [${requestId}] as errored after processing failure`,
-        });
       }
-
       console.error("[AI] generation failed", {
         requestId,
         error: err,

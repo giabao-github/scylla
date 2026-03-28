@@ -211,6 +211,7 @@ export const enhanceResponse = action({
       throw new ConvexError({
         code: "AI_ERROR",
         message: "Failed to enhance response",
+        context: { type: err instanceof Error ? err.name : "unknown" },
       });
     }
   },

@@ -42,8 +42,8 @@ export const getOne = query({
 
     if (!contactSession) {
       throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Contact session not found",
+        code: "INTERNAL",
+        message: `Data integrity violation: missing contactSession [${conversation.contactSessionId}] for conversation [${conversation._id}]`,
       });
     }
 
@@ -94,44 +94,51 @@ export const getMany = query({
         .paginate(args.paginationOpts);
     }
 
-    const conversationWithAdditionalData = await Promise.all(
+    const results = await Promise.allSettled(
       conversations.page.map(async (conversation) => {
-        try {
-          const contactSession = await ctx.db.get(
-            conversation.contactSessionId,
-          );
+        const contactSession = await ctx.db.get(conversation.contactSessionId);
 
-          if (!contactSession) {
-            console.warn(
-              `Skipping conversation [${conversation._id}]: missing contact session [${conversation.contactSessionId}]`,
-            );
-            return null;
-          }
-
-          return {
-            ...conversation,
-            lastMessage: conversation.lastMessage ?? null,
-            contactSession: {
-              _id: contactSession._id,
-              name: contactSession.name,
-              metadata: contactSession.metadata
-                ? {
-                    countryCode: contactSession.metadata.countryCode ?? null,
-                    country: contactSession.metadata.country ?? null,
-                    timezone: contactSession.metadata.timezone ?? null,
-                  }
-                : null,
-            },
-          };
-        } catch (error) {
-          console.warn(
-            `Failed to process conversation [${conversation._id}]:`,
-            error instanceof Error ? error.message : error,
-          );
-          return null;
+        if (!contactSession) {
+          throw new ConvexError({
+            code: "INTERNAL",
+            message: `Data integrity violation: missing contactSession [${conversation.contactSessionId}] for conversation [${conversation._id}]`,
+          });
         }
+
+        return {
+          ...conversation,
+          lastMessage: conversation.lastMessage ?? null,
+          contactSession: {
+            _id: contactSession._id,
+            name: contactSession.name,
+            metadata: contactSession.metadata
+              ? {
+                  countryCode: contactSession.metadata.countryCode ?? null,
+                  country: contactSession.metadata.country ?? null,
+                  timezone: contactSession.metadata.timezone ?? null,
+                }
+              : null,
+          },
+        };
       }),
     );
+
+    const conversationWithAdditionalData = results.map((result, idx) => {
+      if (result.status === "fulfilled") return result.value;
+      const error = result.reason;
+      const conversation = conversations.page[idx];
+      if (!conversation) {
+        console.error(`Unexpected: no conversation at index ${idx}`);
+        return null;
+      }
+      const isIntegrityError =
+        error instanceof ConvexError && error.data?.code === "INTERNAL";
+      console.warn(
+        `${isIntegrityError ? "Data integrity issue" : "Unexpected error"} processing conversation [${conversation._id}]:`,
+        error instanceof Error ? error.message : error,
+      );
+      return null;
+    });
 
     const validConversations = conversationWithAdditionalData.filter(
       (c): c is NonNullable<typeof c> => c !== null,
@@ -187,10 +194,7 @@ export const updateStatus = mutation({
         CONVERSATION_STATUS.ESCALATED,
         CONVERSATION_STATUS.RESOLVED,
       ],
-      [CONVERSATION_STATUS.ESCALATED]: [
-        CONVERSATION_STATUS.RESOLVED,
-        CONVERSATION_STATUS.UNRESOLVED,
-      ],
+      [CONVERSATION_STATUS.ESCALATED]: [CONVERSATION_STATUS.RESOLVED],
       [CONVERSATION_STATUS.RESOLVED]: [CONVERSATION_STATUS.UNRESOLVED],
     };
 

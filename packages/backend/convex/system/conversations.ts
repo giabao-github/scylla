@@ -20,9 +20,6 @@ const assertValidTransition = (
   existing: ConversationStatus,
   status: ConversationStatus,
 ) => {
-  // System/AI transitions: system is intentionally not permitted to de-escalate
-  // (ESCALATED→UNRESOLVED is disallowed here). Manual transitions via updateStatus
-  // in private/conversations.ts allow ESCALATED→UNRESOLVED for human operators.
   const validTransitions: Record<
     ConversationStatus,
     readonly ConversationStatus[]
@@ -113,6 +110,7 @@ export const resolve = internalMutation({
       args.threadId,
     );
 
+    if (conversation.status === CONVERSATION_STATUS.RESOLVED) return;
     assertValidTransition(conversation.status, CONVERSATION_STATUS.RESOLVED);
 
     await ctx.db.patch(conversation._id, {
@@ -132,6 +130,7 @@ export const escalate = internalMutation({
       args.threadId,
     );
 
+    if (conversation.status === CONVERSATION_STATUS.ESCALATED) return;
     assertValidTransition(conversation.status, CONVERSATION_STATUS.ESCALATED);
 
     await ctx.db.patch(conversation._id, {

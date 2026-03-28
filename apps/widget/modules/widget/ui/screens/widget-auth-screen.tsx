@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
-import { Doc } from "@workspace/backend/_generated/dataModel";
+import { Doc, Id } from "@workspace/backend/_generated/dataModel";
 import {
   contactSessionIdAtom,
   organizationIdAtom,
@@ -198,7 +198,7 @@ export const WidgetAuthScreen = () => {
 
       const contactSessionId = await createContactSession({
         ...sanitizedValues,
-        organizationId,
+        organizationId: organizationId as Id<"organizations">,
         metadata,
       });
 

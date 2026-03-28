@@ -21,11 +21,21 @@ export const create = mutation({
       userId: organizationId,
     });
 
+    const existing = await ctx.db
+      .query("conversations")
+      .withIndex("by_contact_session_id_and_last_message_at", (q) =>
+        q.eq("contactSessionId", session._id),
+      )
+      .filter((q) => q.neq(q.field("status"), CONVERSATION_STATUS.RESOLVED))
+      .first();
+
+    if (existing) return existing._id;
+
     const initialMessage = "Hello, how can I help you today?";
     const now = Date.now();
 
     try {
-      await saveMessage(ctx, components.agent, {
+      const { message } = await saveMessage(ctx, components.agent, {
         threadId,
         message: {
           role: "assistant",
@@ -43,7 +53,7 @@ export const create = mutation({
           text: initialMessage,
           role: "assistant",
         },
-        lastMessageAt: now,
+        lastMessageAt: message._creationTime,
       });
 
       return conversationId;

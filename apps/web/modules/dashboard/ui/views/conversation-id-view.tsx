@@ -77,7 +77,6 @@ export const ConversationIdView = ({
 }: {
   conversationId: string;
 }) => {
-  const router = useRouter();
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -86,6 +85,7 @@ export const ConversationIdView = ({
   const prevLastMessageIdRef = useRef<string | undefined>(undefined);
   const prevPendingSlotsLenRef = useRef(0);
   const isAtBottomRef = useRef(true);
+  const enhanceRequestIdRef = useRef(0);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -185,17 +185,22 @@ export const ConversationIdView = ({
   const handleEnhanceResponse = async () => {
     const currentValue = form.getValues("message");
     if (isBlocked || !currentValue.trim()) return;
+    const requestId = ++enhanceRequestIdRef.current;
     setIsEnhancing(true);
     try {
       const response = await enhanceResponse({
         prompt: currentValue,
       });
+      if (requestId !== enhanceRequestIdRef.current) return;
       form.setValue("message", response, { shouldValidate: true });
     } catch (error) {
+      if (requestId !== enhanceRequestIdRef.current) return;
       console.error("Failed to enhance response:", error);
       toast.error("Failed to enhance response. Please try again.");
     } finally {
-      setIsEnhancing(false);
+      if (requestId === enhanceRequestIdRef.current) {
+        setIsEnhancing(false);
+      }
     }
   };
 
@@ -289,11 +294,14 @@ export const ConversationIdView = ({
   }, [lastMessageId, pendingSlots.length, scrollToBottom]);
 
   useEffect(() => {
+    enhanceRequestIdRef.current += 1;
+    form.reset({ message: "" });
+    setIsEnhancing(false);
     prevLastMessageIdRef.current = undefined;
     prevPendingSlotsLenRef.current = 0;
     isAtBottomRef.current = true;
     setPendingSlots([]);
-  }, [conversationId]);
+  }, [conversationId, form]);
 
   if (conversation === undefined || messages.status === "LoadingFirstPage") {
     return <ConversationIdViewSkeleton />;
@@ -428,7 +436,7 @@ export const ConversationIdView = ({
                     control={form.control}
                     render={({ field }) => (
                       <PromptInputTextarea
-                        disabled={form.formState.isSubmitting || isEnhancing}
+                        disabled={isSending || isEnhancing}
                         placeholder="Response to your client..."
                         className="text-sm placeholder:text-muted-foreground/50"
                         onChange={field.onChange}
@@ -440,7 +448,9 @@ export const ConversationIdView = ({
                 <PromptInputFooter>
                   <PromptBoxDefaultTools
                     tools={{ enhance: true, modelSelector: false }}
-                    enhanceDisabled={isEnhancing || !form.formState.isValid}
+                    enhanceDisabled={
+                      isSending || isEnhancing || !form.formState.isValid
+                    }
                     enhanceText={isEnhancing ? "Enhancing..." : "Enhance"}
                     onEnhance={handleEnhanceResponse}
                   />
