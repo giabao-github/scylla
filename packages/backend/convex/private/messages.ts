@@ -77,12 +77,19 @@ export const create = mutation({
         message: { role: "assistant", content: prompt },
       }));
     } catch (err) {
-      await ctx.runMutation(
-        internal.system.messageRequests.removeStaleRequest,
-        {
-          requestId,
-        },
-      );
+      try {
+        await ctx.runMutation(
+          internal.system.messageRequests.removeStaleRequest,
+          {
+            requestId,
+          },
+        );
+      } catch (cleanupErr) {
+        console.error(
+          `Failed to remove stale request [${requestId}] after saveMessage failure:`,
+          cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
+        );
+      }
       throw err;
     }
 

@@ -58,7 +58,7 @@ export default defineSchema({
         role: v.union(v.literal("user"), v.literal("assistant")),
       }),
     ),
-    lastMessageAt: v.number(),
+    lastMessageAt: v.optional(v.number()),
   })
     .index("by_organization_id", ["organizationId"])
     .index("by_contact_session_id", ["contactSessionId"])
@@ -78,6 +78,8 @@ export default defineSchema({
       "status",
       "lastMessageAt",
     ]),
+  // Note: Legacy messageRequests rows lacking updatedAt/status fields are intentionally
+  // excluded from indexes (e.g., by_status_and_updated_at) and will expire via 24h cleanup.
   messageRequests: defineTable({
     requestId: v.string(),
     contactSessionId: v.optional(v.id("contactSessions")),

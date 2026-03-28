@@ -140,6 +140,8 @@ export const claimAndSaveUserMessage = internalMutation({
       }
       if (
         existing.status === "processing" &&
+        typeof existing.updatedAt === "number" &&
+        Number.isFinite(existing.updatedAt) &&
         now - existing.updatedAt < STALE_TIMEOUT
       ) {
         return { status: "in_progress", userMessageId: null };

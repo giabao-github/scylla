@@ -20,6 +20,9 @@ const assertValidTransition = (
   existing: ConversationStatus,
   status: ConversationStatus,
 ) => {
+  // System/AI transitions: system is intentionally not permitted to de-escalate
+  // (ESCALATED→UNRESOLVED is disallowed here). Manual transitions via updateStatus
+  // in private/conversations.ts allow ESCALATED→UNRESOLVED for human operators.
   const validTransitions: Record<
     ConversationStatus,
     readonly ConversationStatus[]

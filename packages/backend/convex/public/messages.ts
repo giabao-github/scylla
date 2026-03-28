@@ -149,10 +149,10 @@ export const create = action({
       }
 
       if (conversation.status === CONVERSATION_STATUS.UNRESOLVED) {
-        const agent = agentForModel(modelId, conversation.status);
-        const { thread } = await agent.continueThread(ctx, { threadId });
-
         if (!result.aiResponseSaved) {
+          const agent = agentForModel(modelId, conversation.status);
+          const { thread } = await agent.continueThread(ctx, { threadId });
+
           const aiMessageAt = Date.now();
           const aiResponse = await thread.generateText({});
 

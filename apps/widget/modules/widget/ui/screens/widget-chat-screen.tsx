@@ -368,7 +368,10 @@ export const WidgetChatScreen = () => {
         })
         .filter((slot) => {
           const aiConfirmed = visibleMessages.some(
-            (m) => !slot.snapshotIds.has(m.id) && m.role === "assistant",
+            (m) =>
+              !slot.snapshotIds.has(m.id) &&
+              m.role === "assistant" &&
+              m._creationTime > slot.submittedAt,
           );
 
           if (
