@@ -34,6 +34,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { Loader2Icon, MoreHorizontalIcon } from "lucide-react";
 import { nanoid } from "nanoid";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -75,6 +76,7 @@ export const ConversationIdView = ({
 }: {
   conversationId: string;
 }) => {
+  const router = useRouter();
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -294,6 +296,35 @@ export const ConversationIdView = ({
 
   if (conversation === undefined || messages.status === "LoadingFirstPage") {
     return <ConversationIdViewSkeleton />;
+  }
+
+  if (!conversation) {
+    return (
+      <div
+        className="flex flex-col gap-y-16 justify-center items-center h-full"
+        role="alert"
+        aria-live="assertive"
+      >
+        <p className="text-muted-foreground">
+          This conversation is no longer available.
+        </p>
+        <div
+          className="dino-loader [--dino-loader-height:140px]"
+          aria-hidden="true"
+        >
+          <div className="dino-runner"></div>
+          <div className="dino-obstacle"></div>
+          <div className="dino-ground"></div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => router.push("/dashboard/conversations")}
+        >
+          Go to conversations
+        </Button>
+      </div>
+    );
   }
 
   return (

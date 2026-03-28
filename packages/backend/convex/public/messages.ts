@@ -122,8 +122,13 @@ export const create = action({
       return;
     }
 
+    const userMessageId =
+      result.status === "retry" ? result.userMessageId : null;
+    const aiResponseSaved =
+      result.status === "retry" ? result.aiResponseSaved : false;
+
     try {
-      if (!result.userMessageId) {
+      if (!userMessageId) {
         const { messageId, message } = await saveMessage(
           ctx,
           components.agent,
@@ -152,27 +157,34 @@ export const create = action({
         const agent = agentForModel(modelId, conversation.status);
         const { thread } = await agent.continueThread(ctx, { threadId });
 
-        if (!result.aiResponseSaved) {
+        if (!aiResponseSaved) {
           const aiMessageAt = Date.now();
           const aiResponse = await thread.generateText({});
 
           if (aiResponse.text) {
-            await ctx.runMutation(
-              internal.system.conversations.updateLastMessage,
-              {
-                threadId,
-                lastMessage: { text: aiResponse.text, role: "assistant" },
-                messageAt: aiMessageAt,
-              },
-            );
-          }
+            if (aiResponse.text) {
+              await ctx.runMutation(
+                internal.system.messageRequests.markAiResponseSaved,
+                { requestId },
+              );
 
-          await ctx.runMutation(
-            internal.system.messageRequests.markAiResponseSaved,
-            {
-              requestId,
-            },
-          );
+              try {
+                await ctx.runMutation(
+                  internal.system.conversations.updateLastMessage,
+                  {
+                    threadId,
+                    lastMessage: { text: aiResponse.text, role: "assistant" },
+                    messageAt: aiMessageAt,
+                  },
+                );
+              } catch (err) {
+                console.error(
+                  "Failed to sync last message after AI generation",
+                  err,
+                );
+              }
+            }
+          }
         }
       }
 

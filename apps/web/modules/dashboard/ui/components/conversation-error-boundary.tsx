@@ -47,20 +47,20 @@ export class ConversationErrorBoundary extends Component<
     if (this.state.hasError) {
       return (
         <div
-          className="flex flex-col justify-center items-center h-full"
+          className="flex flex-col gap-y-16 justify-center items-center h-full"
           role="alert"
           aria-live="assertive"
         >
           <p className="text-muted-foreground">{this.getErrorMessage()}</p>
           <div
-            className="dino-loader [--dino-loader-height:200px]"
+            className="dino-loader [--dino-loader-height:140px]"
             aria-hidden="true"
           >
             <div className="dino-runner"></div>
             <div className="dino-obstacle"></div>
             <div className="dino-ground"></div>
           </div>
-          <Button variant="ghost" size="sm" onClick={this.reset}>
+          <Button variant="outline" size="sm" onClick={this.reset}>
             Try again
           </Button>
         </div>

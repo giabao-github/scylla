@@ -72,12 +72,13 @@ const isUserMessageConfirmed = (
   slot: PendingSlot,
   messages: UIMessage[],
   confirmedId?: string,
-): boolean =>
-  messages.some((m) => {
-    if (slot.snapshotIds.has(m.id) || m.role !== "user") return false;
-    if (confirmedId) return m.id === confirmedId;
-    return m.text?.trim() === slot.userText.trim();
-  });
+): boolean => {
+  if (!confirmedId) return false;
+  return messages.some(
+    (m) =>
+      !slot.snapshotIds.has(m.id) && m.role === "user" && m.id === confirmedId,
+  );
+};
 
 export const WidgetChatScreen = () => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
@@ -366,10 +367,13 @@ export const WidgetChatScreen = () => {
             ? { ...slot, isRetry: true }
             : slot;
         })
-        .filter((slot) => {
-          const aiConfirmed = visibleMessages.some(
-            (m) => !slot.snapshotIds.has(m.id) && m.role === "assistant",
-          );
+        .filter((slot, index) => {
+          const isOldestActive = index === 0;
+          const aiConfirmed =
+            isOldestActive &&
+            visibleMessages.some(
+              (m) => !slot.snapshotIds.has(m.id) && m.role === "assistant",
+            );
 
           if (
             (slot.status === "generating" || slot.status === "sent") &&

@@ -7,7 +7,7 @@ import {
 } from "@workspace/ui/components/tooltip";
 
 interface HintProps {
-  children: React.ReactNode;
+  children: React.ReactElement;
   text: string;
   side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";

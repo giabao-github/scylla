@@ -10,6 +10,12 @@ import { getMessageRequest, requireMessageRequest } from "./utils";
 const STALE_TIMEOUT = 30_000;
 const MAX_REQUEST_IDS = 100;
 
+type ClaimResult =
+  | { status: "already_done"; userMessageId: string | null }
+  | { status: "in_progress" }
+  | { status: "new" }
+  | { status: "retry"; userMessageId: string | null; aiResponseSaved: boolean };
+
 export const claim = internalMutation({
   args: {
     requestId: v.string(),
@@ -40,8 +46,6 @@ export const removeStaleRequest = internalMutation({
     const existing = await getMessageRequest(ctx, requestId);
 
     if (!existing) return { skipped: false, deleted: false };
-    if (existing.status === "processing")
-      return { skipped: true, deleted: false };
 
     await ctx.db.delete(existing._id);
     return { skipped: false, deleted: true };
@@ -70,8 +74,8 @@ export const cleanup = internalMutation({
     ]);
 
     const stale = [...completed, ...errored];
-
     await Promise.all(stale.map((r) => ctx.db.delete(r._id)));
+    return { deleted: stale.length, hasMore: stale.length === 200 };
   },
 });
 
@@ -86,13 +90,6 @@ export const updateStatus = internalMutation({
   },
   handler: async (ctx, { requestId, status }) => {
     const existing = await requireMessageRequest(ctx, requestId);
-
-    if (existing.status === "completed") {
-      throw new ConvexError({
-        code: "IMMUTABLE_STATE",
-        message: "Completed request cannot be modified",
-      });
-    }
 
     if (existing.status === status) {
       return;
@@ -127,7 +124,10 @@ export const claimAndSaveUserMessage = internalMutation({
     requestId: v.string(),
     contactSessionId: v.id("contactSessions"),
   },
-  handler: async (ctx, { requestId, contactSessionId }) => {
+  handler: async (
+    ctx,
+    { requestId, contactSessionId },
+  ): Promise<ClaimResult> => {
     const existing = await getMessageRequest(ctx, requestId);
     const now = Date.now();
 
@@ -135,14 +135,14 @@ export const claimAndSaveUserMessage = internalMutation({
       if (existing.status === "completed") {
         return {
           status: "already_done",
-          userMessageId: existing.userMessageId,
+          userMessageId: existing.userMessageId ?? null,
         };
       }
       if (
         existing.status === "processing" &&
         now - existing.updatedAt < STALE_TIMEOUT
       ) {
-        return { status: "in_progress", userMessageId: null };
+        return { status: "in_progress" };
       }
 
       await ctx.db.patch(existing._id, {
@@ -165,7 +165,7 @@ export const claimAndSaveUserMessage = internalMutation({
       updatedAt: now,
     });
 
-    return { status: "new", userMessageId: null };
+    return { status: "new" };
   },
 });
 
