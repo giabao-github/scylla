@@ -2,13 +2,19 @@ import { PaginationResult, paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { Doc } from "@workspace/backend/_generated/dataModel";
-import { query } from "@workspace/backend/_generated/server";
+import { mutation, query } from "@workspace/backend/_generated/server";
 import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
 
 import {
   CONVERSATION_STATUS,
   ConversationStatus,
 } from "@workspace/shared/constants/conversation";
+
+const statusValidator = v.union(
+  v.literal(CONVERSATION_STATUS.UNRESOLVED),
+  v.literal(CONVERSATION_STATUS.ESCALATED),
+  v.literal(CONVERSATION_STATUS.RESOLVED),
+);
 
 export const getOne = query({
   args: {
@@ -36,15 +42,25 @@ export const getOne = query({
 
     if (!contactSession) {
       throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Contact session not found",
+        code: "INTERNAL",
+        message: `Data integrity violation: missing contactSession [${conversation.contactSessionId}] for conversation [${conversation._id}]`,
       });
     }
 
     return {
       ...conversation,
       lastMessage: conversation.lastMessage ?? null,
-      contactSession,
+      contactSession: {
+        _id: contactSession._id,
+        name: contactSession.name,
+        metadata: contactSession.metadata
+          ? {
+              countryCode: contactSession.metadata.countryCode ?? null,
+              country: contactSession.metadata.country ?? null,
+              timezone: contactSession.metadata.timezone ?? null,
+            }
+          : null,
+      },
     };
   },
 });
@@ -52,13 +68,7 @@ export const getOne = query({
 export const getMany = query({
   args: {
     paginationOpts: paginationOptsValidator,
-    status: v.optional(
-      v.union(
-        v.literal(CONVERSATION_STATUS.UNRESOLVED),
-        v.literal(CONVERSATION_STATUS.ESCALATED),
-        v.literal(CONVERSATION_STATUS.RESOLVED),
-      ),
-    ),
+    status: v.optional(statusValidator),
   },
   handler: async (ctx, args) => {
     const { organizationId } = await getAuthenticatedOrgId(ctx);
@@ -67,7 +77,7 @@ export const getMany = query({
     if (args.status) {
       conversations = await ctx.db
         .query("conversations")
-        .withIndex("by_organization_id_and_status", (q) =>
+        .withIndex("by_organization_id_and_status_and_last_message_at", (q) =>
           q
             .eq("organizationId", organizationId)
             .eq("status", args.status as ConversationStatus),
@@ -77,58 +87,128 @@ export const getMany = query({
     } else {
       conversations = await ctx.db
         .query("conversations")
-        .withIndex("by_organization_id", (q) =>
+        .withIndex("by_organization_id_and_last_message_at", (q) =>
           q.eq("organizationId", organizationId),
         )
         .order("desc")
         .paginate(args.paginationOpts);
     }
 
-    const conversationWithAdditionalData = await Promise.all(
+    const results = await Promise.allSettled(
       conversations.page.map(async (conversation) => {
-        try {
-          const contactSession = await ctx.db.get(
-            conversation.contactSessionId,
-          );
+        const contactSession = await ctx.db.get(conversation.contactSessionId);
 
-          if (!contactSession) {
-            console.warn(
-              `Skipping conversation '${conversation._id}': missing contact session '${conversation.contactSessionId}'`,
-            );
-            return null;
-          }
-
-          return {
-            ...conversation,
-            lastMessage: conversation.lastMessage ?? null,
-            contactSession,
-          };
-        } catch (error) {
-          console.warn(
-            `Failed to process conversation '${conversation._id}':`,
-            error instanceof Error ? error.message : error,
-          );
-          return null;
+        if (!contactSession) {
+          throw new ConvexError({
+            code: "INTERNAL",
+            message: `Data integrity violation: missing contactSession [${conversation.contactSessionId}] for conversation [${conversation._id}]`,
+          });
         }
+
+        return {
+          ...conversation,
+          lastMessage: conversation.lastMessage ?? null,
+          contactSession: {
+            _id: contactSession._id,
+            name: contactSession.name,
+            metadata: contactSession.metadata
+              ? {
+                  countryCode: contactSession.metadata.countryCode ?? null,
+                  country: contactSession.metadata.country ?? null,
+                  timezone: contactSession.metadata.timezone ?? null,
+                }
+              : null,
+          },
+        };
       }),
     );
+
+    const conversationWithAdditionalData = results.map((result, idx) => {
+      if (result.status === "fulfilled") return result.value;
+      const error = result.reason;
+      const conversation = conversations.page[idx];
+      if (!conversation) {
+        console.error(`Unexpected: no conversation at index ${idx}`);
+        return null;
+      }
+      const isIntegrityError =
+        error instanceof ConvexError && error.data?.code === "INTERNAL";
+      console.warn(
+        `${isIntegrityError ? "Data integrity issue" : "Unexpected error"} processing conversation [${conversation._id}]:`,
+        error instanceof Error ? error.message : error,
+      );
+      return null;
+    });
 
     const validConversations = conversationWithAdditionalData.filter(
       (c): c is NonNullable<typeof c> => c !== null,
     );
 
-    const skipped =
+    const skippedCount =
       conversationWithAdditionalData.length - validConversations.length;
 
-    if (skipped > 0) {
+    if (skippedCount > 0) {
       console.warn(
-        `Skipped ${skipped} conversations in getMany for organization '${organizationId}'`,
+        `Skipped ${skippedCount} conversations in getMany for organization [${organizationId}]`,
       );
     }
 
     return {
       ...conversations,
+      skippedCount,
       page: validConversations,
     };
+  },
+});
+
+export const updateStatus = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    status: statusValidator,
+  },
+  handler: async (ctx, args) => {
+    const { organizationId } = await getAuthenticatedOrgId(ctx);
+
+    const conversation = await ctx.db.get(args.conversationId);
+
+    if (!conversation) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Conversation not found",
+      });
+    }
+
+    if (conversation.organizationId !== organizationId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "User is not authorized to access this conversation",
+      });
+    }
+
+    if (conversation.status === args.status) {
+      return;
+    }
+
+    const validTransitions: Record<ConversationStatus, ConversationStatus[]> = {
+      [CONVERSATION_STATUS.UNRESOLVED]: [
+        CONVERSATION_STATUS.ESCALATED,
+        CONVERSATION_STATUS.RESOLVED,
+      ],
+      [CONVERSATION_STATUS.ESCALATED]: [CONVERSATION_STATUS.RESOLVED],
+      [CONVERSATION_STATUS.RESOLVED]: [CONVERSATION_STATUS.UNRESOLVED],
+    };
+
+    if (!validTransitions[conversation.status].includes(args.status)) {
+      throw new ConvexError({
+        code: "INVALID_STATUS_TRANSITION",
+        message: "Invalid conversation status transition",
+        context: { from: conversation.status, to: args.status },
+      });
+    }
+
+    await ctx.db.patch(args.conversationId, {
+      status: args.status,
+      updatedAt: Date.now(),
+    });
   },
 });

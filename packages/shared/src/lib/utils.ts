@@ -7,6 +7,9 @@ const PATTERNS = {
     /(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}]|\u200D|\uFE0F)/u,
   emojiStrip:
     /(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}]|\u200D|\uFE0F)/gu,
+  errorRetry: /Last error:\s*(.+?)(?:\.\s*For more|$)/,
+  errorUncaught: /Uncaught\s+\w+:\s*(.+?)(?:\.\s*Called by|$)/,
+  errorServer: /Server Error\s+(.+?)(?:\s*Called by|$)/,
 };
 
 type Input = "input" | "name" | "username" | "email" | "phone";
@@ -305,15 +308,12 @@ export async function getVendor(
     }
   }
 
-  // Brave: spoofs as Chrome in UA — must check before Chrome
   if (isBrave) return "Brave";
-  // These all contain "Chrome" in UA — must come before the Chrome check
   if (/OPR|Opera/i.test(ua)) return "Opera";
   if (/YaBrowser/i.test(ua)) return "Yandex";
   if (/SamsungBrowser/i.test(ua)) return "Samsung Internet";
   if (/UCBrowser/i.test(ua)) return "UC Browser";
   if (/Vivaldi/i.test(ua)) return "Vivaldi";
-  // Generic checks
   if (/Firefox/i.test(ua)) return "Firefox";
   if (/Edg/i.test(ua)) return "Edge";
   if (/Chrome/i.test(ua)) return "Chrome";
@@ -346,4 +346,37 @@ export const isUnauthorizedError = (error: unknown): boolean => {
     (error as any).data !== null &&
     (error as any).data?.code === "UNAUTHORIZED"
   );
+};
+
+export const ensureTrailingPeriod = (str: string): string => {
+  const trimmed = str.trim();
+  if (!trimmed) return "Something went wrong.";
+  return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
+};
+
+export const parseErrorMessage = (err: unknown): string => {
+  const structuredMessage =
+    typeof err === "object" &&
+    err !== null &&
+    "data" in err &&
+    typeof (err as { data?: { message?: unknown } }).data?.message === "string"
+      ? (err as { data: { message: string } }).data.message
+      : null;
+  if (structuredMessage?.trim()) return ensureTrailingPeriod(structuredMessage);
+
+  const raw =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : "Something went wrong.";
+
+  const retryMatch = raw.match(PATTERNS.errorRetry);
+  if (retryMatch?.[1]) return ensureTrailingPeriod(retryMatch[1]);
+  const uncaughtMatch = raw.match(PATTERNS.errorUncaught);
+  if (uncaughtMatch?.[1]) return ensureTrailingPeriod(uncaughtMatch[1]);
+  const convexMatch = raw.match(PATTERNS.errorServer);
+  if (convexMatch?.[1]) return ensureTrailingPeriod(convexMatch[1]);
+
+  return ensureTrailingPeriod(raw);
 };

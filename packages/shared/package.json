@@ -3,22 +3,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tsc --watch",
-    "build": "tsc"
+    "lint": "eslint . --max-warnings 0"
   },
   "exports": {
-    "./utils": {
-      "types": "./dist/utils.d.ts",
-      "default": "./dist/utils.js"
-    },
-    "./constants/*": {
-      "types": "./dist/constants/*.d.ts",
-      "default": "./dist/constants/*.js"
-    },
-    "./atoms/*": {
-      "types": "./dist/atoms/*.d.ts",
-      "default": "./dist/atoms/*.js"
-    }
+    "./utils": "./src/utils.ts",
+    "./constants/*": "./src/constants/*.ts",
+    "./atoms/*": "./src/atoms/*.ts"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

@@ -80,7 +80,6 @@ export const WidgetSelectionScreen = () => {
     setIsPending(true);
     try {
       const conversationId = await createConversation({
-        organizationId,
         contactSessionId,
         // TODO: pass mode to backend when supported
       });

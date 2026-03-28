@@ -1,8 +1,11 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "@workspace/backend/_generated/server";
 
-import { normalizeCountryCode } from "@workspace/shared/lib/country-utils";
+import {
+  getCountryFromCode,
+  normalizeCountryCode,
+} from "@workspace/shared/lib/country-utils";
 import { sanitizeInput, validateInput } from "@workspace/shared/lib/utils";
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -11,7 +14,7 @@ export const create = mutation({
   args: {
     name: v.string(),
     email: v.string(),
-    organizationId: v.string(),
+    organizationId: v.id("organizations"),
     metadata: v.optional(
       v.object({
         userAgent: v.optional(v.string()),
@@ -39,11 +42,16 @@ export const create = mutation({
     const emailValidation = validateInput("email", sanitizedEmail);
 
     if (!nameValidation.valid) {
-      throw new Error(nameValidation.message);
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: nameValidation.message,
+      });
     }
-
     if (!emailValidation.valid) {
-      throw new Error(emailValidation.message);
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: emailValidation.message,
+      });
     }
 
     const now = Date.now();
@@ -89,6 +97,18 @@ export const create = mutation({
     const rawCountryCode = sanitizedMetadata?.countryCode;
     const normalizedCountryCode =
       normalizeCountryCode(rawCountryCode) ?? undefined;
+    const normalizedCountry = normalizedCountryCode
+      ? (getCountryFromCode(normalizedCountryCode)?.name ?? undefined)
+      : sanitizedMetadata?.country;
+
+    const organization = await ctx.db.get(args.organizationId);
+
+    if (!organization) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Organization not found",
+      });
+    }
 
     const contactSessionId = await ctx.db.insert("contactSessions", {
       name: sanitizedName,
@@ -99,6 +119,7 @@ export const create = mutation({
         ? {
             ...sanitizedMetadata,
             countryCode: normalizedCountryCode,
+            country: normalizedCountry,
           }
         : undefined,
     });

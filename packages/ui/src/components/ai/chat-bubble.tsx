@@ -28,7 +28,7 @@ export const ChatBubble = ({
   onRetry,
 }: ChatBubbleProps) => {
   const isUser = variant === "user";
-  const isGenerating = status === "generating" || status === "sending";
+  const isAIGenerating = status === "generating";
   const isFailed = status === "failed";
 
   const gradient = isUser
@@ -46,7 +46,7 @@ export const ChatBubble = ({
         isUser && "flex-row-reverse",
       )}
     >
-      {!isUser && <AgentAvatar isThinking={isGenerating} seed={avatarSeed} />}
+      {!isUser && <AgentAvatar isThinking={isAIGenerating} seed={avatarSeed} />}
 
       <div
         className={cn(
@@ -77,17 +77,25 @@ export const ChatBubble = ({
               isFailed && !isUser ? "text-foreground" : "text-white",
             )}
           >
-            {isGenerating && !isUser ? (
+            {isAIGenerating && !isUser ? (
               <ThinkingEllipsis />
             ) : (
-              <MessageResponse>{text}</MessageResponse>
+              <MessageResponse
+                className={cn(
+                  isFailed &&
+                    !isUser &&
+                    "text-rose-300 italic font-light text-xs",
+                )}
+              >
+                {isFailed && !isUser ? "Response failed" : text}
+              </MessageResponse>
             )}
           </div>
         </MessageContent>
 
         {isFailed && (
-          <div className="flex gap-2 items-center px-1">
-            <span className="text-[10px] font-medium text-rose-500 uppercase tracking-wider">
+          <div className="flex gap-2 items-center px-1 mt-2">
+            <span className="text-[10px] font-medium text-rose-500 tracking-wide">
               {error || "Failed"}
             </span>
             {onRetry && (
@@ -98,7 +106,7 @@ export const ChatBubble = ({
                   isRetrying ? "Retrying message" : "Retry sending message"
                 }
                 onClick={onRetry}
-                className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors disabled:opacity-50"
+                className="text-[10px] text-rose-400 hover:text-primary flex items-center gap-1 transition-colors disabled:opacity-50"
               >
                 <RefreshCwIcon
                   className={cn("size-2.5", isRetrying && "animate-spin")}

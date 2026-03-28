@@ -2,7 +2,7 @@ import { atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { atomWithStorage } from "jotai/utils";
 
-import { Id } from "@workspace/backend/_generated/dataModel.js";
+import type { Id } from "@workspace/backend/_generated/dataModel";
 
 import { ConversationStatus } from "@workspace/shared/constants/conversation";
 import {

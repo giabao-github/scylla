@@ -6,7 +6,11 @@
     "setup": "cross-env CONVEX_TMPDIR=../../.convex-tmp convex dev --until-success"
   },
   "exports": {
-    "./convex": "./convex/*.ts"
+    "./convex/*": "./convex/*.ts",
+    "./_generated/*": {
+      "types": "./convex/_generated/*.d.ts",
+      "default": "./convex/_generated/*.js"
+    }
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
@@ -16,7 +20,7 @@
     "typescript": "latest"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.43",
+    "@ai-sdk/google": "^3.0.53",
     "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/provider-utils": "^4.0.19",
     "@clerk/backend": "^3.0.1",
@@ -26,6 +30,7 @@
     "@workspace/ui": "workspace:*",
     "ai": "^6.0.116",
     "convex": "^1.34.0",
-    "convex-helpers": "^0.1.114"
+    "convex-helpers": "^0.1.114",
+    "zod": "^4.3.4"
   }
 }

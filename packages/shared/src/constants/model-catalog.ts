@@ -50,6 +50,20 @@ export const modelCatalog = [
     providers: ["google"],
   },
   {
+    chef: "Google",
+    chefSlug: "google",
+    id: "gemini-flash-lite-latest",
+    name: "Gemini Flash Lite Latest",
+    providers: ["google"],
+  },
+  {
+    chef: "Google",
+    chefSlug: "google",
+    id: "gemini-flash-latest",
+    name: "Gemini Flash Latest",
+    providers: ["google"],
+  },
+  {
     chef: "OpenAI",
     chefSlug: "openai",
     id: "gpt-4o-mini",

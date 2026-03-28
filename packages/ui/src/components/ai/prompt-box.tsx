@@ -274,8 +274,14 @@ const DEFAULT_TOOLS: PromptBoxToolsConfig = {
 
 export const PromptBoxActions = ({
   tools,
+  enhanceDisabled,
+  enhanceText,
+  onEnhance,
 }: {
   tools?: PromptBoxToolsConfig;
+  enhanceDisabled?: boolean;
+  enhanceText?: string;
+  onEnhance?: () => void;
 }) => {
   const resolvedTools = { ...DEFAULT_TOOLS, ...tools };
   return (
@@ -312,7 +318,8 @@ export const PromptBoxActions = ({
 
       {resolvedTools.enhance && (
         <PromptInputButton
-          disabled // TODO: Implement enhance functionality
+          disabled={enhanceDisabled ?? !onEnhance}
+          onClick={onEnhance}
           tooltip={{ content: "Enhance message", side: "top" }}
           className={cn(
             "h-7 gap-1.5 px-2 rounded-full text-xs font-medium",
@@ -322,7 +329,7 @@ export const PromptBoxActions = ({
           )}
         >
           <SparklesIcon className={cn("size-3.5 shrink-0")} />
-          <span>Enhance</span>
+          <span>{enhanceText ?? "Enhance"}</span>
         </PromptInputButton>
       )}
     </div>
@@ -331,8 +338,14 @@ export const PromptBoxActions = ({
 
 export const PromptBoxDefaultTools = ({
   tools,
+  enhanceDisabled,
+  enhanceText,
+  onEnhance,
 }: {
   tools?: PromptBoxToolsConfig;
+  enhanceDisabled?: boolean;
+  enhanceText?: string;
+  onEnhance?: () => void;
 }) => {
   const resolvedTools = { ...DEFAULT_TOOLS, ...tools };
   const showDivider =
@@ -344,7 +357,12 @@ export const PromptBoxDefaultTools = ({
   return (
     <TooltipProvider>
       <PromptInputTools className="gap-0.5">
-        <PromptBoxActions tools={resolvedTools} />
+        <PromptBoxActions
+          tools={resolvedTools}
+          enhanceDisabled={enhanceDisabled}
+          enhanceText={enhanceText}
+          onEnhance={onEnhance}
+        />
         {showDivider && (
           <div
             aria-hidden

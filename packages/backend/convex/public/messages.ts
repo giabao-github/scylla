@@ -1,21 +1,24 @@
 import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
-import { Agent } from "@convex-dev/agent";
-import type { LanguageModel } from "ai";
+import { Agent, saveMessage } from "@convex-dev/agent";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { components, internal } from "@workspace/backend/_generated/api";
 import { action, query } from "@workspace/backend/_generated/server";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
-import { getThreadById } from "@workspace/backend/system/conversations";
+import { escalateConversation } from "@workspace/backend/system/ai/tools/escalateConversation";
+import { resolveConversation } from "@workspace/backend/system/ai/tools/resolveConversation";
+import { getConversationByThreadId } from "@workspace/backend/system/utils";
 
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { modelCatalog } from "@workspace/shared/constants/model-catalog";
 
+const MAX_REQUEST_IDS = 100;
+const MAX_PROMPT_LENGTH = 10_000;
 const ALLOWED_MODEL_IDS = new Set<string>(modelCatalog.map((m) => m.id));
 
-const resolveModel = (modelId: string): LanguageModel => {
+const resolveModel = (modelId: string) => {
   if (!ALLOWED_MODEL_IDS.has(modelId)) {
     throw new ConvexError({
       code: "BAD_REQUEST",
@@ -31,13 +34,27 @@ const resolveModel = (modelId: string): LanguageModel => {
   });
 };
 
-const agentForModel = (modelId: string | undefined): typeof supportAgent =>
-  modelId
+const agentForModel = (modelId: string | undefined, status: string) => {
+  const tools: Record<string, any> = {};
+
+  if (status === CONVERSATION_STATUS.UNRESOLVED) {
+    tools.resolveConversation = resolveConversation;
+    tools.escalateConversation = escalateConversation;
+  }
+
+  const base = modelId
     ? new Agent(components.agent, {
         ...supportAgent.options,
         languageModel: resolveModel(modelId),
+        tools,
       })
-    : supportAgent;
+    : new Agent(components.agent, {
+        ...supportAgent.options,
+        tools,
+      });
+
+  return base;
+};
 
 export const create = action({
   args: {
@@ -56,83 +73,142 @@ export const create = action({
       { contactSessionId },
     );
 
-    if (!contactSession) {
+    if (!contactSession || contactSession.expiresAt < Date.now()) {
       throw new ConvexError({
         code: "UNAUTHORIZED",
-        message: "Invalid session",
-      });
-    }
-
-    if (contactSession.expiresAt < Date.now()) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Expired session",
+        message: "Invalid or expired session",
       });
     }
 
     const conversation = await ctx.runQuery(
-      internal.system.conversations.getThreadByIdQuery,
+      internal.system.conversations.getConversationByThreadIdQuery,
       { threadId },
     );
 
-    if (!conversation) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Conversation not found",
-      });
-    }
-
-    if (conversation.contactSessionId !== contactSessionId) {
+    if (!conversation || conversation.contactSessionId !== contactSessionId) {
       throw new ConvexError({
         code: "UNAUTHORIZED",
-        message: "Not authorized to access this conversation",
+        message: "Not authorized to access this thread",
       });
     }
 
     if (conversation.status === CONVERSATION_STATUS.RESOLVED) {
       throw new ConvexError({
         code: "BAD_REQUEST",
-        message: "Conversation resolved",
+        message: "This conversation has already been resolved",
       });
     }
 
-    const { duplicate } = await ctx.runMutation(
-      internal.system.messageRequests.claim,
-      { requestId, contactSessionId, conversationId: conversation._id },
+    if (!prompt.trim()) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Prompt cannot be empty",
+      });
+    }
+
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: `Prompt exceeds maximum allowed length of ${MAX_PROMPT_LENGTH}`,
+      });
+    }
+
+    const result = await ctx.runMutation(
+      internal.system.messageRequests.claimAndSaveUserMessage,
+      { requestId, contactSessionId },
     );
 
-    if (duplicate) return;
-
-    // TODO: implement subscription check
-
-    let result: { text: string };
-    try {
-      await ctx.runMutation(internal.system.conversations.updateLastMessage, {
-        threadId,
-        lastMessage: { text: prompt, role: "user" },
-      });
-
-      const agent = agentForModel(modelId);
-      const { thread } = await agent.continueThread(ctx, { threadId });
-      result = await thread.generateText({ prompt } as any);
-    } catch (err) {
-      await ctx.runMutation(internal.system.messageRequests.release, {
-        requestId,
-      });
-      throw err;
+    if (result.status === "already_done" || result.status === "in_progress") {
+      return;
     }
 
-    // Post-generation sync should not reopen idempotency window
+    const userMessageId =
+      result.status === "retry" ? result.userMessageId : null;
+    const aiResponseSaved =
+      result.status === "retry" ? result.aiResponseSaved : false;
+
     try {
-      await ctx.runMutation(internal.system.conversations.updateLastMessage, {
-        threadId,
-        lastMessage: { text: result.text, role: "assistant" },
+      if (!userMessageId) {
+        const { messageId, message } = await saveMessage(
+          ctx,
+          components.agent,
+          {
+            threadId,
+            message: { role: "user", content: prompt },
+          },
+        );
+
+        await ctx.runMutation(
+          internal.system.messageRequests.setUserMessageId,
+          {
+            requestId,
+            messageId,
+          },
+        );
+
+        await ctx.runMutation(internal.system.conversations.updateLastMessage, {
+          threadId,
+          lastMessage: { text: prompt, role: "user" },
+          messageAt: message._creationTime,
+        });
+      }
+
+      if (conversation.status === CONVERSATION_STATUS.UNRESOLVED) {
+        const agent = agentForModel(modelId, conversation.status);
+        const { thread } = await agent.continueThread(ctx, { threadId });
+
+        if (!aiResponseSaved) {
+          const aiResponse = await thread.generateText({});
+          const lastSavedMessage =
+            aiResponse.savedMessages[aiResponse.savedMessages.length - 1];
+          const aiMessageAt = lastSavedMessage?._creationTime ?? Date.now();
+
+          if (aiResponse.text) {
+            await ctx.runMutation(
+              internal.system.messageRequests.markAiResponseSaved,
+              { requestId },
+            );
+
+            try {
+              await ctx.runMutation(
+                internal.system.conversations.updateLastMessage,
+                {
+                  threadId,
+                  lastMessage: { text: aiResponse.text, role: "assistant" },
+                  messageAt: aiMessageAt,
+                },
+              );
+            } catch (err) {
+              console.error(
+                "Failed to sync last message after AI generation",
+                err,
+              );
+            }
+          }
+        }
+      }
+
+      await ctx.runMutation(internal.system.messageRequests.updateStatus, {
+        requestId,
+        status: "completed",
       });
     } catch (err) {
-      console.error(
-        `Failed to sync the last message for thread '${threadId}'`,
-        err instanceof Error ? err.message : err,
-      );
+      try {
+        await ctx.runMutation(internal.system.messageRequests.updateStatus, {
+          requestId,
+          status: "error",
+        });
+      } catch (updateErr) {
+        console.error(
+          `Failed to update error status for request [${requestId}]:`,
+          updateErr,
+        );
+      }
+      console.error("[AI] generation failed", {
+        requestId,
+        error: err,
+      });
+      throw err;
     }
   },
 });
@@ -146,21 +222,14 @@ export const getMany = query({
   handler: async (ctx, args) => {
     const contactSession = await ctx.db.get(args.contactSessionId);
 
-    if (!contactSession) {
+    if (!contactSession || contactSession.expiresAt < Date.now()) {
       throw new ConvexError({
         code: "UNAUTHORIZED",
-        message: "Invalid session",
+        message: "Invalid or expired session",
       });
     }
 
-    if (contactSession.expiresAt < Date.now()) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Expired session",
-      });
-    }
-
-    const conversation = await getThreadById(ctx, args.threadId);
+    const conversation = await getConversationByThreadId(ctx, args.threadId);
 
     if (!conversation) {
       throw new ConvexError({
@@ -182,5 +251,56 @@ export const getMany = query({
     });
 
     return paginated;
+  },
+});
+
+export const getMessageIdsByRequestIds = query({
+  args: {
+    requestIds: v.array(v.string()),
+    contactSessionId: v.id("contactSessions"),
+  },
+  handler: async (
+    ctx,
+    { requestIds, contactSessionId },
+  ): Promise<Record<string, string> | null> => {
+    if (requestIds.length > MAX_REQUEST_IDS) {
+      console.error("Too many request IDs", {
+        count: requestIds.length,
+        max: MAX_REQUEST_IDS,
+        requestIds: requestIds.slice(0, 10),
+      });
+
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: `Too many request IDs (max: ${MAX_REQUEST_IDS})`,
+        context: {
+          count: requestIds.length,
+        },
+      });
+    }
+
+    const contactSession = await ctx.db.get(contactSessionId);
+
+    if (!contactSession || contactSession.expiresAt < Date.now()) {
+      return null;
+    }
+
+    const results = await Promise.all(
+      requestIds.map((requestId) =>
+        ctx.db
+          .query("messageRequests")
+          .withIndex("by_request_id", (q) => q.eq("requestId", requestId))
+          .unique(),
+      ),
+    );
+
+    return Object.fromEntries(
+      results
+        .filter(
+          (r) =>
+            r?.userMessageId != null && r.contactSessionId === contactSessionId,
+        )
+        .map((r) => [r!.requestId, r!.userMessageId!]),
+    );
   },
 });

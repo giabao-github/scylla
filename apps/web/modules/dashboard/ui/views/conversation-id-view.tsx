@@ -1,13 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
-import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
+import {
+  CONVERSATION_STATUS,
+  ConversationStatus,
+} from "@workspace/shared/constants/conversation";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import {
@@ -24,19 +27,26 @@ import {
 } from "@workspace/ui/components/ai/prompt-input";
 import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import { Loader2Icon, MoreHorizontalIcon } from "lucide-react";
 import { nanoid } from "nanoid";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { z } from "zod";
+
+import { ConversationStatusButton } from "@/modules/dashboard/ui/components/conversation-status-button";
 
 type PendingSlot = {
   localId: string;
   requestId: string;
   text: string;
   prompt: PromptInputMessage;
-  snapshotIds: Set<string>;
+  cutoffId?: string;
 } & (
   | { status: "sending" }
   | { status: "failed"; error: string; retryable: boolean }
@@ -49,7 +59,18 @@ const formSchema = z.object({
 const isVisibleMessage = (m: { role: string; text?: string }) =>
   m.role === "user" || !!m.text;
 
-const PAGE_SIZE = 13;
+const PAGE_SIZE = 7;
+const MESSAGES = [
+  { isUser: false, width: "w-52" },
+  { isUser: true, width: "w-64" },
+  { isUser: false, width: "w-72" },
+  { isUser: true, width: "w-48" },
+  { isUser: false, width: "w-60" },
+  { isUser: true, width: "w-56" },
+  { isUser: false, width: "w-44" },
+  { isUser: true, width: "w-52" },
+] as const;
+const MESSAGE_CONTAINER_MAX_HEIGHT = "calc(100vh - 190px)";
 
 export const ConversationIdView = ({
   conversationId,
@@ -57,18 +78,24 @@ export const ConversationIdView = ({
   conversationId: string;
 }) => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLastMessageIdRef = useRef<string | undefined>(undefined);
   const prevPendingSlotsLenRef = useRef(0);
   const isAtBottomRef = useRef(true);
+  const enhanceRequestIdRef = useRef(0);
 
-  const conversation = useQuery(
-    api.private.conversations.getOne,
-    conversationId?.length > 0
-      ? { conversationId: conversationId as Id<"conversations"> }
-      : "skip",
-  );
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { message: "" },
+    mode: "onChange",
+  });
+
+  const conversation = useQuery(api.private.conversations.getOne, {
+    conversationId: conversationId as Id<"conversations">,
+  });
 
   const messages = useThreadMessages(
     api.private.messages.getMany,
@@ -77,6 +104,9 @@ export const ConversationIdView = ({
   );
 
   const createMessage = useMutation(api.private.messages.create);
+  const updateStatus = useMutation(api.private.conversations.updateStatus);
+
+  const enhanceResponse = useAction(api.private.messages.enhanceResponse);
 
   const { topElementRef, handleLoadMore, canLoadMore, isLoadingMore } =
     useInfiniteScroll({
@@ -85,9 +115,29 @@ export const ConversationIdView = ({
       loadSize: PAGE_SIZE,
     });
 
-  const messagesCount = messages.results?.length ?? 0;
-  const pendingSlotsLen = pendingSlots.length;
-  const lastMessageId = messages.results?.[messagesCount - 1]?._id;
+  const lastMessageId = messages.results?.at(-1)?._id;
+  const sendingSlot = pendingSlots.find((s) => s.status === "sending");
+  const isSending = !!sendingSlot;
+  const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
+  const isBlocked = !conversation || isResolved || isSending || isEnhancing;
+  const submitDisabled =
+    isBlocked || !form.formState.isValid || form.formState.isSubmitting;
+
+  const uiMessages = useMemo(
+    () => toUIMessages(messages.results ?? []),
+    [messages.results],
+  );
+  const visibleMessages = useMemo(
+    () => uiMessages.filter(isVisibleMessage),
+    [uiMessages],
+  );
+  const baseMessages = useMemo(() => {
+    if (!sendingSlot?.cutoffId) return visibleMessages;
+    const index = visibleMessages.findIndex(
+      (m) => m.id === sendingSlot.cutoffId,
+    );
+    return index === -1 ? visibleMessages : visibleMessages.slice(0, index + 1);
+  }, [visibleMessages, sendingSlot]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -98,12 +148,61 @@ export const ConversationIdView = ({
     });
   }, []);
 
-  const handleScroll = useCallback(() => {
+  const handleScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
     isAtBottomRef.current =
       el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-  }, []);
+  };
+
+  const handleToggleStatus = async () => {
+    if (!conversation) return;
+
+    setUpdatingStatus(true);
+    let newStatus: ConversationStatus;
+
+    if (conversation.status === CONVERSATION_STATUS.UNRESOLVED) {
+      newStatus = CONVERSATION_STATUS.ESCALATED;
+    } else if (conversation.status === CONVERSATION_STATUS.ESCALATED) {
+      newStatus = CONVERSATION_STATUS.RESOLVED;
+    } else {
+      newStatus = CONVERSATION_STATUS.UNRESOLVED;
+    }
+
+    try {
+      await updateStatus({
+        conversationId: conversationId as Id<"conversations">,
+        status: newStatus,
+      });
+    } catch (error) {
+      console.error("Failed to update conversation status:", error);
+      toast.error("Failed to update status. Please try again.");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleEnhanceResponse = async () => {
+    const currentValue = form.getValues("message");
+    if (isBlocked || !currentValue.trim()) return;
+    const requestId = ++enhanceRequestIdRef.current;
+    setIsEnhancing(true);
+    try {
+      const response = await enhanceResponse({
+        prompt: currentValue,
+      });
+      if (requestId !== enhanceRequestIdRef.current) return;
+      form.setValue("message", response, { shouldValidate: true });
+    } catch (error) {
+      if (requestId !== enhanceRequestIdRef.current) return;
+      console.error("Failed to enhance response:", error);
+      toast.error("Failed to enhance response. Please try again.");
+    } finally {
+      if (requestId === enhanceRequestIdRef.current) {
+        setIsEnhancing(false);
+      }
+    }
+  };
 
   const sendMessage = async (
     localId: string,
@@ -120,8 +219,8 @@ export const ConversationIdView = ({
     } catch (error) {
       console.error("Failed to send message:", error);
       const isResolvedConversation =
-        error instanceof Error &&
-        (error as { code?: string }).code === "CONVERSATION_RESOLVED";
+        error instanceof ConvexError &&
+        error.data?.code === "CONVERSATION_RESOLVED";
       setPendingSlots((prev) =>
         prev.map((s) =>
           s.localId === localId
@@ -139,8 +238,48 @@ export const ConversationIdView = ({
     }
   };
 
+  const handleSubmit = (promptMessage: PromptInputMessage) => {
+    const text = promptMessage.text.trim();
+    if (isBlocked || !text) return;
+
+    const localId = nanoid();
+    const requestId = nanoid();
+    const cutoffId = visibleMessages.at(-1)?.id;
+
+    form.setValue("message", "");
+    setPendingSlots((prev) => [
+      ...prev,
+      {
+        localId,
+        requestId,
+        text,
+        prompt: promptMessage,
+        cutoffId,
+        status: "sending",
+      },
+    ]);
+
+    sendMessage(localId, text, requestId);
+  };
+
+  const handleRetry = (localId: string) => {
+    const slot = pendingSlots.find((s) => s.localId === localId);
+    const isRetryBlocked =
+      isBlocked || !slot || (slot.status === "failed" && !slot.retryable);
+
+    if (isRetryBlocked) return;
+
+    setPendingSlots((prev) =>
+      prev.map((s) =>
+        s.localId === localId ? { ...s, status: "sending" as const } : s,
+      ),
+    );
+
+    sendMessage(localId, slot.prompt.text.trim(), slot.requestId);
+  };
+
   useEffect(() => {
-    const slotsIncreased = pendingSlotsLen > prevPendingSlotsLenRef.current;
+    const slotsIncreased = pendingSlots.length > prevPendingSlotsLenRef.current;
     const isNewMessage = lastMessageId !== prevLastMessageIdRef.current;
 
     if (slotsIncreased) {
@@ -151,88 +290,47 @@ export const ConversationIdView = ({
     }
 
     prevLastMessageIdRef.current = lastMessageId;
-    prevPendingSlotsLenRef.current = pendingSlotsLen;
-  }, [lastMessageId, pendingSlotsLen, scrollToBottom]);
+    prevPendingSlotsLenRef.current = pendingSlots.length;
+  }, [lastMessageId, pendingSlots.length, scrollToBottom]);
 
   useEffect(() => {
+    enhanceRequestIdRef.current += 1;
+    form.reset({ message: "" });
+    setIsEnhancing(false);
     prevLastMessageIdRef.current = undefined;
     prevPendingSlotsLenRef.current = 0;
     isAtBottomRef.current = true;
     setPendingSlots([]);
-  }, [conversationId]);
+  }, [conversationId, form]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { message: "" },
-  });
+  if (conversation === undefined || messages.status === "LoadingFirstPage") {
+    return <ConversationIdViewSkeleton />;
+  }
 
-  const message = form.watch("message");
-  const isSending = pendingSlots.some((s) => s.status === "sending");
-
-  const handleSubmit = async (promptMessage: PromptInputMessage) => {
-    const text = promptMessage.text.trim();
-    if (!conversation || !text || isSending) return;
-
-    const localId = nanoid();
-    const requestId = nanoid();
-    const snapshotIds = new Set<string>(
-      toUIMessages(messages.results ?? [])
-        .filter(isVisibleMessage)
-        .map((m) => m.id),
-    );
-
-    form.setValue("message", "");
-    setPendingSlots((prev) => [
-      ...prev,
-      {
-        localId,
-        requestId,
-        text,
-        prompt: promptMessage,
-        snapshotIds,
-        status: "sending",
-      },
-    ]);
-
-    await sendMessage(localId, text, requestId);
-  };
-
-  const handleRetry = async (localId: string) => {
-    const slot = pendingSlots.find((s) => s.localId === localId);
-    if (!slot || isSending) return;
-    if (slot.status === "failed" && !slot.retryable) return;
-
-    setPendingSlots((prev) =>
-      prev.map((s) =>
-        s.localId === localId ? { ...s, status: "sending" as const } : s,
-      ),
-    );
-
-    await sendMessage(localId, slot.prompt.text.trim(), slot.requestId);
-  };
-
-  if (conversation === undefined) {
+  if (!conversation) {
     return (
-      <div className="flex flex-col gap-y-4 justify-center items-center h-full">
-        <div className="loader" />
-        <p>Loading conversation...</p>
+      <div
+        className="flex flex-col gap-y-16 justify-center items-center h-full"
+        role="alert"
+        aria-live="polite"
+      >
+        <p className="text-muted-foreground">
+          This conversation is no longer available.
+        </p>
+        <div
+          className="dino-loader [--dino-loader-height:140px]"
+          aria-hidden="true"
+        >
+          <div className="dino-runner"></div>
+          <div className="dino-obstacle"></div>
+          <div className="dino-ground"></div>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/conversations">Go to conversations</Link>
+        </Button>
       </div>
     );
   }
-
-  const uiMessages = toUIMessages(messages.results ?? []);
-  const visibleMessages = uiMessages.filter(isVisibleMessage);
-
-  const sendingSlot = pendingSlots.find((s) => s.status === "sending");
-  const baseMessages = sendingSlot
-    ? visibleMessages.filter((m) => sendingSlot.snapshotIds.has(m.id))
-    : visibleMessages;
-
-  const submitDisabled =
-    !message.trim() ||
-    !conversation ||
-    conversation.status === CONVERSATION_STATUS.RESOLVED ||
-    isSending;
 
   return (
     <div className="flex flex-col h-full bg-muted">
@@ -244,6 +342,11 @@ export const ConversationIdView = ({
         >
           <MoreHorizontalIcon />
         </Button>
+        <ConversationStatusButton
+          disabled={updatingStatus}
+          status={conversation.status}
+          onClick={handleToggleStatus}
+        />
       </header>
 
       <div
@@ -251,7 +354,7 @@ export const ConversationIdView = ({
         onScroll={handleScroll}
         className="flex overflow-y-auto flex-col gap-5 px-4 py-6 h-full"
         style={{
-          maxHeight: "calc(100vh - 190px)",
+          maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT,
           scrollbarWidth: "thin",
           scrollbarColor: "#C4B5FD transparent",
         }}
@@ -310,7 +413,7 @@ export const ConversationIdView = ({
         ))}
       </div>
 
-      {conversation.status !== CONVERSATION_STATUS.RESOLVED && (
+      {!isResolved && (
         <div className="relative z-10 px-16 pt-2 pb-4 w-full bg-transparent shrink-0">
           <div className="mx-auto max-w-full">
             <Form {...form}>
@@ -333,8 +436,9 @@ export const ConversationIdView = ({
                     control={form.control}
                     render={({ field }) => (
                       <PromptInputTextarea
+                        disabled={isSending || isEnhancing}
                         placeholder="Response to your client..."
-                        className="text-sm"
+                        className="text-sm placeholder:text-muted-foreground/50"
                         onChange={field.onChange}
                         value={field.value}
                       />
@@ -343,7 +447,12 @@ export const ConversationIdView = ({
                 </PromptInputBody>
                 <PromptInputFooter>
                   <PromptBoxDefaultTools
-                    tools={{ enhance: true }} // TODO: implement enhancing text
+                    tools={{ enhance: true, modelSelector: false }}
+                    enhanceDisabled={
+                      isSending || isEnhancing || !form.formState.isValid
+                    }
+                    enhanceText={isEnhancing ? "Enhancing..." : "Enhance"}
+                    onEnhance={handleEnhanceResponse}
                   />
                   <PromptInputSubmit
                     disabled={submitDisabled}
@@ -357,13 +466,81 @@ export const ConversationIdView = ({
         </div>
       )}
 
-      {conversation.status === CONVERSATION_STATUS.RESOLVED && (
-        <div className="flex justify-center items-center px-4 py-3 shrink-0">
-          <p className="text-sm text-muted-foreground">
+      {isResolved && (
+        <div className="flex justify-center items-center cursor-default shrink-0">
+          <p className="text-sm text-muted-foreground/80">
             This conversation has been resolved
           </p>
         </div>
       )}
+    </div>
+  );
+};
+
+export const ConversationIdViewSkeleton = () => {
+  return (
+    <div className="flex flex-col h-full bg-muted">
+      {/* Header */}
+      <header className="flex items-center justify-between border-b bg-background p-2.5 shrink-0">
+        <Button size="sm" variant="ghost" disabled aria-hidden>
+          <MoreHorizontalIcon />
+        </Button>
+        <Skeleton className="w-28 h-8 rounded-full bg-slate-300" />
+      </header>
+
+      {/* Message feed */}
+      <div
+        className="flex flex-col gap-5 px-4 py-6 h-full"
+        style={{ maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT }}
+      >
+        {MESSAGES.map(({ isUser, width }, index) => (
+          <div
+            key={index}
+            className={cn(
+              "flex gap-2 items-start w-full",
+              isUser ? "justify-end" : "justify-start",
+            )}
+          >
+            {!isUser && (
+              <Skeleton className="rounded-full size-[30px] shrink-0 bg-slate-300" />
+            )}
+            <Skeleton className={cn("h-[43px] bg-slate-300", width)} />
+          </div>
+        ))}
+      </div>
+
+      {/* Prompt box */}
+      <div className="relative z-10 px-16 pt-2 pb-4 w-full bg-transparent shrink-0">
+        <div className="mx-auto max-w-full">
+          <PromptBox
+            onSubmit={() => {}}
+            className={cn(
+              "bg-transparent backdrop-blur-sm",
+              "rounded-lg border border-border/60",
+              "shadow-lg shadow-black/6",
+              "transition-all duration-200",
+            )}
+          >
+            <PromptInputBody>
+              <PromptInputTextarea
+                disabled
+                placeholder="Response to your client..."
+                className="text-sm placeholder:text-muted-foreground/50"
+                value=""
+                onChange={() => {}}
+              />
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptBoxDefaultTools
+                tools={{ enhance: true, modelSelector: false }}
+                enhanceDisabled
+                enhanceText="Enhance"
+              />
+              <PromptInputSubmit disabled status="ready" />
+            </PromptInputFooter>
+          </PromptBox>
+        </div>
+      </div>
     </div>
   );
 };
