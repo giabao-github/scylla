@@ -26,6 +26,7 @@
     "@clerk/backend": "^3.0.1",
     "@clerk/nextjs": "^6.37.3",
     "@convex-dev/agent": "^0.3.2",
+    "@convex-dev/rag": "^0.7.2",
     "@workspace/shared": "workspace:*",
     "@workspace/ui": "workspace:*",
     "ai": "^6.0.116",

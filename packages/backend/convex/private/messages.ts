@@ -43,6 +43,12 @@ export const create = mutation({
       });
     }
 
+    if (conversation.status === CONVERSATION_STATUS.UNRESOLVED) {
+      await ctx.db.patch(conversationId, {
+        status: CONVERSATION_STATUS.ESCALATED,
+      });
+    }
+
     if (!prompt.trim()) {
       throw new ConvexError({
         code: "BAD_REQUEST",
