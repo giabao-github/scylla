@@ -7,8 +7,8 @@ import { components, internal } from "@workspace/backend/_generated/api";
 export const resolveConversation = createTool({
   description:
     "Resolve and close the conversation. Use this when the user's issue has been fully addressed, the user confirms they're satisfied, or there are no further questions remaining.",
-  args: z.object({}),
-  handler: async (ctx) => {
+  inputSchema: z.object({}),
+  execute: async (ctx) => {
     if (!ctx.threadId) {
       throw new ConvexError({
         message: "Cannot resolve conversation: missing thread ID",

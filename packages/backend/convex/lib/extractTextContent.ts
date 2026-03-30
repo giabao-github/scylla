@@ -19,13 +19,6 @@ const SUPPORTED_IMAGE_TYPES = [
   "image/gif",
 ] as const;
 
-// Implement in future updates
-const SUPPORTED_VIDEO_TYPES = [
-  "video/mp4",
-  "video/webm",
-  "video/mpeg",
-] as const;
-
 const SYSTEM_PROMPTS = {
   image: `
     You convert image input into structured text.
@@ -170,7 +163,7 @@ const extractTextFileContent = async (
 
   const text = new TextDecoder().decode(arrayBuffer);
 
-  if (mimeType.toLowerCase() !== "text/plain") {
+  if (mimeType !== "text/plain") {
     const result = await generateText({
       model: AI_MODELS.html,
       system: SYSTEM_PROMPTS.html,
@@ -207,23 +200,26 @@ export const extractTextContent = async (
     "text/markdown",
   ];
 
-  if (!allowedTypes.some((type) => mimeType.toLowerCase().startsWith(type))) {
+  const [base = ""] = mimeType.toLowerCase().split(";");
+  const normalizedMime = base.trim();
+
+  if (!allowedTypes.includes(normalizedMime)) {
     throw new Error(`Unsupported MIME type: ${mimeType}`);
   }
 
   const url = await ctx.storage.getUrl(storageId);
   assert(url, `Failed to get URL for storage [${storageId}]`);
 
-  if (SUPPORTED_IMAGE_TYPES.some((type) => type === mimeType.toLowerCase())) {
+  if (SUPPORTED_IMAGE_TYPES.some((type) => type === normalizedMime)) {
     return extractImageText(url);
   }
 
-  if (mimeType.toLowerCase().includes("pdf")) {
-    return extractPdfText(url, mimeType, filename);
+  if (normalizedMime === "application/pdf") {
+    return extractPdfText(url, normalizedMime, filename);
   }
 
-  if (mimeType.toLowerCase().includes("text")) {
-    return extractTextFileContent(ctx, storageId, bytes, mimeType);
+  if (normalizedMime.startsWith("text/")) {
+    return extractTextFileContent(ctx, storageId, bytes, normalizedMime);
   }
 
   throw new Error(`Unsupported MIME type: ${mimeType}`);

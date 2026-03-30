@@ -1,6 +1,5 @@
 import { google } from "@ai-sdk/google";
 import { Agent } from "@convex-dev/agent";
-import type { LanguageModel } from "ai";
 
 import { components } from "@workspace/backend/_generated/api";
 
@@ -55,6 +54,6 @@ When escalating, summarize the issue clearly for the handoff and let the user kn
 
 export const supportAgent = new Agent(components.agent, {
   name: "Scylla Support Agent",
-  languageModel: google.chat("gemini-flash-lite-latest") as LanguageModel,
+  languageModel: google.chat("gemini-flash-lite-latest"),
   instructions,
 });

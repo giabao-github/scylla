@@ -20,6 +20,10 @@ const guessMimeType = (filename: string, bytes: ArrayBuffer): string => {
   );
 };
 
+const isValidStorageId = (value: unknown): value is Id<"_storage"> => {
+  return typeof value === "string" && value.length > 0;
+};
+
 export const addFile = action({
   args: {
     filename: v.string(),
@@ -65,18 +69,21 @@ export const addFile = action({
         const entry = await rag.getEntry(ctx, { entryId });
         await ctx.storage.delete(storageId);
         const existingStorageId = entry?.metadata?.storageId;
+        const validStorageId = isValidStorageId(existingStorageId)
+          ? existingStorageId
+          : null;
 
         return {
-          url: existingStorageId
-            ? await ctx.storage.getUrl(existingStorageId as Id<"_storage">)
-            : null,
+          url: validStorageId ? await ctx.storage.getUrl(validStorageId) : null,
           entryId,
+          error: null,
         };
       }
 
       return {
         url: await ctx.storage.getUrl(storageId),
         entryId,
+        error: null,
       };
     } catch (error) {
       console.error("Failed to extract text content", error);
@@ -84,6 +91,7 @@ export const addFile = action({
       return {
         url: null,
         entryId: null,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   },
@@ -95,17 +103,6 @@ export const deleteFile = mutation({
   },
   handler: async (ctx, { entryId }) => {
     const { organizationId } = await getAuthenticatedOrgId(ctx);
-
-    const namespace = await rag.getNamespace(ctx, {
-      namespace: organizationId,
-    });
-
-    if (!namespace) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Namespace not found",
-      });
-    }
 
     const entry = await rag.getEntry(ctx, { entryId });
 
@@ -123,12 +120,14 @@ export const deleteFile = mutation({
       });
     }
 
-    if (entry.metadata?.storageId) {
-      await ctx.storage.delete(entry.metadata.storageId as Id<"_storage">);
-    }
-
     await rag.deleteAsync(ctx, {
       entryId,
     });
+
+    const storageIdToDelete = entry.metadata?.storageId;
+
+    if (isValidStorageId(storageIdToDelete)) {
+      await ctx.storage.delete(storageIdToDelete);
+    }
   },
 });

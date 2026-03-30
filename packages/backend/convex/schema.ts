@@ -13,11 +13,17 @@ export default defineSchema({
   organizations: defineTable({
     name: v.string(),
     organizationId: v.string(),
-  }).index("by_organization_id", ["organizationId"]),
+    deletionStatus: v.optional(
+      v.union(v.literal("active"), v.literal("deleting")),
+    ),
+    deletionStartedAt: v.optional(v.number()),
+  })
+    .index("by_organization_id", ["organizationId"])
+    .index("by_deletion_status", ["deletionStatus"]),
   contactSessions: defineTable({
     name: v.string(),
     email: v.string(),
-    organizationId: v.string(),
+    organizationId: v.id("organizations"),
     expiresAt: v.number(),
     metadata: v.optional(
       v.object({
@@ -43,7 +49,7 @@ export default defineSchema({
     .index("by_email", ["email"]),
   conversations: defineTable({
     threadId: v.string(),
-    organizationId: v.string(),
+    organizationId: v.id("organizations"),
     contactSessionId: v.id("contactSessions"),
     status: v.union(
       v.literal(CONVERSATION_STATUS.UNRESOLVED),

@@ -6,7 +6,7 @@ import { ConvexError, v } from "convex/values";
 
 import { components, internal } from "@workspace/backend/_generated/api";
 import { action, mutation, query } from "@workspace/backend/_generated/server";
-import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
+import { getAuthenticatedOrg, getAuthenticatedOrgId } from "@workspace/backend/private/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import { getConversationByThreadId } from "@workspace/backend/system/utils";
 
@@ -25,7 +25,8 @@ export const create = mutation({
     ctx,
     { conversationId, prompt, requestId },
   ): Promise<void> => {
-    const { identity, organizationId } = await getAuthenticatedOrgId(ctx);
+    const { identity, organization } = await getAuthenticatedOrg(ctx);
+    const organizationId = organization._id;
 
     const conversation = await ctx.db.get(conversationId);
 
@@ -40,12 +41,6 @@ export const create = mutation({
       throw new ConvexError({
         code: "CONVERSATION_RESOLVED",
         message: "Conversation resolved",
-      });
-    }
-
-    if (conversation.status === CONVERSATION_STATUS.UNRESOLVED) {
-      await ctx.db.patch(conversationId, {
-        status: CONVERSATION_STATUS.ESCALATED,
       });
     }
 
@@ -82,6 +77,13 @@ export const create = mutation({
         agentName: identity.name ?? identity.familyName ?? "Operator",
         message: { role: "assistant", content: prompt },
       }));
+
+      if (conversation.status === CONVERSATION_STATUS.UNRESOLVED) {
+        await ctx.db.patch(conversationId, {
+          status: CONVERSATION_STATUS.ESCALATED,
+          updatedAt: Date.now(),
+        });
+      }
     } catch (err) {
       try {
         await ctx.runMutation(
@@ -92,7 +94,7 @@ export const create = mutation({
         );
       } catch (cleanupErr) {
         console.error(
-          `Failed to remove stale request [${requestId}] after saveMessage failure:`,
+          `Failed to remove stale request [${requestId}] after message create failure:`,
           cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
         );
       }
@@ -121,7 +123,8 @@ export const getMany = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { organization } = await getAuthenticatedOrg(ctx);
+    const organizationId = organization._id;
 
     const conversation = await getConversationByThreadId(ctx, args.threadId);
 
@@ -186,7 +189,7 @@ export const enhanceResponse = action({
     try {
       // TODO: implement rate limiting / usage tracking to prevent AI cost abuse
       const response = await generateText({
-        model: google("gemini-flash-lite-latest"),
+        model: google.chat("gemini-flash-lite-latest"),
         messages: [
           { role: "system", content: enhancePrompt },
           { role: "user", content: prompt },

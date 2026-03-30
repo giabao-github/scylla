@@ -11,10 +11,10 @@ crons.cron(
   {},
 );
 
-crons.daily(
-  "Cleanup stale message requests",
-  { hourUTC: 0, minuteUTC: 0 },
-  internal.system.messageRequests.cleanup,
+crons.cron(
+  "Resume stuck organization deletions",
+  "*/30 * * * *",
+  internal.system.organizations.resumeStaleDeletions,
   {},
 );
 

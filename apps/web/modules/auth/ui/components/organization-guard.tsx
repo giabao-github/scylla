@@ -1,11 +1,13 @@
 "use client";
 
-import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
-import { AuthLayout } from "@/modules/auth/ui/layouts/auth-layout";
-import { SignInView } from "@/modules/auth/ui/views/sign-in-view";
 import { useOrganization } from "@clerk/nextjs";
-import { OrgSelectionView } from "@/modules/auth/ui/views/org-selection-view";
+import { AuthLoading, Authenticated, Unauthenticated } from "convex/react";
+
 import { AuthLoadingState } from "@/modules/auth/ui/components/auth-loading-state";
+import { OrganizationSyncGuard } from "@/modules/auth/ui/components/organization-sync-guard";
+import { AuthLayout } from "@/modules/auth/ui/layouts/auth-layout";
+import { OrgSelectionView } from "@/modules/auth/ui/views/org-selection-view";
+import { SignInView } from "@/modules/auth/ui/views/sign-in-view";
 
 export const OrganizationGuard = ({
   children,
@@ -14,20 +16,22 @@ export const OrganizationGuard = ({
 }) => {
   const { organization } = useOrganization();
 
-  if (!organization) {
-    return (
-      <AuthLayout>
-        <OrgSelectionView />
-      </AuthLayout>
-    );
-  }
-
   return (
     <>
       <AuthLoading>
         <AuthLoadingState />
       </AuthLoading>
-      <Authenticated>{children}</Authenticated>
+      <Authenticated>
+        {!organization ? (
+          <AuthLayout>
+            <OrgSelectionView />
+          </AuthLayout>
+        ) : (
+          <OrganizationSyncGuard organizationId={organization.id}>
+            {children}
+          </OrganizationSyncGuard>
+        )}
+      </Authenticated>
       <Unauthenticated>
         <AuthLayout>
           <SignInView />

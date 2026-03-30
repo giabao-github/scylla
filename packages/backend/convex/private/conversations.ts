@@ -3,7 +3,7 @@ import { ConvexError, v } from "convex/values";
 
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import { mutation, query } from "@workspace/backend/_generated/server";
-import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
+import { getAuthenticatedOrg } from "@workspace/backend/private/utils";
 
 import {
   CONVERSATION_STATUS,
@@ -21,7 +21,8 @@ export const getOne = query({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { organization } = await getAuthenticatedOrg(ctx);
+    const organizationId = organization._id;
     const conversation = await ctx.db.get(args.conversationId);
 
     if (!conversation) {
@@ -71,7 +72,8 @@ export const getMany = query({
     status: v.optional(statusValidator),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { organization } = await getAuthenticatedOrg(ctx);
+    const organizationId = organization._id;
     let conversations: PaginationResult<Doc<"conversations">>;
 
     if (args.status) {
@@ -167,7 +169,8 @@ export const updateStatus = mutation({
     status: statusValidator,
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { organization } = await getAuthenticatedOrg(ctx);
+    const organizationId = organization._id;
 
     const conversation = await ctx.db.get(args.conversationId);
 

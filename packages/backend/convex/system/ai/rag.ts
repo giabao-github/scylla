@@ -4,8 +4,8 @@ import { RAG } from "@convex-dev/rag";
 import { components } from "@workspace/backend/_generated/api";
 
 const rag = new RAG(components.rag, {
-  textEmbeddingModel: google.embedding("gemini-embedding-001"),
-  embeddingDimension: 1536,
+  textEmbeddingModel: google.embedding("gemini-embedding-2-preview"),
+  embeddingDimension: 3072,
 });
 
 export default rag;
