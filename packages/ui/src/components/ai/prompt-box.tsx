@@ -64,7 +64,6 @@ import { cn } from "@workspace/ui/lib/utils";
 
 interface PromptBoxContextValue {
   model: ModelId;
-  setModel: (id: ModelId) => void;
   modelSelectorOpen: boolean;
   setModelSelectorOpen: (open: boolean) => void;
   selectedModelData: (typeof modelCatalog)[number] | undefined;
@@ -111,19 +110,12 @@ export const PromptBoxProvider = ({ children }: { children: ReactNode }) => {
   const value = useMemo(
     () => ({
       model: safeModel,
-      setModel,
       modelSelectorOpen,
       setModelSelectorOpen,
       selectedModelData,
       handleModelSelect,
     }),
-    [
-      safeModel,
-      setModel,
-      modelSelectorOpen,
-      selectedModelData,
-      handleModelSelect,
-    ],
+    [safeModel, modelSelectorOpen, selectedModelData, handleModelSelect],
   );
 
   return (
@@ -182,7 +174,8 @@ const ModelItem = memo(({ m, selectedModel, onSelect }: ModelItemProps) => {
       value={m.id}
       className={cn(
         "cursor-pointer",
-        m.paid && "cursor-default opacity-50 hover:opacity-50 hover:bg-white!",
+        m.paid &&
+          "cursor-default opacity-50 hover:opacity-50 hover:bg-transparent!",
       )}
     >
       <ModelSelectorLogo provider={m.chefSlug} />
