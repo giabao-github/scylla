@@ -48,12 +48,11 @@ export const removeOrganization = internalAction({
       } while (conversationCursor !== null);
     } catch (error) {
       console.error(
-        `[removeOrganization] Conversation purge failed for org [${orgId}] ` +
+        `[removeOrganization] Conversation purge failed for organization [${orgId}] ` +
           `after ${purgedConversationCount} conversations. ` +
           `Will be retried by scheduled cleanup job.`,
         error,
       );
-      // Don't rethrow — let the org stay in "deleting" so the cron picks it up
       return;
     }
 
@@ -78,7 +77,7 @@ export const removeOrganization = internalAction({
       } while (sessionCursor !== null);
     } catch (error) {
       console.error(
-        `[removeOrganization] Session purge failed for org [${orgId}] ` +
+        `[removeOrganization] Session purge failed for organization [${orgId}] ` +
           `after ${purgedSessionCount} sessions. ` +
           `Will be retried by scheduled cleanup job.`,
         error,
@@ -87,12 +86,19 @@ export const removeOrganization = internalAction({
     }
 
     try {
-      await ctx.runMutation(internal.system.webhooks.clerk.finalizeDeletion, {
-        orgId,
-      });
+      const deleted = await ctx.runMutation(
+        internal.system.webhooks.clerk.finalizeDeletion,
+        { orgId },
+      );
+      if (!deleted) {
+        console.warn(
+          `[removeOrganization] Finalization incomplete for organization [${orgId}]. Will be retried by scheduled cleanup job.`,
+        );
+        return;
+      }
     } catch (error) {
       console.error(
-        `[removeOrganization] Finalization failed for org [${orgId}]. ` +
+        `[removeOrganization] Finalization failed for organization [${orgId}]. ` +
           `Will be retried by scheduled cleanup job.`,
         error,
       );
@@ -209,12 +215,20 @@ export const finalizeDeletion = internalMutation({
 
     if (sessions || conversations) {
       console.error(
-        `[finalizeDeletion] Dependents remain for org [${args.orgId}] — aborting. Will retry.`,
+        `[finalizeDeletion] Dependents remain for organization [${args.orgId}] — aborting. Will retry.`,
       );
-      return; // cron picks it up
+      return false;
     }
 
     const org = await ctx.db.get(args.orgId);
-    if (org) await ctx.db.delete(org._id);
+    if (!org) {
+      console.info(
+        `[finalizeDeletion] Organization [${args.orgId}] already deleted — treating as success.`,
+      );
+      return true;
+    }
+
+    await ctx.db.delete(org._id);
+    return true;
   },
 });

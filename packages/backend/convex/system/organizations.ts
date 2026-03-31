@@ -14,8 +14,8 @@ export const findStuckDeletions = internalQuery({
     const threshold = Date.now() - args.olderThanMs;
     return await ctx.db
       .query("organizations")
-      .withIndex("by_deletion_status", (q) =>
-        q.eq("deletionStatus", "deleting"),
+      .withIndex("by_deletion_status_and_started_at", (q) =>
+        q.eq("deletionStatus", "deleting").lt("deletionStartedAt", threshold),
       )
       .filter((q) =>
         q.and(
@@ -35,34 +35,20 @@ export const resumeStaleDeletions = internalAction({
       { olderThanMs: 10 * 60 * 1000 },
     );
 
-    const orgsWithoutTimestamp = stuckOrgs.filter(
-      (o) => o.deletionStartedAt === undefined,
-    );
-
-    if (orgsWithoutTimestamp.length > 0) {
-      console.warn(
-        `[resumeStaleDeletions] ${orgsWithoutTimestamp.length} org(s) in "deleting" state have no deletionStartedAt — skipping. IDs: ${orgsWithoutTimestamp.map((o) => o._id).join(", ")}`,
-      );
-    }
-
-    const orgsToResume = stuckOrgs.filter(
-      (o) => o.deletionStartedAt !== undefined,
-    );
-
-    if (orgsToResume.length === 0) {
+    if (stuckOrgs.length === 0) {
       return;
     }
 
     console.info(
-      `[resumeStaleDeletions] Found ${orgsToResume.length} stuck deletions. Resuming...`,
+      `[resumeStaleDeletions] Found ${stuckOrgs.length} stuck deletions. Resuming...`,
     );
 
     let succeeded = 0;
     let failed = 0;
-    for (const org of orgsToResume) {
+    for (const org of stuckOrgs) {
       try {
         console.info(
-          `[resumeStaleDeletions] Resuming deletion for org: ${org._id} (${org.organizationId})`,
+          `[resumeStaleDeletions] Resuming deletion for organization: [${org._id}] [${org.organizationId}]`,
         );
         await ctx.runAction(internal.system.webhooks.clerk.removeOrganization, {
           organizationId: org.organizationId,
@@ -71,7 +57,7 @@ export const resumeStaleDeletions = internalAction({
       } catch (error) {
         failed++;
         console.error(
-          `[resumeStaleDeletions] Failed to resume deletion for org ${org._id}:`,
+          `[resumeStaleDeletions] Failed to resume deletion for organization [${org._id}]:`,
           error,
         );
       }

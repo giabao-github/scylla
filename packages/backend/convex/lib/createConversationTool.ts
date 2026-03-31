@@ -14,7 +14,7 @@ export const createConversationTool = (options: {
     {
       threadId: string;
     },
-    null,
+    boolean,
     string | undefined
   >;
   confirmationMessage: string;
@@ -30,18 +30,25 @@ export const createConversationTool = (options: {
         });
       }
 
-      await ctx.runMutation(options.mutation, { threadId: ctx.threadId });
+      const didTransition = await ctx.runMutation(options.mutation, {
+        threadId: ctx.threadId,
+      });
 
-      try {
-        await saveMessage(ctx, components.agent, {
-          threadId: ctx.threadId,
-          message: { role: "assistant", content: options.confirmationMessage },
-        });
-      } catch (err) {
-        console.error(
-          `[createConversationTool] Status updated but confirmation message failed for thread [${ctx.threadId}]:`,
-          err,
-        );
+      if (didTransition) {
+        try {
+          await saveMessage(ctx, components.agent, {
+            threadId: ctx.threadId,
+            message: {
+              role: "assistant",
+              content: options.confirmationMessage,
+            },
+          });
+        } catch (err) {
+          console.error(
+            `[createConversationTool] Status updated but confirmation message failed for thread [${ctx.threadId}]:`,
+            err,
+          );
+        }
       }
 
       return options.confirmationMessage;

@@ -19,7 +19,10 @@ export default defineSchema({
     deletionStartedAt: v.optional(v.number()),
   })
     .index("by_organization_id", ["organizationId"])
-    .index("by_deletion_status", ["deletionStatus"]),
+    .index("by_deletion_status_and_started_at", [
+      "deletionStatus",
+      "deletionStartedAt",
+    ]),
   contactSessions: defineTable({
     name: v.string(),
     email: v.string(),

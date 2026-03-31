@@ -71,11 +71,7 @@ export const OrganizationSyncGuard = ({
     );
   }
 
-  if (organizationInConvex === undefined) {
-    return <AuthLoadingState />;
-  }
-
-  if (organizationInConvex === null) {
+  if (organizationInConvex === undefined || organizationInConvex === null) {
     return <AuthLoadingState />;
   }
 
