@@ -6,23 +6,33 @@ import {
   internalMutation,
 } from "@workspace/backend/_generated/server";
 
+type RemoveOrganizationResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason:
+        | "not_found"
+        | "conversation_purge_failed"
+        | "session_purge_failed"
+        | "finalization_incomplete"
+        | "finalization_failed";
+    };
+
 export const removeOrganization = internalAction({
   args: {
     organizationId: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<RemoveOrganizationResult> => {
     const orgId = await ctx.runMutation(
       internal.system.webhooks.clerk.markForDeletion,
-      {
-        clerkOrgId: args.organizationId,
-      },
+      { clerkOrgId: args.organizationId },
     );
 
     if (!orgId) {
       console.warn(
         `[removeOrganization] No organization found to delete for ID: ${args.organizationId}`,
       );
-      return;
+      return { ok: false, reason: "not_found" } as const;
     }
 
     console.info(`[removeOrganization] Starting batched purge for: ${orgId}`);
@@ -53,7 +63,7 @@ export const removeOrganization = internalAction({
           `Will be retried by scheduled cleanup job.`,
         error,
       );
-      return;
+      return { ok: false, reason: "conversation_purge_failed" } as const;
     }
 
     let sessionCursor: string | null = null;
@@ -82,7 +92,7 @@ export const removeOrganization = internalAction({
           `Will be retried by scheduled cleanup job.`,
         error,
       );
-      return;
+      return { ok: false, reason: "session_purge_failed" } as const;
     }
 
     try {
@@ -94,7 +104,7 @@ export const removeOrganization = internalAction({
         console.warn(
           `[removeOrganization] Finalization incomplete for organization [${orgId}]. Will be retried by scheduled cleanup job.`,
         );
-        return;
+        return { ok: false, reason: "finalization_incomplete" } as const;
       }
     } catch (error) {
       console.error(
@@ -102,12 +112,13 @@ export const removeOrganization = internalAction({
           `Will be retried by scheduled cleanup job.`,
         error,
       );
-      return;
+      return { ok: false, reason: "finalization_failed" } as const;
     }
 
     console.info(
       `[removeOrganization] Purge complete for organization [${orgId}]. Total: ${purgedConversationCount} conversations, ${purgedSessionCount} sessions.`,
     );
+    return { ok: true } as const;
   },
 });
 

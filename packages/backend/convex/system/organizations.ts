@@ -18,7 +18,7 @@ export const findStuckDeletions = internalQuery({
         q.eq("deletionStatus", "deleting").lt("deletionStartedAt", threshold),
       )
       .filter((q) => q.neq(q.field("deletionStartedAt"), undefined))
-      .take(100);
+      .take(50);
   },
 });
 
@@ -45,10 +45,18 @@ export const resumeStaleDeletions = internalAction({
         console.info(
           `[resumeStaleDeletions] Resuming deletion for organization: [${org._id}] [${org.organizationId}]`,
         );
-        await ctx.runAction(internal.system.webhooks.clerk.removeOrganization, {
-          organizationId: org.organizationId,
-        });
-        succeeded++;
+        const result = await ctx.runAction(
+          internal.system.webhooks.clerk.removeOrganization,
+          { organizationId: org.organizationId },
+        );
+        if (result.ok) {
+          succeeded++;
+        } else {
+          failed++;
+          console.info(
+            `[resumeStaleDeletions] Organization [${org._id}] returned non-ok (${result.reason}) — will retry next run.`,
+          );
+        }
       } catch (error) {
         failed++;
         console.error(

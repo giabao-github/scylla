@@ -7,6 +7,7 @@ import {
   memo,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -118,6 +119,13 @@ export const PromptBoxProvider = ({ children }: { children: ReactNode }) => {
     [safeModel, modelSelectorOpen, selectedModelData, handleModelSelect],
   );
 
+  useEffect(() => {
+    const entry = modelCatalog.find((m) => m.id === model);
+    if (entry?.paid) {
+      setModel(DEFAULT_MODEL_ID);
+    }
+  }, [model, setModel]);
+
   return (
     <PromptBoxContext.Provider value={value}>
       {children}
@@ -170,6 +178,7 @@ const ModelItem = memo(({ m, selectedModel, onSelect }: ModelItemProps) => {
   return (
     <ModelSelectorItem
       title={m.paid ? "Available with a subscription" : undefined}
+      aria-disabled={m.paid || undefined}
       onSelect={handleSelect}
       value={m.id}
       className={cn(
