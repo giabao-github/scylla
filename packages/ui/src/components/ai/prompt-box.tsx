@@ -16,12 +16,15 @@ import {
   CheckIcon,
   ChevronDownIcon,
   GlobeIcon,
+  LockIcon,
   PaperclipIcon,
   SparklesIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { selectedModelAtom } from "@workspace/shared/atoms/atoms";
 import {
+  DEFAULT_MODEL_ID,
   ModelId,
   modelCatalog,
 } from "@workspace/shared/constants/model-catalog";
@@ -82,13 +85,23 @@ export const PromptBoxProvider = ({ children }: { children: ReactNode }) => {
   const [model, setModel] = useAtom(selectedModelAtom);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 
+  const safeModel = useMemo(() => {
+    const entry = modelCatalog.find((m) => m.id === model);
+    return entry?.paid ? DEFAULT_MODEL_ID : model;
+  }, [model]);
   const selectedModelData = useMemo(
-    () => modelCatalog.find((m) => m.id === model),
-    [model],
+    () => modelCatalog.find((m) => m.id === safeModel),
+    [safeModel],
   );
 
   const handleModelSelect = useCallback(
     (id: ModelId) => {
+      const entry = modelCatalog.find((m) => m.id === id);
+      if (entry?.paid) {
+        // TODO: open paywall
+        toast.error("This model is not available with your current plan");
+        return;
+      }
       setModel(id);
       setModelSelectorOpen(false);
     },
@@ -97,14 +110,20 @@ export const PromptBoxProvider = ({ children }: { children: ReactNode }) => {
 
   const value = useMemo(
     () => ({
-      model,
+      model: safeModel,
       setModel,
       modelSelectorOpen,
       setModelSelectorOpen,
       selectedModelData,
       handleModelSelect,
     }),
-    [model, setModel, modelSelectorOpen, selectedModelData, handleModelSelect],
+    [
+      safeModel,
+      setModel,
+      modelSelectorOpen,
+      selectedModelData,
+      handleModelSelect,
+    ],
   );
 
   return (
@@ -151,9 +170,21 @@ interface ModelItemProps {
 }
 
 const ModelItem = memo(({ m, selectedModel, onSelect }: ModelItemProps) => {
-  const handleSelect = useCallback(() => onSelect(m.id), [onSelect, m.id]);
+  const handleSelect = useCallback(
+    () => !m.paid && onSelect(m.id),
+    [onSelect, m.id, m.paid],
+  );
+
   return (
-    <ModelSelectorItem onSelect={handleSelect} value={m.id}>
+    <ModelSelectorItem
+      title={m.paid ? "Available with a subscription" : undefined}
+      onSelect={handleSelect}
+      value={m.id}
+      className={cn(
+        "cursor-pointer",
+        m.paid && "cursor-default opacity-50 hover:opacity-50 hover:bg-white!",
+      )}
+    >
       <ModelSelectorLogo provider={m.chefSlug} />
       <ModelSelectorName>{m.name}</ModelSelectorName>
       <ModelSelectorLogoGroup>
@@ -161,11 +192,16 @@ const ModelItem = memo(({ m, selectedModel, onSelect }: ModelItemProps) => {
           <ModelSelectorLogo key={provider} provider={provider} />
         ))}
       </ModelSelectorLogoGroup>
-      {selectedModel === m.id ? (
-        <CheckIcon className="ml-auto size-4" strokeWidth={3} />
-      ) : (
-        <div className="ml-auto size-4" />
-      )}
+      <div className="flex justify-center items-center ml-auto size-4">
+        {m.paid ? (
+          <LockIcon
+            strokeWidth={3}
+            className="size-3 text-muted-foreground/60"
+          />
+        ) : selectedModel === m.id ? (
+          <CheckIcon className="size-4" strokeWidth={3} />
+        ) : null}
+      </div>
     </ModelSelectorItem>
   );
 });

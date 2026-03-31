@@ -17,12 +17,7 @@ export const findStuckDeletions = internalQuery({
       .withIndex("by_deletion_status_and_started_at", (q) =>
         q.eq("deletionStatus", "deleting").lt("deletionStartedAt", threshold),
       )
-      .filter((q) =>
-        q.and(
-          q.neq(q.field("deletionStartedAt"), undefined),
-          q.lt(q.field("deletionStartedAt"), threshold),
-        ),
-      )
+      .filter((q) => q.neq(q.field("deletionStartedAt"), undefined))
       .take(100);
   },
 });
