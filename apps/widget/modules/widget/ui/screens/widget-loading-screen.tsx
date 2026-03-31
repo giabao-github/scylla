@@ -57,7 +57,7 @@ export const WidgetLoadingScreen = ({
           return;
         }
         if (result.valid) {
-          setOrganizationId(organizationId);
+          setOrganizationId(result.id ?? null);
           setStep("session");
         } else {
           setErrorMessage(result.reason || "Invalid configuration");

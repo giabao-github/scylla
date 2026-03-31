@@ -1,7 +1,12 @@
 import { createClerkClient } from "@clerk/backend";
 import { v } from "convex/values";
 
-import { action } from "@workspace/backend/_generated/server";
+import { internal } from "@workspace/backend/_generated/api";
+import {
+  action,
+  internalMutation,
+  query,
+} from "@workspace/backend/_generated/server";
 
 const clerkSecretKey = process.env.CLERK_SECRET_KEY;
 
@@ -17,21 +22,84 @@ export const validate = action({
   args: {
     organizationId: v.string(),
   },
-  handler: async (_, args) => {
+  handler: async (ctx, args) => {
     try {
-      await clerkClient.organizations.getOrganization({
+      const org = await clerkClient.organizations.getOrganization({
         organizationId: args.organizationId,
       });
-      return { valid: true };
+
+      // Sync with Convex database
+      const id = (await ctx.runMutation(internal.public.organizations.upsert, {
+        organizationId: org.id,
+        name: org.name,
+      })) as string;
+
+      return { valid: true, id } as const;
     } catch (error) {
       if (
         error instanceof Error &&
         "status" in error &&
         (error as any).status === 404
       ) {
-        return { valid: false, reason: "Organization not found" };
+        return { valid: false, reason: "Organization not found" } as const;
       }
       throw error;
     }
+  },
+});
+
+export const upsert = internalMutation({
+  args: {
+    organizationId: v.string(),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("organizations")
+      .withIndex("by_organization_id", (q) =>
+        q.eq("organizationId", args.organizationId),
+      )
+      .unique();
+
+    if (existing) {
+      const patch: Partial<typeof existing> = {};
+
+      if (existing.name !== args.name) {
+        patch.name = args.name;
+      }
+
+      if (
+        existing.deletionStatus !== undefined ||
+        existing.deletionStartedAt !== undefined
+      ) {
+        patch.deletionStatus = undefined;
+        patch.deletionStartedAt = undefined;
+      }
+
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(existing._id, patch);
+      }
+
+      return existing._id;
+    }
+
+    return await ctx.db.insert("organizations", {
+      organizationId: args.organizationId,
+      name: args.name,
+    });
+  },
+});
+
+export const getByClerkId = query({
+  args: {
+    clerkOrgId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("organizations")
+      .withIndex("by_organization_id", (q) =>
+        q.eq("organizationId", args.clerkOrgId),
+      )
+      .unique();
   },
 });

@@ -110,13 +110,17 @@ export const resolve = internalMutation({
       args.threadId,
     );
 
-    if (conversation.status === CONVERSATION_STATUS.RESOLVED) return;
+    if (conversation.status === CONVERSATION_STATUS.RESOLVED) {
+      return false;
+    }
     assertValidTransition(conversation.status, CONVERSATION_STATUS.RESOLVED);
 
     await ctx.db.patch(conversation._id, {
       status: CONVERSATION_STATUS.RESOLVED,
       updatedAt: Date.now(),
     });
+
+    return true;
   },
 });
 
@@ -130,12 +134,16 @@ export const escalate = internalMutation({
       args.threadId,
     );
 
-    if (conversation.status === CONVERSATION_STATUS.ESCALATED) return;
+    if (conversation.status === CONVERSATION_STATUS.ESCALATED) {
+      return false;
+    }
     assertValidTransition(conversation.status, CONVERSATION_STATUS.ESCALATED);
 
     await ctx.db.patch(conversation._id, {
       status: CONVERSATION_STATUS.ESCALATED,
       updatedAt: Date.now(),
     });
+
+    return true;
   },
 });

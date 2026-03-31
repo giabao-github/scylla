@@ -1,6 +1,9 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 
+import { Doc } from "@workspace/backend/_generated/dataModel";
+import type { DatabaseReader } from "@workspace/backend/_generated/server";
+
 interface OrgUserIdentity extends UserIdentity {
   orgId?: string;
 }
@@ -9,9 +12,19 @@ interface ValidatedOrgUserIdentity extends UserIdentity {
   orgId: string;
 }
 
-export const getAuthenticatedOrgId = async (ctx: {
-  auth: { getUserIdentity: () => Promise<OrgUserIdentity | null> };
-}): Promise<{ identity: ValidatedOrgUserIdentity; organizationId: string }> => {
+interface AuthContext {
+  auth: {
+    getUserIdentity: () => Promise<OrgUserIdentity | null>;
+  };
+}
+
+interface AuthDbContext extends AuthContext {
+  db: DatabaseReader;
+}
+
+export const getAuthenticatedOrgId = async (
+  ctx: AuthContext,
+): Promise<{ identity: ValidatedOrgUserIdentity; organizationId: string }> => {
   const identity = await ctx.auth.getUserIdentity();
 
   if (!identity) {
@@ -32,4 +45,28 @@ export const getAuthenticatedOrgId = async (ctx: {
     identity: identity as ValidatedOrgUserIdentity,
     organizationId: identity.orgId,
   };
+};
+
+export const getAuthenticatedOrg = async (
+  ctx: AuthDbContext,
+): Promise<{
+  identity: ValidatedOrgUserIdentity;
+  organization: Doc<"organizations">;
+}> => {
+  const { identity, organizationId: clerkOrgId } =
+    await getAuthenticatedOrgId(ctx);
+
+  const organization = await ctx.db
+    .query("organizations")
+    .withIndex("by_organization_id", (q) => q.eq("organizationId", clerkOrgId))
+    .unique();
+
+  if (!organization) {
+    throw new ConvexError({
+      code: "UNAUTHORIZED",
+      message: "Organization not initialized",
+    });
+  }
+
+  return { identity, organization };
 };

@@ -88,7 +88,7 @@ export const WidgetSelectionScreen = () => {
       setScreen(WIDGET_SCREENS.CHAT);
     } catch (error) {
       console.error("Failed to create conversation:", error);
-      setErrorMessage("Failed to create conversation. Please try again.");
+      setErrorMessage("An error has occurred. Please try again.");
       setScreen(WIDGET_SCREENS.ERROR);
     } finally {
       setIsPending(false);

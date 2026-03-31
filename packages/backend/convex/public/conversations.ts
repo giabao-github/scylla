@@ -16,10 +16,14 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const session = await validateSession(ctx, args.contactSessionId);
     const organizationId = session.organizationId;
+    const organization = await ctx.db.get(organizationId);
 
-    const { threadId } = await supportAgent.createThread(ctx, {
-      userId: organizationId,
-    });
+    if (!organization || organization.deletionStatus === "deleting") {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Organization not found",
+      });
+    }
 
     const existing = await ctx.db
       .query("conversations")
@@ -30,6 +34,10 @@ export const create = mutation({
       .first();
 
     if (existing) return existing._id;
+
+    const { threadId } = await supportAgent.createThread(ctx, {
+      userId: organizationId,
+    });
 
     const initialMessage = "Hello, how can I help you today?";
     const now = Date.now();
