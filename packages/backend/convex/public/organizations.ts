@@ -62,9 +62,24 @@ export const upsert = internalMutation({
       .unique();
 
     if (existing) {
+      const patch: Partial<typeof existing> = {};
+
       if (existing.name !== args.name) {
-        await ctx.db.patch(existing._id, { name: args.name });
+        patch.name = args.name;
       }
+
+      if (
+        existing.deletionStatus !== undefined ||
+        existing.deletionStartedAt !== undefined
+      ) {
+        patch.deletionStatus = undefined;
+        patch.deletionStartedAt = undefined;
+      }
+
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(existing._id, patch);
+      }
+
       return existing._id;
     }
 

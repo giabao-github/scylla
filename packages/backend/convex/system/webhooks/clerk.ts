@@ -170,6 +170,15 @@ export const deleteSessionBatch = internalMutation({
       .paginate({ cursor, numItems: 100 });
 
     for (const session of page.page) {
+      const requests = await ctx.db
+        .query("messageRequests")
+        .withIndex("by_contact_session_id", (q) =>
+          q.eq("contactSessionId", session._id),
+        )
+        .collect();
+      for (const req of requests) {
+        await ctx.db.delete(req._id);
+      }
       await ctx.db.delete(session._id);
     }
 
@@ -183,9 +192,29 @@ export const deleteSessionBatch = internalMutation({
 export const finalizeDeletion = internalMutation({
   args: { orgId: v.id("organizations") },
   handler: async (ctx, args) => {
-    const org = await ctx.db.get(args.orgId);
-    if (org) {
-      await ctx.db.delete(org._id);
+    const [sessions, conversations] = await Promise.all([
+      ctx.db
+        .query("contactSessions")
+        .withIndex("by_organization_id", (q) =>
+          q.eq("organizationId", args.orgId),
+        )
+        .first(),
+      ctx.db
+        .query("conversations")
+        .withIndex("by_organization_id", (q) =>
+          q.eq("organizationId", args.orgId),
+        )
+        .first(),
+    ]);
+
+    if (sessions || conversations) {
+      console.error(
+        `[finalizeDeletion] Dependents remain for org [${args.orgId}] — aborting. Will retry.`,
+      );
+      return; // cron picks it up
     }
+
+    const org = await ctx.db.get(args.orgId);
+    if (org) await ctx.db.delete(org._id);
   },
 });

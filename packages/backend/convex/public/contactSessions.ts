@@ -103,7 +103,7 @@ export const create = mutation({
 
     const organization = await ctx.db.get(args.organizationId);
 
-    if (!organization) {
+    if (!organization || organization.deletionStatus === "deleting") {
       throw new ConvexError({
         code: "NOT_FOUND",
         message: "Organization not found",

@@ -12,6 +12,13 @@ crons.cron(
 );
 
 crons.cron(
+  "Cleanup stale message requests",
+  "0 0 * * *",
+  internal.system.messageRequests.cleanup,
+  {},
+);
+
+crons.cron(
   "Resume stuck organization deletions",
   "*/30 * * * *",
   internal.system.organizations.resumeStaleDeletions,

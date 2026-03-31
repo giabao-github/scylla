@@ -17,7 +17,12 @@ export const findStuckDeletions = internalQuery({
       .withIndex("by_deletion_status", (q) =>
         q.eq("deletionStatus", "deleting"),
       )
-      .filter((q) => q.lt(q.field("deletionStartedAt"), threshold))
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("deletionStartedAt"), undefined),
+          q.lt(q.field("deletionStartedAt"), threshold),
+        ),
+      )
       .take(100);
   },
 });
@@ -30,17 +35,31 @@ export const resumeStaleDeletions = internalAction({
       { olderThanMs: 10 * 60 * 1000 },
     );
 
-    if (stuckOrgs.length === 0) {
+    const orgsWithoutTimestamp = stuckOrgs.filter(
+      (o) => o.deletionStartedAt === undefined,
+    );
+
+    if (orgsWithoutTimestamp.length > 0) {
+      console.warn(
+        `[resumeStaleDeletions] ${orgsWithoutTimestamp.length} org(s) in "deleting" state have no deletionStartedAt — skipping. IDs: ${orgsWithoutTimestamp.map((o) => o._id).join(", ")}`,
+      );
+    }
+
+    const orgsToResume = stuckOrgs.filter(
+      (o) => o.deletionStartedAt !== undefined,
+    );
+
+    if (orgsToResume.length === 0) {
       return;
     }
 
     console.info(
-      `[resumeStaleDeletions] Found ${stuckOrgs.length} stuck deletions. Resuming...`,
+      `[resumeStaleDeletions] Found ${orgsToResume.length} stuck deletions. Resuming...`,
     );
 
     let succeeded = 0;
     let failed = 0;
-    for (const org of stuckOrgs) {
+    for (const org of orgsToResume) {
       try {
         console.info(
           `[resumeStaleDeletions] Resuming deletion for org: ${org._id} (${org.organizationId})`,

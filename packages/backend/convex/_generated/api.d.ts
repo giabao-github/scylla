@@ -12,6 +12,7 @@ import type * as contactSessionCleanup from "../contactSessionCleanup.js";
 import type * as conversationCleanup from "../conversationCleanup.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
+import type * as lib_createConversationTool from "../lib/createConversationTool.js";
 import type * as lib_extractTextContent from "../lib/extractTextContent.js";
 import type * as private_conversations from "../private/conversations.js";
 import type * as private_files from "../private/files.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   conversationCleanup: typeof conversationCleanup;
   crons: typeof crons;
   http: typeof http;
+  "lib/createConversationTool": typeof lib_createConversationTool;
   "lib/extractTextContent": typeof lib_extractTextContent;
   "private/conversations": typeof private_conversations;
   "private/files": typeof private_files;

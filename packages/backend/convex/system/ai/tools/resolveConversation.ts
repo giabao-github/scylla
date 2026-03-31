@@ -1,33 +1,10 @@
-import { createTool, saveMessage } from "@convex-dev/agent";
-import { ConvexError } from "convex/values";
-import { z } from "zod";
+import { internal } from "@workspace/backend/_generated/api";
+import { createConversationTool } from "@workspace/backend/lib/createConversationTool";
 
-import { components, internal } from "@workspace/backend/_generated/api";
-
-export const resolveConversation = createTool({
+export const resolveConversation = createConversationTool({
   description:
     "Resolve and close the conversation. Use this when the user's issue has been fully addressed, the user confirms they're satisfied, or there are no further questions remaining.",
-  inputSchema: z.object({}),
-  execute: async (ctx) => {
-    if (!ctx.threadId) {
-      throw new ConvexError({
-        message: "Cannot resolve conversation: missing thread ID",
-        code: "MISSING_THREAD_ID",
-      });
-    }
-
-    await ctx.runMutation(internal.system.conversations.resolve, {
-      threadId: ctx.threadId,
-    });
-
-    await saveMessage(ctx, components.agent, {
-      threadId: ctx.threadId,
-      message: {
-        role: "assistant",
-        content: "Conversation resolved.",
-      },
-    });
-
-    return "Conversation resolved.";
-  },
+  action: "resolve",
+  mutation: internal.system.conversations.resolve,
+  confirmationMessage: "Conversation resolved.",
 });

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
+import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { useAction, useQuery } from "convex/react";
 
 import { AuthLoadingState } from "@/modules/auth/ui/components/auth-loading-state";
@@ -16,18 +17,24 @@ export const OrganizationSyncGuard = ({
 }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<Error | null>(null);
+  const [hasAttemptedSync, setHasAttemptedSync] = useState(false);
   const organizationInConvex = useQuery(api.public.organizations.getByClerkId, {
     clerkOrgId: organizationId,
   });
   const validate = useAction(api.public.organizations.validate);
 
   useEffect(() => {
-    // If the organization is not in Convex yet, trigger sync
-    if (organizationInConvex === null && !isSyncing && !syncError) {
+    if (
+      organizationInConvex === null &&
+      !isSyncing &&
+      !syncError &&
+      !hasAttemptedSync
+    ) {
       const sync = async () => {
         setIsSyncing(true);
         try {
           await validate({ organizationId });
+          setHasAttemptedSync(true);
         } catch (error) {
           console.error("Failed to sync organization:", error);
           setSyncError(
@@ -39,25 +46,35 @@ export const OrganizationSyncGuard = ({
       };
       sync();
     }
-  }, [organizationInConvex, organizationId, isSyncing, validate, syncError]);
+  }, [
+    organizationInConvex,
+    organizationId,
+    isSyncing,
+    validate,
+    syncError,
+    hasAttemptedSync,
+  ]);
 
-  // Sync failed - surface error to user
   if (syncError) {
-    // Consider using a proper error component with retry capability
     return (
-      <div>
-        <p>Failed to sync organization. Please try again.</p>
-        <button onClick={() => setSyncError(null)}>Retry</button>
-      </div>
+      <CTAModal
+        open
+        title="Synchronization Error"
+        description=" An error occurred while syncing your organization data. Please try
+          again."
+        buttonText="Retry"
+        onAction={() => {
+          setSyncError(null);
+          setHasAttemptedSync(false);
+        }}
+      />
     );
   }
 
-  // Still loading Convex query result
   if (organizationInConvex === undefined) {
     return <AuthLoadingState />;
   }
 
-  // Not synced yet, or currently syncing
   if (organizationInConvex === null) {
     return <AuthLoadingState />;
   }
