@@ -19,6 +19,12 @@ const SUPPORTED_IMAGE_TYPES = [
   "image/gif",
 ] as const;
 
+const DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+] as const;
+
 const SYSTEM_PROMPTS = {
   image: `
     You convert image input into structured text.
@@ -104,7 +110,6 @@ const SYSTEM_PROMPTS = {
 export type ExtractTextContentArgs = {
   storageId: Id<"_storage">;
   filename: string;
-  bytes?: ArrayBuffer;
   mimeType: string;
 };
 
@@ -123,7 +128,7 @@ const extractImageText = async (url: string): Promise<string> => {
   return result.text;
 };
 
-const extractPdfText = async (
+const extractDocumentText = async (
   url: string,
   mimeType: string,
   filename: string,
@@ -138,7 +143,7 @@ const extractPdfText = async (
           { type: "file", data: new URL(url), mediaType: mimeType, filename },
           {
             type: "text",
-            text: "Extract all text from the PDF verbatim, preserving structure. Output only the extracted text.",
+            text: "Extract all text from the document verbatim, preserving structure. Output only the extracted text.",
           },
         ],
       },
@@ -190,14 +195,16 @@ export const extractTextContent = async (
   ctx: { storage: StorageActionWriter },
   args: ExtractTextContentArgs,
 ): Promise<string> => {
-  const { storageId, filename, bytes, mimeType } = args;
+  const { storageId, filename, mimeType } = args;
 
   const allowedTypes = [
     ...SUPPORTED_IMAGE_TYPES,
-    "application/pdf",
     "text/plain",
     "text/html",
     "text/markdown",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ];
 
   const [base = ""] = mimeType.toLowerCase().split(";");
@@ -214,11 +221,18 @@ export const extractTextContent = async (
     return extractImageText(url);
   }
 
-  if (normalizedMime === "application/pdf") {
-    return extractPdfText(url, normalizedMime, filename);
+  if (DOCUMENT_MIME_TYPES.some((type) => type === normalizedMime)) {
+    return extractDocumentText(url, normalizedMime, filename);
   }
 
   if (normalizedMime.startsWith("text/")) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch content: ${response.status} ${response.statusText}`,
+      );
+    }
+    const bytes = await response.arrayBuffer();
     return extractTextFileContent(ctx, storageId, bytes, normalizedMime);
   }
 

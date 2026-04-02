@@ -18,10 +18,13 @@ export function getCountryFromTimezone(
   }
 
   const country = ct.getCountry(countryCode);
+  if (!country) {
+    return null;
+  }
 
   return {
     code: countryCode,
-    name: country?.name || countryCode,
+    name: country.name,
   };
 }
 

@@ -87,8 +87,6 @@ export default defineSchema({
       "status",
       "lastMessageAt",
     ]),
-  // Note: Legacy messageRequests rows lacking updatedAt/status fields are intentionally
-  // excluded from indexes (e.g., by_status_and_updated_at) and will expire via 24h cleanup.
   messageRequests: defineTable({
     requestId: v.string(),
     contactSessionId: v.optional(v.id("contactSessions")),
@@ -110,4 +108,11 @@ export default defineSchema({
     .index("by_created_at", ["createdAt"])
     .index("by_updated_at", ["updatedAt"])
     .index("by_status_and_updated_at", ["status", "updatedAt"]),
+  contentHashes: defineTable({
+    organizationId: v.string(),
+    contentHash: v.string(),
+    entryId: v.string(),
+  })
+    .index("by_org_and_hash", ["organizationId", "contentHash"])
+    .index("by_entry_id", ["entryId"]),
 });

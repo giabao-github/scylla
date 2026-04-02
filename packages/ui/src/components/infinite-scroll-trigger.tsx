@@ -24,8 +24,19 @@ export const InfiniteScrollTrigger = ({
   className,
   ref,
 }: InfiniteScrollTriggerProps) => {
+  const containerClasses = "flex justify-center items-center py-3 w-full";
+  const textClasses = "text-[11px] text-muted-foreground/70 md:text-[13px]";
+
   if (mode === "auto") {
-    return <div ref={ref} className={cn("w-full h-1", className)} />;
+    return (
+      <div ref={ref} className={cn(containerClasses, className)}>
+        {isLoadingMore ? (
+          <span className={textClasses}>{loadingText}</span>
+        ) : !canLoadMore ? (
+          <span className={textClasses}>{noMoreText}</span>
+        ) : null}
+      </div>
+    );
   }
 
   const text = isLoadingMore
@@ -33,8 +44,6 @@ export const InfiniteScrollTrigger = ({
     : canLoadMore
       ? loadMoreText
       : noMoreText;
-
-  const containerClasses = "flex justify-center items-center py-4 w-full";
 
   if (!text) {
     return <div ref={ref} className={cn(containerClasses, className)} />;

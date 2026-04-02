@@ -1,27 +1,12 @@
-"use client";
+import { Metadata } from "next";
 
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
+import { FilesView } from "@/modules/files/ui/views/files-view";
+
+export const metadata: Metadata = {
+  title: "Knowledge Base - Scylla",
+  description: "Manage your knowledge base",
+};
 
 export default function Page() {
-  return (
-    <div className="flex flex-col gap-y-4 justify-center items-center text-base min-h-svh">
-      <p>Files</p>
-      <UserButton
-        appearance={{
-          elements: {
-            userButtonAvatarBox: "!size-12",
-          },
-        }}
-      />
-      <OrganizationSwitcher
-        hidePersonal
-        appearance={{
-          elements: {
-            organizationPreviewAvatarBox: "!size-7",
-            organizationPreviewMainIdentifier: "!font-semibold !text-[15px]",
-          },
-        }}
-      />
-    </div>
-  );
+  return <FilesView />;
 }

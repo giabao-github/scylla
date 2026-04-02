@@ -1,0 +1,50 @@
+const formatterCache = new Map<string, Intl.NumberFormat>();
+
+const getFormatter = (digits: number, locale: string = "en-US") => {
+  const key = `${locale}-${digits}`;
+
+  let formatter = formatterCache.get(key);
+
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: digits,
+    });
+    formatterCache.set(key, formatter);
+  }
+
+  return formatter;
+};
+
+export const formatFileSize = (bytes: number, locale = "en-US") => {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    throw new RangeError("File size must be a non-negative finite number");
+  }
+
+  if (bytes === 0) return "0 B";
+
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let size = bytes;
+  let i = 0;
+
+  while (size >= 1024 && i < units.length - 1) {
+    size /= 1024;
+    i++;
+  }
+
+  let digits = 0;
+
+  if (i === 0) {
+    digits = 0;
+  } else if (size < 10) {
+    digits = 2;
+  } else if (size < 100) {
+    digits = 1;
+  } else {
+    digits = 0;
+  }
+
+  const formatter = getFormatter(digits, locale);
+
+  return `${formatter.format(size)} ${units[i]}`;
+};
