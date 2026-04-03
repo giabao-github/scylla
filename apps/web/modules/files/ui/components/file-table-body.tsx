@@ -2,6 +2,7 @@ import { EntryId, PublicFile } from "@workspace/shared/types/file";
 import { TableBody, TableCell, TableRow } from "@workspace/ui/components/table";
 
 import { FileTableRow } from "@/modules/files/ui/components/file-table-row";
+import { FILE_TABLE_COLUMN_COUNT } from "@/modules/files/ui/lib/constants";
 
 interface FileTableBodyProps {
   files: PublicFile[];
@@ -12,8 +13,6 @@ interface FileTableBodyProps {
   onEdit: (file: PublicFile) => void;
   onDelete: (file: PublicFile) => void;
 }
-
-const FILE_TABLE_COLUMN_COUNT = 5;
 
 export const FileTableBody = ({
   files,
@@ -27,7 +26,7 @@ export const FileTableBody = ({
   if (isLoadingFirstPage) {
     return (
       <TableBody>
-        <TableRow>
+        <TableRow className="hover:bg-transparent">
           <TableCell
             className="h-24 text-center"
             colSpan={FILE_TABLE_COLUMN_COUNT}
@@ -42,7 +41,7 @@ export const FileTableBody = ({
   if (files.length === 0) {
     return (
       <TableBody>
-        <TableRow>
+        <TableRow className="hover:bg-transparent">
           <TableCell
             className="h-24 text-center text-muted-foreground/70"
             colSpan={FILE_TABLE_COLUMN_COUNT}

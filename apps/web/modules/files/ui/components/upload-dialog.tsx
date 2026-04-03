@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
-import { EntryId } from "@workspace/shared/types/file";
+import { computeFileHash } from "@workspace/backend/private/utils";
+import { EntryId, PublicFile } from "@workspace/shared/types/file";
 import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
@@ -17,7 +18,7 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { cn } from "@workspace/ui/lib/utils";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useConvex, useMutation } from "convex/react";
 import { toast } from "sonner";
 
 import {
@@ -30,15 +31,22 @@ import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
 
 interface UploadDialogProps {
   open: boolean;
+  existingFiles?: PublicFile[];
   onOpenChange: (open: boolean) => void;
   onFileUploaded?: () => void;
+  onHideOptimistic?: (entryId: EntryId) => void;
+  onRevertOptimistic?: (entryId: EntryId) => void;
 }
 
 export const UploadDialog = ({
   open,
+  existingFiles = [],
   onOpenChange,
   onFileUploaded,
+  onHideOptimistic,
+  onRevertOptimistic,
 }: UploadDialogProps) => {
+  const convex = useConvex();
   const addFile = useAction(api.private.fileActions.addFile);
   const generateUploadUrl = useMutation(api.private.files.generateUploadUrl);
 
@@ -71,11 +79,36 @@ export const UploadDialog = ({
     if (!blob) return;
 
     setIsUploading(true);
+
+    if (overrideEntryId) {
+      onHideOptimistic?.(overrideEntryId);
+    }
+
     try {
       const filename = uploadForm.filename || blob.name;
+      const contentHash = await computeFileHash(blob);
+
+      const { contentDuplicate, nameConflict } = await convex.query(
+        api.private.files.checkForDuplicate,
+        { contentHash, filename },
+      );
+
+      if (contentDuplicate && !overrideEntryId) {
+        toast.info("Already in knowledge base", {
+          description:
+            "This file's content is identical to an existing document. No upload needed.",
+        });
+        handleCancel();
+        return;
+      }
+
+      if (nameConflict && !overrideEntryId) {
+        setNameConflictEntryId(nameConflict);
+        setDuplicateDialogOpen(true);
+        return;
+      }
 
       const uploadUrl = await generateUploadUrl();
-
       const uploadResponse = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Content-Type": blob.type || "application/octet-stream" },
@@ -83,6 +116,7 @@ export const UploadDialog = ({
       });
 
       if (!uploadResponse.ok) {
+        if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
         toast.error("Failed to upload file to storage");
         return;
       }
@@ -90,8 +124,8 @@ export const UploadDialog = ({
       const { storageId } = (await uploadResponse.json()) as {
         storageId: Id<"_storage">;
       };
-
       if (!storageId) {
+        if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
         toast.error("Invalid response from storage service");
         return;
       }
@@ -101,25 +135,41 @@ export const UploadDialog = ({
         filename,
         mimeType: blob.type || "application/octet-stream",
         category: uploadForm.category,
-        overrideEntryId: overrideEntryId ?? undefined,
+        overrideEntryId,
+        contentHash,
       });
 
       if (result.error) {
+        if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
         toast.error(`Upload failed: ${result.error}`);
         return;
       }
 
       switch (result.status) {
         case "content_duplicate":
-          toast.info("Already in knowledge base", {
-            description: overrideEntryId
-              ? "The new file's content already exists in another document. The original file was not changed."
-              : "This file's content is identical to an existing document. No upload needed.",
-          });
+          if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
+
+          const isKnownMissing =
+            existingFiles.length > 0 &&
+            !existingFiles.some((f) => f.id === result.entryId);
+
+          if (isKnownMissing) {
+            toast.error("Upload interrupted", {
+              description:
+                "The existing duplicate file was concurrently deleted. Please try uploading again.",
+            });
+          } else {
+            toast.info("Already in knowledge base", {
+              description: overrideEntryId
+                ? "The new file's content already exists in another document. The original file was not changed."
+                : "This file's content is identical to an existing document. No upload needed.",
+            });
+          }
           handleCancel();
           break;
 
         case "name_conflict":
+          if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
           setNameConflictEntryId(result.existingEntryId);
           setDuplicateDialogOpen(true);
           break;
@@ -131,11 +181,13 @@ export const UploadDialog = ({
           break;
 
         default:
+          if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
           toast.error("Unexpected upload result");
           handleCancel();
           break;
       }
     } catch (error) {
+      if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
       console.error("Error uploading file:", error);
       const fallback = "Failed to upload file";
       toast.error(extractErrorMessage(error, fallback));

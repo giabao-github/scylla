@@ -54,7 +54,11 @@ export const Dropzone = ({
     ) => {
       if (fileRejections.length > 0) {
         const message = fileRejections.at(0)?.errors.at(0)?.message;
-        onError?.(new Error(message));
+        const suffix =
+          fileRejections.length > 1
+            ? ` (and ${fileRejections.length - 1} more ${fileRejections.length - 1 === 1 ? "file" : "files"} rejected)`
+            : "";
+        onError?.(new Error(message ? `${message}${suffix}` : "File rejected"));
         return;
       }
 
@@ -137,10 +141,10 @@ export const DropzoneContent = ({
       </div>
       <p className="my-2 w-full text-sm font-semibold truncate">
         {src.length > maxLabelItems
-          ? `${new Intl.ListFormat("en").format(
+          ? `${new Intl.ListFormat(undefined).format(
               src.slice(0, maxLabelItems).map((file) => file.name),
             )} and ${src.length - maxLabelItems} more`
-          : new Intl.ListFormat("en").format(src.map((file) => file.name))}
+          : new Intl.ListFormat(undefined).format(src.map((file) => file.name))}
       </p>
       <p className="w-full text-xs text-wrap text-muted-foreground">
         {instructionText}
@@ -175,8 +179,11 @@ export const DropzoneEmptyState = ({
   let caption = "";
 
   if (accept) {
-    caption += "Accepts ";
-    caption += new Intl.ListFormat("en").format(Object.keys(accept));
+    const extensions = Object.values(accept).flat();
+    caption +=
+      extensions.length > 0
+        ? `Accepts ${new Intl.ListFormat(undefined).format(extensions)}`
+        : "Accepts various file types";
   }
 
   if (minSize && maxSize) {
@@ -198,14 +205,16 @@ export const DropzoneEmptyState = ({
       <div className="flex justify-center items-center bg-white rounded-md size-8 text-muted-foreground">
         <UploadIcon size={16} strokeWidth={3} />
       </div>
-      <p className="my-2 w-full text-sm font-medium truncate text-wrap">
+      <p className="my-3 w-full text-sm font-medium text-wrap">
         Upload {maxFiles === 1 ? "a file" : "files"}
       </p>
-      <p className="w-full text-xs truncate text-wrap text-muted-foreground">
+      <p className="w-full text-xs text-wrap text-muted-foreground">
         {instructionText}
       </p>
       {caption && !hideCaption && (
-        <p className="text-xs text-wrap text-muted-foreground">{caption}.</p>
+        <p className="mt-1 text-xs text-wrap text-muted-foreground">
+          {caption}.
+        </p>
       )}
     </div>
   );

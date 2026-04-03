@@ -154,15 +154,18 @@ export const deleteConversationBatch = internalMutation({
       .paginate({ cursor, numItems: 25 });
 
     for (const conversation of page.page) {
-      const requests = await ctx.db
-        .query("messageRequests")
-        .withIndex("by_conversation_id", (q) =>
-          q.eq("conversationId", conversation._id),
-        )
-        .collect();
-
-      for (const req of requests) {
-        await ctx.db.delete(req._id);
+      let hasMoreRequests = true;
+      while (hasMoreRequests) {
+        const requests = await ctx.db
+          .query("messageRequests")
+          .withIndex("by_conversation_id", (q) =>
+            q.eq("conversationId", conversation._id),
+          )
+          .take(500);
+        hasMoreRequests = requests.length === 500;
+        for (const req of requests) {
+          await ctx.db.delete(req._id);
+        }
       }
 
       await ctx.db.delete(conversation._id);
@@ -187,14 +190,18 @@ export const deleteSessionBatch = internalMutation({
       .paginate({ cursor, numItems: 100 });
 
     for (const session of page.page) {
-      const requests = await ctx.db
-        .query("messageRequests")
-        .withIndex("by_contact_session_id", (q) =>
-          q.eq("contactSessionId", session._id),
-        )
-        .collect();
-      for (const req of requests) {
-        await ctx.db.delete(req._id);
+      let hasMoreRequests = true;
+      while (hasMoreRequests) {
+        const requests = await ctx.db
+          .query("messageRequests")
+          .withIndex("by_contact_session_id", (q) =>
+            q.eq("contactSessionId", session._id),
+          )
+          .take(500);
+        hasMoreRequests = requests.length === 500;
+        for (const req of requests) {
+          await ctx.db.delete(req._id);
+        }
       }
       await ctx.db.delete(session._id);
     }

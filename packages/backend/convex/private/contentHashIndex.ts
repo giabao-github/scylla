@@ -12,14 +12,15 @@ export const getByHash = internalQuery({
     excludeEntryId: v.optional(v.string()),
   },
   handler: async (ctx, { organizationId, contentHash, excludeEntryId }) => {
-    const rows = await ctx.db
+    const row = await ctx.db
       .query("contentHashes")
-      .withIndex("by_org_and_hash", (q) =>
+      .withIndex("by_org_id_and_hash", (q) =>
         q.eq("organizationId", organizationId).eq("contentHash", contentHash),
       )
-      .collect();
+      .first();
 
-    return rows.find((r) => r.entryId !== excludeEntryId) ?? null;
+    if (!row || row.entryId === excludeEntryId) return null;
+    return row;
   },
 });
 
@@ -32,10 +33,10 @@ export const upsert = internalMutation({
   handler: async (ctx, { organizationId, contentHash, entryId }) => {
     const existing = await ctx.db
       .query("contentHashes")
-      .withIndex("by_org_and_hash", (q) =>
+      .withIndex("by_org_id_and_hash", (q) =>
         q.eq("organizationId", organizationId).eq("contentHash", contentHash),
       )
-      .unique();
+      .first();
 
     if (existing) {
       await ctx.db.patch(existing._id, { entryId });

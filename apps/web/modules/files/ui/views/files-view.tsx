@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import { EntryId, PublicFile } from "@workspace/shared/types/file";
@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@workspace/ui/components/table";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
+import { cn } from "@workspace/ui/lib/utils";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { PlusIcon, TrashIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ import { DeleteDialog } from "@/modules/files/ui/components/delete-dialog";
 import { EditDialog } from "@/modules/files/ui/components/edit-dialog";
 import { FileTableBody } from "@/modules/files/ui/components/file-table-body";
 import { UploadDialog } from "@/modules/files/ui/components/upload-dialog";
+import { FILE_TABLE_COLUMNS } from "@/modules/files/ui/lib/constants";
 import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
 import { FileView } from "@/modules/files/ui/views/file-view";
 
@@ -57,8 +59,14 @@ export const FilesView = () => {
   const [deletingFile, setDeletingFile] = useState<PublicFile | null>(null);
   const [editingFile, setEditingFile] = useState<PublicFile | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<EntryId>>(new Set());
+  const [optimisticHiddenIds, setOptimisticHiddenIds] = useState<Set<EntryId>>(
+    new Set(),
+  );
 
-  const loadedIds = files.results.map((f) => f.id);
+  const displayFiles = files.results.filter(
+    (f) => !optimisticHiddenIds.has(f.id),
+  );
+  const loadedIds = displayFiles.map((f) => f.id);
   const allSelected =
     loadedIds.length > 0 && loadedIds.every((id) => selectedIds.has(id));
   const someSelected = selectedIds.size > 0;
@@ -123,6 +131,24 @@ export const FilesView = () => {
     setEditDialogOpen(true);
   };
 
+  useEffect(() => {
+    setSelectedIds((prevSelected) => {
+      const existingIds = new Set(files.results.map((f) => f.id));
+
+      const nextSelected = new Set(
+        [...prevSelected].filter((id) => existingIds.has(id)),
+      );
+
+      if (nextSelected.size !== prevSelected.size) {
+        if (nextSelected.size === 0) {
+          setBulkDeleteConfirmOpen(false);
+        }
+        return nextSelected;
+      }
+      return prevSelected;
+    });
+  }, [files.results]);
+
   return (
     <>
       <BulkDeleteDialog
@@ -146,6 +172,17 @@ export const FilesView = () => {
       <UploadDialog
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
+        existingFiles={displayFiles}
+        onHideOptimistic={(id) =>
+          setOptimisticHiddenIds((prev) => new Set(prev).add(id))
+        }
+        onRevertOptimistic={(id) =>
+          setOptimisticHiddenIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          })
+        }
       />
       <FileView
         file={viewingFile}
@@ -193,7 +230,10 @@ export const FilesView = () => {
                     Delete {selectedIds.size}
                   </Button>
                 )}
-                <Button onClick={() => setUploadDialogOpen(true)}>
+                <Button
+                  className="ml-auto"
+                  onClick={() => setUploadDialogOpen(true)}
+                >
                   <PlusIcon />
                   Add
                 </Button>
@@ -202,27 +242,34 @@ export const FilesView = () => {
 
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-muted/50">
-                  <TableHead className="px-6 py-4 w-10">
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={toggleSelectAll}
-                      aria-label="Select all"
-                      disabled={loadedIds.length === 0}
-                    />
-                  </TableHead>
-                  <TableHead className="px-6 py-4 font-semibold cursor-default">
-                    Name
-                  </TableHead>
-                  <TableHead className="px-6 py-4 font-semibold cursor-default">
-                    Type
-                  </TableHead>
-                  <TableHead className="px-6 py-4 font-semibold cursor-default">
-                    Size
-                  </TableHead>
-                  <TableHead className="px-6 py-4 font-semibold cursor-default">
-                    Actions
-                  </TableHead>
+                <TableRow
+                  className={
+                    files.results.length > 0
+                      ? "hover:bg-muted/50"
+                      : "hover:bg-transparent"
+                  }
+                >
+                  {FILE_TABLE_COLUMNS.map((col) => (
+                    <TableHead
+                      key={col.id}
+                      className={cn(
+                        "px-6 py-4 font-semibold cursor-default",
+                        col.id === "select" && "w-10",
+                      )}
+                    >
+                      {col.id === "select" ? (
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={toggleSelectAll}
+                          disabled={loadedIds.length === 0}
+                          aria-label="Select all"
+                          className="disabled:cursor-default"
+                        />
+                      ) : (
+                        col.label
+                      )}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <FileTableBody

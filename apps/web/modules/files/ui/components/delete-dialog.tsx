@@ -61,10 +61,12 @@ export const DeleteDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={isDeleting ? undefined : onOpenChange}>
       <DialogContent className="max-w-sm md:max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete file</DialogTitle>
+          <DialogTitle>
+            {isDeleting ? "Deleting..." : "Delete file"}
+          </DialogTitle>
           <DialogDescription>
             Are you sure you want to delete this file? This action cannot be
             undone.

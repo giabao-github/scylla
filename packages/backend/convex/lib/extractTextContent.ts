@@ -7,7 +7,7 @@ import { Id } from "@workspace/backend/_generated/dataModel";
 
 const AI_MODELS = {
   image: google.chat("gemini-flash-lite-latest"),
-  pdf: google.chat("gemini-flash-lite-latest"),
+  document: google.chat("gemini-flash-lite-latest"),
   html: google.chat("gemini-flash-lite-latest"),
   video: google.chat("gemini-flash-latest"),
 } as const;
@@ -46,8 +46,8 @@ const SYSTEM_PROMPTS = {
     - Plain text or markdown (use markdown if structure exists).
     - No explanations, no meta commentary.
   `,
-  pdf: `
-    You extract and reconstruct text content from PDF files.
+  document: `
+    You extract and reconstruct text content from PDF or Word files.
 
     Rules:
     - Perform faithful extraction (no summarization).
@@ -57,7 +57,7 @@ const SYSTEM_PROMPTS = {
       + bullet points
       + tables (format as markdown tables)
     - Maintain reading order across pages.
-    - If the PDF contains scanned pages:
+    - If the PDF or Word contains scanned pages:
       + apply OCR and follow same rules.
     - If content is partially unreadable:
       + mark unclear sections as [unreadable].
@@ -134,8 +134,8 @@ const extractDocumentText = async (
   filename: string,
 ): Promise<string> => {
   const result = await generateText({
-    model: AI_MODELS.pdf,
-    system: SYSTEM_PROMPTS.pdf,
+    model: AI_MODELS.document,
+    system: SYSTEM_PROMPTS.document,
     messages: [
       {
         role: "user",
@@ -202,9 +202,7 @@ export const extractTextContent = async (
     "text/plain",
     "text/html",
     "text/markdown",
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ...DOCUMENT_MIME_TYPES,
   ];
 
   const [base = ""] = mimeType.toLowerCase().split(";");

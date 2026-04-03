@@ -14,6 +14,7 @@ import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as lib_createConversationTool from "../lib/createConversationTool.js";
 import type * as lib_extractTextContent from "../lib/extractTextContent.js";
+import type * as pendingDeletions from "../pendingDeletions.js";
 import type * as private_contentHashIndex from "../private/contentHashIndex.js";
 import type * as private_conversations from "../private/conversations.js";
 import type * as private_fileActions from "../private/fileActions.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/createConversationTool": typeof lib_createConversationTool;
   "lib/extractTextContent": typeof lib_extractTextContent;
+  pendingDeletions: typeof pendingDeletions;
   "private/contentHashIndex": typeof private_contentHashIndex;
   "private/conversations": typeof private_conversations;
   "private/fileActions": typeof private_fileActions;

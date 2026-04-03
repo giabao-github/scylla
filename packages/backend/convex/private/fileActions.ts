@@ -76,38 +76,35 @@ export const addFile = action({
     mimeType: v.optional(v.string()),
     category: v.optional(v.string()),
     overrideEntryId: v.optional(vEntryId),
+    contentHash: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<AddFileResult> => {
     const { organizationId } = await getAuthenticatedOrgId(ctx);
-    const { storageId, filename, category } = args;
+    const { storageId, filename, category, overrideEntryId, contentHash } =
+      args;
 
+    const oldEntry = overrideEntryId
+      ? await rag.getEntry(ctx, { entryId: overrideEntryId })
+      : null;
     const namespace = await rag.getNamespace(ctx, {
       namespace: organizationId,
     });
 
-    // Step 1: Name collision check (skipped for override)
-    if (namespace && !args.overrideEntryId) {
-      let cursor: string | null = null;
-      let nameCollisionEntryId: EntryId | null = null;
-      outer: do {
-        const page = await rag.list(ctx, {
-          namespaceId: namespace.namespaceId,
-          paginationOpts: { cursor, numItems: 100 },
-        });
-        for (const entry of page.page) {
-          if (entry.key === filename) {
-            nameCollisionEntryId = entry.entryId;
-            break outer;
-          }
-        }
-        cursor = page.isDone ? null : page.continueCursor;
-      } while (cursor !== null);
-
-      if (nameCollisionEntryId) {
+    // Step 1: Name collision check (O(1), skip for override)
+    if (namespace && !overrideEntryId) {
+      const collision = await ctx.runQuery(
+        internal.private.files.getByFilename,
+        {
+          organizationId,
+          filename,
+          excludeEntryId: undefined,
+        },
+      );
+      if (collision) {
         await ctx.storage.delete(storageId);
         return {
-          status: "name_conflict" as const,
-          existingEntryId: nameCollisionEntryId,
+          status: "name_conflict",
+          existingEntryId: collision.entryId as EntryId,
           url: null,
           entryId: null,
           error: null,
@@ -115,29 +112,78 @@ export const addFile = action({
       }
     }
 
-    // Step 2: Override path — validate the target entry still exists
-    if (args.overrideEntryId) {
-      const oldEntry = await rag.getEntry(ctx, {
-        entryId: args.overrideEntryId,
-      });
-      if (!oldEntry) {
-        await ctx.storage.delete(storageId);
-        return {
-          status: "error" as const,
-          url: null,
-          entryId: null,
-          error: "The file you're trying to replace no longer exists.",
-        };
+    // Step 2: Content hash check (O(1), single check only)
+    if (contentHash) {
+      const hashMatch = await ctx.runQuery(
+        internal.private.contentHashIndex.getByHash,
+        { organizationId, contentHash, excludeEntryId: args.overrideEntryId },
+      );
+      if (hashMatch) {
+        const existingEntry = await rag.getEntry(ctx, {
+          entryId: hashMatch.entryId as EntryId,
+        });
+        if (existingEntry) {
+          await ctx.storage.delete(storageId);
+          return {
+            status: "content_duplicate",
+            url: null,
+            entryId: hashMatch.entryId as EntryId,
+            error: null,
+          };
+        }
+        await ctx.runMutation(
+          internal.private.contentHashIndex.deleteByEntryId,
+          {
+            entryId: hashMatch.entryId,
+          },
+        );
       }
     }
 
+    // Step 3: Override — validate target still exists
+    if (overrideEntryId && !oldEntry) {
+      await ctx.storage.delete(storageId);
+      return {
+        status: "error",
+        url: null,
+        entryId: null,
+        error: "The file you're trying to replace no longer exists.",
+      };
+    }
+
+    // Step 4: Verify file is accessible — HEAD only, no body download
     const fileUrl = await ctx.storage.getUrl(storageId);
     if (!fileUrl) {
+      await ctx.storage.delete(storageId);
       return {
-        status: "error" as const,
+        status: "error",
         url: null,
         entryId: null,
         error: "Uploaded file could not be found in storage.",
+      };
+    }
+
+    try {
+      const probe = await fetch(fileUrl, {
+        method: "HEAD",
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!probe.ok) {
+        await ctx.storage.delete(storageId);
+        return {
+          status: "error",
+          url: null,
+          entryId: null,
+          error: "Failed to access file in storage.",
+        };
+      }
+    } catch {
+      await ctx.storage.delete(storageId);
+      return {
+        status: "error",
+        url: null,
+        entryId: null,
+        error: "Failed to reach storage.",
       };
     }
 
@@ -146,55 +192,33 @@ export const addFile = action({
       guessMimeTypeFromExtension(filename) ||
       "application/octet-stream";
 
-    const response = await fetch(fileUrl);
-    if (!response.ok) {
-      await ctx.storage.delete(storageId);
-      return {
-        status: "error" as const,
-        url: null,
-        entryId: null,
-        error: "Failed to fetch file from storage.",
-      };
-    }
-
-    const buffer = await response.arrayBuffer();
-    const contentHash = await contentHashFromArrayBuffer(buffer);
-
-    // Step 3: O(1) content duplicate check via index table
-    if (contentHash) {
-      const hashMatch = await ctx.runQuery(
-        internal.private.contentHashIndex.getByHash,
-        {
-          organizationId,
-          contentHash: contentHash as string,
-          excludeEntryId: args.overrideEntryId,
-        },
-      );
-
-      if (hashMatch) {
-        const existingEntry = await rag.getEntry(ctx, {
-          entryId: hashMatch.entryId as EntryId,
-        });
-
-        if (!existingEntry) {
-          await ctx.runMutation(
-            internal.private.contentHashIndex.deleteByEntryId,
-            { entryId: hashMatch.entryId },
-          );
-        } else {
-          await ctx.storage.delete(storageId);
-          return {
-            status: "content_duplicate" as const,
-            url: null,
-            entryId: hashMatch.entryId as EntryId,
-            error: null,
-          };
-        }
-      }
-    }
-
-    // Step 4: Normal upload path
+    // Step 5: Normal upload path
     try {
+      if (!args.overrideEntryId && namespace) {
+        const pendingMatches = await ctx.runQuery(
+          internal.private.files.listPendingDeletionsByFilename,
+          { organizationId, filename },
+        );
+        await Promise.all(
+          pendingMatches.map(async (pending) => {
+            try {
+              await rag.deleteAsync(ctx, {
+                entryId: pending.entryId as EntryId,
+              });
+              await ctx.runMutation(
+                internal.private.files.removePendingDeletionByEntryId,
+                { entryId: pending.entryId },
+              );
+            } catch (error) {
+              console.error(
+                `Failed to cleanup pending deletion for entry [${pending.entryId}]:`,
+                error,
+              );
+            }
+          }),
+        );
+      }
+
       const text = await extractTextContent(ctx, {
         storageId,
         filename,
@@ -206,50 +230,64 @@ export const addFile = action({
         text,
         key: filename,
         title: filename,
+        contentHash,
         metadata: {
           storageId,
           uploadedBy: organizationId,
           filename,
           category: category ?? null,
           contentHash,
+          replacedEntryId: args.overrideEntryId,
         } as EntryMetadata,
       });
 
       if (!created) {
         await ctx.storage.delete(storageId);
         return {
-          status: "error" as const,
+          status: "error",
           url: null,
           entryId: null,
           error: "Failed to create entry.",
         };
       }
 
-      if (args.overrideEntryId) {
-        await ctx.runMutation(
-          internal.private.contentHashIndex.deleteByEntryId,
-          { entryId: args.overrideEntryId },
-        );
-      }
+      // Update indices synchronously
+      await ctx.runMutation(internal.private.files.upsertFileName, {
+        organizationId,
+        filename,
+        entryId,
+      });
 
       if (contentHash) {
         await ctx.runMutation(internal.private.contentHashIndex.upsert, {
           organizationId,
-          contentHash: contentHash as string,
+          contentHash,
           entryId,
         });
       }
 
-      return {
-        status: "success" as const,
-        url: await ctx.storage.getUrl(storageId),
-        entryId,
-        error: null,
-      };
+      if (args.overrideEntryId && oldEntry) {
+        await ctx.runMutation(internal.private.files.markPendingDeletion, {
+          filename: oldEntry.key ?? filename,
+          entryId: args.overrideEntryId,
+          storageId:
+            (oldEntry.metadata as EntryMetadata | undefined)?.storageId ?? null,
+          organizationId,
+        });
+
+        await ctx.runMutation(
+          internal.private.contentHashIndex.deleteByEntryId,
+          {
+            entryId: args.overrideEntryId,
+          },
+        );
+      }
+
+      return { status: "success", url: fileUrl, entryId, error: null };
     } catch (error) {
       await ctx.storage.delete(storageId);
       return {
-        status: "error" as const,
+        status: "error",
         url: null,
         entryId: null,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -284,37 +322,28 @@ export const updateFile = action({
       return { status: "error" as const, error: "Filename is required" };
     }
 
+    const namespace = await rag.getNamespace(ctx, {
+      namespace: organizationId,
+    });
+
     const newCategory =
       args.category !== undefined
         ? args.category || null
         : (metadata?.category ?? null);
+    const isRenaming = !!args.filename && args.filename !== entry.key;
 
-    if (args.filename && args.filename !== entry.key) {
-      const namespace = await rag.getNamespace(ctx, {
-        namespace: organizationId,
-      });
+    if (isRenaming && namespace) {
+      const collision = await ctx.runQuery(
+        internal.private.files.getByFilename,
+        {
+          organizationId,
+          filename: newFilename,
+          excludeEntryId: args.entryId,
+        },
+      );
 
-      if (namespace) {
-        let cursor: string | null = null;
-        let hasConflict = false;
-
-        outer: do {
-          const page = await rag.list(ctx, {
-            namespaceId: namespace.namespaceId,
-            paginationOpts: { cursor, numItems: 100 },
-          });
-          for (const e of page.page) {
-            if (e.key === args.filename && e.entryId !== args.entryId) {
-              hasConflict = true;
-              break outer;
-            }
-          }
-          cursor = page.isDone ? null : page.continueCursor;
-        } while (cursor !== null);
-
-        if (hasConflict) {
-          return { status: "name_conflict" as const, error: null };
-        }
+      if (collision) {
+        return { status: "name_conflict", error: null };
       }
     }
 
@@ -332,6 +361,31 @@ export const updateFile = action({
     }
 
     try {
+      if (isRenaming) {
+        const pendingMatches = await ctx.runQuery(
+          internal.private.files.listPendingDeletionsByFilename,
+          { organizationId, filename: newFilename },
+        );
+        await Promise.all(
+          pendingMatches.map(async (pending) => {
+            try {
+              await rag.deleteAsync(ctx, {
+                entryId: pending.entryId as EntryId,
+              });
+              await ctx.runMutation(
+                internal.private.files.removePendingDeletionByEntryId,
+                { entryId: pending.entryId },
+              );
+            } catch (error) {
+              console.error(
+                `Failed to cleanup pending deletion for entry [${pending.entryId}]:`,
+                error,
+              );
+            }
+          }),
+        );
+      }
+
       const mimeType =
         guessMimeTypeFromExtension(newFilename) || "application/octet-stream";
 
@@ -351,15 +405,20 @@ export const updateFile = action({
           ...metadata,
           filename: newFilename,
           category: newCategory,
+          replacedEntryId: args.entryId,
         } as EntryMetadata,
       });
 
       if (!created) {
-        return {
-          status: "error" as const,
-          error: "Failed to create updated entry",
-        };
+        throw new Error("Failed to create updated entry");
       }
+
+      // Update indices for the new entry
+      await ctx.runMutation(internal.private.files.upsertFileName, {
+        organizationId,
+        filename: newFilename,
+        entryId: newEntryId,
+      });
 
       if (metadata?.contentHash) {
         await ctx.runMutation(internal.private.contentHashIndex.upsert, {
@@ -369,14 +428,19 @@ export const updateFile = action({
         });
       }
 
-      await rag.deleteAsync(ctx, { entryId: args.entryId });
+      await ctx.runMutation(internal.private.files.markPendingDeletion, {
+        filename: entry.key ?? newFilename,
+        entryId: args.entryId,
+        storageId: metadata?.storageId ?? null,
+        organizationId,
+      });
+
+      return { status: "success" as const, error: null };
     } catch (error) {
       return {
         status: "error" as const,
         error: error instanceof Error ? error.message : "Failed to update file",
       };
     }
-
-    return { status: "success" as const, error: null };
   },
 });

@@ -5,10 +5,15 @@ export const extractErrorMessage = (
   fallback: string,
 ): string => {
   if (!(error instanceof ConvexError)) return fallback;
-  if (typeof error.data === "string") return error.data;
-  if (typeof error.data === "object" && error.data !== null) {
-    const message = (error.data as Record<string, unknown>).message;
+
+  const data = error.data;
+
+  if (typeof data === "string") return data;
+
+  if (data && typeof data === "object") {
+    const message = (data as { message?: unknown }).message;
     if (typeof message === "string") return message;
   }
+
   return fallback;
 };

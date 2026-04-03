@@ -113,6 +113,24 @@ export default defineSchema({
     contentHash: v.string(),
     entryId: v.string(),
   })
-    .index("by_org_and_hash", ["organizationId", "contentHash"])
+    .index("by_org_id_and_hash", ["organizationId", "contentHash"])
+    .index("by_entry_id", ["entryId"]),
+  pendingDeletions: defineTable({
+    filename: v.string(),
+    entryId: v.string(),
+    storageId: v.union(v.id("_storage"), v.null()),
+    organizationId: v.string(),
+    scheduledAt: v.number(),
+  })
+    .index("by_entry_id", ["entryId"])
+    .index("by_org_id", ["organizationId"])
+    .index("by_org_id_and_filename", ["organizationId", "filename"])
+    .index("by_scheduled_at", ["scheduledAt"]),
+  fileNameIndex: defineTable({
+    organizationId: v.string(),
+    filename: v.string(),
+    entryId: v.string(),
+  })
+    .index("by_org_id_and_filename", ["organizationId", "filename"])
     .index("by_entry_id", ["entryId"]),
 });

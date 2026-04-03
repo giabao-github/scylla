@@ -1,15 +1,19 @@
-import { Entry, vEntryId } from "@convex-dev/rag";
+import { Entry, EntryId, vEntryId } from "@convex-dev/rag";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { Id } from "@workspace/backend/_generated/dataModel";
 import {
   QueryCtx,
+  internalMutation,
   internalQuery,
   mutation,
   query,
 } from "@workspace/backend/_generated/server";
-import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
+import {
+  cleanupFileIndices,
+  getAuthenticatedOrgId,
+} from "@workspace/backend/private/utils";
 import rag from "@workspace/backend/system/ai/rag";
 
 import { formatFileSize } from "@workspace/shared/lib/file-utils";
@@ -21,6 +25,7 @@ type EntryMetadata = {
   filename: string;
   category: string | null;
   contentHash?: string;
+  replacedEntryId?: string;
 };
 
 type FilteredCursor = {
@@ -111,15 +116,8 @@ export const getFileUrl = query({
     const { organizationId } = await getAuthenticatedOrgId(ctx);
     const entry = await rag.getEntry(ctx, { entryId });
 
-    if (!entry) {
+    if (!entry || entry.metadata?.uploadedBy !== organizationId) {
       return null;
-    }
-
-    if (entry.metadata?.uploadedBy !== organizationId) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Unauthorized to access this file",
-      });
     }
 
     const storageId = entry.metadata?.storageId;
@@ -140,10 +138,52 @@ export const generateUploadUrl = mutation({
   },
 });
 
-export const getStorageFileMeta = internalQuery({
-  args: { storageId: v.id("_storage") },
-  handler: async (ctx, args) => {
-    return await ctx.db.system.get(args.storageId);
+export const getByFilename = internalQuery({
+  args: {
+    organizationId: v.string(),
+    filename: v.string(),
+    excludeEntryId: v.optional(v.string()),
+  },
+  handler: async (ctx, { organizationId, filename, excludeEntryId }) => {
+    const row = await ctx.db
+      .query("fileNameIndex")
+      .withIndex("by_org_id_and_filename", (q) =>
+        q.eq("organizationId", organizationId).eq("filename", filename),
+      )
+      .first();
+
+    if (!row || row.entryId === excludeEntryId) return null;
+    return row;
+  },
+});
+
+export const checkForDuplicate = query({
+  args: {
+    contentHash: v.string(),
+    filename: v.string(),
+  },
+  handler: async (ctx, { contentHash, filename }) => {
+    const { organizationId } = await getAuthenticatedOrgId(ctx);
+
+    const [hashMatch, nameMatch] = await Promise.all([
+      ctx.db
+        .query("contentHashes")
+        .withIndex("by_org_id_and_hash", (q) =>
+          q.eq("organizationId", organizationId).eq("contentHash", contentHash),
+        )
+        .first(),
+      ctx.db
+        .query("fileNameIndex")
+        .withIndex("by_org_id_and_filename", (q) =>
+          q.eq("organizationId", organizationId).eq("filename", filename),
+        )
+        .first(),
+    ]);
+
+    return {
+      contentDuplicate: hashMatch ? (hashMatch.entryId as EntryId) : null,
+      nameConflict: nameMatch ? (nameMatch.entryId as EntryId) : null,
+    };
   },
 });
 
@@ -156,36 +196,27 @@ export const deleteFile = mutation({
 
     const entry = await rag.getEntry(ctx, { entryId });
 
-    if (!entry) {
+    if (!entry || entry.metadata?.uploadedBy !== organizationId) {
       throw new ConvexError({
         code: "NOT_FOUND",
         message: "Entry not found",
       });
     }
 
-    if (entry.metadata?.uploadedBy !== organizationId) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Unauthorized to delete this file",
-      });
-    }
+    const metadata = entry.metadata as EntryMetadata | undefined;
 
-    const storageIdToDelete = entry.metadata?.storageId;
+    await cleanupFileIndices(ctx, entryId);
 
-    if (isValidStorageId(storageIdToDelete)) {
-      await ctx.storage.delete(storageIdToDelete);
-    }
+    const storageId = isValidStorageId(metadata?.storageId)
+      ? metadata.storageId
+      : null;
 
-    const hashRow = await ctx.db
-      .query("contentHashes")
-      .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
-      .unique();
-    if (hashRow) {
-      await ctx.db.delete(hashRow._id);
-    }
-
-    await rag.deleteAsync(ctx, {
+    await ctx.db.insert("pendingDeletions", {
+      filename: metadata?.filename ?? "",
       entryId,
+      storageId,
+      organizationId,
+      scheduledAt: Date.now(),
     });
   },
 });
@@ -203,7 +234,7 @@ export const deleteFiles = mutation({
     }
 
     const { organizationId } = await getAuthenticatedOrgId(ctx);
-    const failures: string[] = [];
+
     const entries = await Promise.all(
       entryIds.map((entryId) => rag.getEntry(ctx, { entryId })),
     );
@@ -212,39 +243,33 @@ export const deleteFiles = mutation({
       if (!entry) continue;
       if (entry.metadata?.uploadedBy !== organizationId) {
         throw new ConvexError({
-          code: "UNAUTHORIZED",
-          message: "Unauthorized to delete one or more files",
+          code: "NOT_FOUND",
+          message: "Entry not found",
         });
       }
     }
 
     for (const entry of entries) {
       if (!entry) continue;
-      try {
-        const storageIdToDelete = entry.metadata?.storageId;
-        if (isValidStorageId(storageIdToDelete)) {
-          await ctx.storage.delete(storageIdToDelete);
-        }
-        const hashRow = await ctx.db
-          .query("contentHashes")
-          .withIndex("by_entry_id", (q) => q.eq("entryId", entry.entryId))
-          .unique();
-        if (hashRow) await ctx.db.delete(hashRow._id);
-        await rag.deleteAsync(ctx, { entryId: entry.entryId });
-      } catch (error) {
-        if (error instanceof ConvexError) throw error;
-        failures.push(entry.entryId);
-      }
-    }
+      const metadata = entry.metadata as EntryMetadata | undefined;
 
-    if (failures.length > 0) {
-      console.error(`Failed to delete entries: ${failures.join(", ")}`);
-      throw new ConvexError({
-        code: "PARTIAL_FAILURE",
-        message: `Failed to delete ${failures.length} of ${entryIds.length} files`,
-        data: { failures },
+      await cleanupFileIndices(ctx, entry.entryId);
+
+      const storageId = isValidStorageId(metadata?.storageId)
+        ? metadata.storageId
+        : null;
+
+      await ctx.db.insert("pendingDeletions", {
+        filename: metadata?.filename ?? "",
+        entryId: entry.entryId,
+        storageId,
+        organizationId,
+        scheduledAt: Date.now(),
       });
     }
+
+    const skipped = entries.filter((e) => e === null).length;
+    return { deleted: entries.length - skipped, skipped };
   },
 });
 
@@ -264,6 +289,12 @@ export const list = query({
       return { page: [], isDone: true, continueCursor: "" };
     }
 
+    const pendingDeletions = await ctx.db
+      .query("pendingDeletions")
+      .withIndex("by_org_id", (q) => q.eq("organizationId", organizationId))
+      .take(1000);
+    const pendingIds = new Set(pendingDeletions.map((p) => p.entryId));
+
     if (category) {
       let rawCursor: string | null = null;
 
@@ -281,6 +312,8 @@ export const list = query({
       const maxScan = 1000;
       let scanned = 0;
 
+      const replacedEntryIds = new Set<string>();
+
       do {
         const batchSize = Math.max(targetCount * 2, 50);
         const results = await rag.list(ctx, {
@@ -288,7 +321,19 @@ export const list = query({
           paginationOpts: { cursor, numItems: batchSize },
         });
 
+        // First pass: collect all replacements from this batch
         for (const entry of results.page) {
+          const replacedId = (entry.metadata as any)?.replacedEntryId;
+          if (replacedId) replacedEntryIds.add(replacedId);
+        }
+
+        for (const entry of results.page) {
+          if (
+            pendingIds.has(entry.entryId) ||
+            replacedEntryIds.has(entry.entryId)
+          ) {
+            continue;
+          }
           if (
             (entry.metadata as EntryMetadata | undefined)?.category === category
           ) {
@@ -309,9 +354,7 @@ export const list = query({
         );
       }
 
-      const isReallyDone = matched.length < targetCount && isDone;
-
-      const nextCursor = isReallyDone
+      const nextCursor = isDone
         ? ""
         : encodeFilteredCursor({
             __type: "filtered",
@@ -324,7 +367,7 @@ export const list = query({
 
       return {
         page: files,
-        isDone: isReallyDone,
+        isDone,
         continueCursor: nextCursor,
       };
     }
@@ -334,8 +377,20 @@ export const list = query({
       paginationOpts,
     });
 
+    const replacedEntryIds = new Set(
+      results.page
+        .map((e) => (e.metadata as any)?.replacedEntryId)
+        .filter(Boolean),
+    );
+
     const files = await Promise.all(
-      results.page.map((entry) => convertEntryToPublicFile(ctx, entry)),
+      results.page
+        .filter(
+          (entry) =>
+            !pendingIds.has(entry.entryId) &&
+            !replacedEntryIds.has(entry.entryId),
+        )
+        .map((entry) => convertEntryToPublicFile(ctx, entry)),
     );
 
     return {
@@ -343,5 +398,120 @@ export const list = query({
       isDone: results.isDone,
       continueCursor: results.continueCursor,
     };
+  },
+});
+
+export const listPendingDeletions = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const effectiveLimit = Math.max(1, Math.min(args.limit ?? 100, 1000));
+    return await ctx.db.query("pendingDeletions").take(effectiveLimit);
+  },
+});
+
+export const listPendingDeletionsByOrg = internalQuery({
+  args: { organizationId: v.string() },
+  handler: async (ctx, { organizationId }) => {
+    return await ctx.db
+      .query("pendingDeletions")
+      .withIndex("by_org_id", (q) => q.eq("organizationId", organizationId))
+      .collect();
+  },
+});
+
+export const listPendingDeletionsByFilename = internalQuery({
+  args: {
+    organizationId: v.string(),
+    filename: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("pendingDeletions")
+      .withIndex("by_org_id_and_filename", (q) =>
+        q
+          .eq("organizationId", args.organizationId)
+          .eq("filename", args.filename),
+      )
+      .collect();
+  },
+});
+
+export const upsertFileName = internalMutation({
+  args: {
+    organizationId: v.string(),
+    filename: v.string(),
+    entryId: v.string(),
+  },
+  handler: async (ctx, { organizationId, filename, entryId }) => {
+    const existing = await ctx.db
+      .query("fileNameIndex")
+      .withIndex("by_org_id_and_filename", (q) =>
+        q.eq("organizationId", organizationId).eq("filename", filename),
+      )
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { entryId });
+    } else {
+      await ctx.db.insert("fileNameIndex", {
+        organizationId,
+        filename,
+        entryId,
+      });
+    }
+  },
+});
+
+export const deleteFileNameByEntryId = internalMutation({
+  args: { entryId: v.string() },
+  handler: async (ctx, { entryId }) => {
+    const row = await ctx.db
+      .query("fileNameIndex")
+      .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
+      .unique();
+
+    if (row) {
+      await ctx.db.delete(row._id);
+    }
+  },
+});
+
+export const removePendingDeletion = internalMutation({
+  args: { id: v.id("pendingDeletions") },
+  handler: async (ctx, { id }) => {
+    await ctx.db.delete(id);
+  },
+});
+
+export const removePendingDeletionByEntryId = internalMutation({
+  args: { entryId: v.string() },
+  handler: async (ctx, { entryId }) => {
+    const row = await ctx.db
+      .query("pendingDeletions")
+      .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
+      .unique();
+    if (row) {
+      await ctx.db.delete(row._id);
+    }
+  },
+});
+
+export const markPendingDeletion = internalMutation({
+  args: {
+    filename: v.string(),
+    entryId: v.string(),
+    storageId: v.union(v.id("_storage"), v.null()),
+    organizationId: v.string(),
+  },
+  handler: async (ctx, { filename, entryId, storageId, organizationId }) => {
+    await cleanupFileIndices(ctx, entryId);
+
+    await ctx.db.insert("pendingDeletions", {
+      filename,
+      entryId,
+      storageId,
+      organizationId,
+      scheduledAt: Date.now(),
+    });
   },
 });

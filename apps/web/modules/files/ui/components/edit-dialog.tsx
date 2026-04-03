@@ -60,7 +60,7 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
       });
 
       if (result.status === "name_conflict") {
-        toast.error("A file with that name already exists");
+        toast.error("A file with this name already exists");
         return;
       }
 
@@ -81,7 +81,14 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isSaving) {
+          onOpenChange(isOpen);
+        }
+      }}
+    >
       <DialogContent className="max-w-sm md:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit file</DialogTitle>
@@ -96,6 +103,7 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
             </Label>
             <Input
               id="edit-filename"
+              disabled={isSaving}
               value={form.filename}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, filename: e.target.value }))
@@ -113,6 +121,7 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
             </Label>
             <Input
               id="edit-category"
+              disabled={isSaving}
               value={form.category}
               placeholder="Documentation, Support, Product, etc."
               onChange={(e) =>

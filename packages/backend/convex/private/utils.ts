@@ -2,7 +2,10 @@ import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 
 import { Doc } from "@workspace/backend/_generated/dataModel";
-import type { DatabaseReader } from "@workspace/backend/_generated/server";
+import {
+  type DatabaseReader,
+  MutationCtx,
+} from "@workspace/backend/_generated/server";
 
 interface OrgUserIdentity extends UserIdentity {
   orgId?: string;
@@ -11,7 +14,6 @@ interface OrgUserIdentity extends UserIdentity {
 interface ValidatedOrgUserIdentity extends UserIdentity {
   orgId: string;
 }
-
 interface AuthContext {
   auth: {
     getUserIdentity: () => Promise<OrgUserIdentity | null>;
@@ -69,4 +71,39 @@ export const getAuthenticatedOrg = async (
   }
 
   return { identity, organization };
+};
+
+export const computeFileHash = async (file: File): Promise<string> => {
+  if (typeof window !== "undefined" && "DigestStream" in window) {
+    const digestStream = new (window as any).DigestStream("SHA-256");
+    await file.stream().pipeTo(digestStream);
+    const hashBuffer: ArrayBuffer = await digestStream.digest;
+    return Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+export const cleanupFileIndices = async (ctx: MutationCtx, entryId: string) => {
+  const hashRow = await ctx.db
+    .query("contentHashes")
+    .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
+    .unique();
+  if (hashRow) {
+    await ctx.db.delete(hashRow._id);
+  }
+
+  const fileNameRow = await ctx.db
+    .query("fileNameIndex")
+    .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
+    .unique();
+  if (fileNameRow) {
+    await ctx.db.delete(fileNameRow._id);
+  }
 };
