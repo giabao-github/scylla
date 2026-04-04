@@ -121,11 +121,23 @@ export default defineSchema({
     storageId: v.union(v.id("_storage"), v.null()),
     organizationId: v.string(),
     scheduledAt: v.number(),
+    retryCount: v.optional(v.number()),
   })
     .index("by_entry_id", ["entryId"])
     .index("by_org_id", ["organizationId"])
     .index("by_org_id_and_filename", ["organizationId", "filename"])
     .index("by_scheduled_at", ["scheduledAt"]),
+  failedDeletions: defineTable({
+    entryId: v.string(),
+    storageId: v.union(v.id("_storage"), v.null()),
+    organizationId: v.string(),
+    filename: v.string(),
+    error: v.string(),
+    failedAt: v.number(),
+  })
+    .index("by_org_id", ["organizationId"])
+    .index("by_entry_id", ["entryId"])
+    .index("by_failed_at", ["failedAt"]),
   fileNameIndex: defineTable({
     organizationId: v.string(),
     filename: v.string(),
@@ -133,4 +145,14 @@ export default defineSchema({
   })
     .index("by_org_id_and_filename", ["organizationId", "filename"])
     .index("by_entry_id", ["entryId"]),
+  pendingOrphans: defineTable({
+    storageId: v.id("_storage"),
+    entryId: v.optional(v.string()),
+    organizationId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_org_id", ["organizationId"])
+    .index("by_storage_id", ["storageId"])
+    .index("by_created_at", ["createdAt"])
+    .index("by_org_id_and_created_at", ["organizationId", "createdAt"]),
 });

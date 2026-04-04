@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
-import { computeFileHash } from "@workspace/backend/private/utils";
+import { computeFileHash } from "@workspace/shared/lib/file-utils";
 import { EntryId, PublicFile } from "@workspace/shared/types/file";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -109,11 +109,27 @@ export const UploadDialog = ({
       }
 
       const uploadUrl = await generateUploadUrl();
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": blob.type || "application/octet-stream" },
-        body: blob,
-      });
+      let uploadResponse: Response;
+      try {
+        const MB = 1024 * 1024;
+        const timeoutMs = Math.max(60_000, (blob.size / MB) * 5_000);
+        uploadResponse = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": blob.type || "application/octet-stream" },
+          body: blob,
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch (error) {
+        if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
+        if (error instanceof DOMException && error.name === "TimeoutError") {
+          toast.error("Upload timed out", {
+            description:
+              "The upload took too long. Check your connection and try again.",
+          });
+          return;
+        }
+        throw error;
+      }
 
       if (!uploadResponse.ok) {
         if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
@@ -146,7 +162,7 @@ export const UploadDialog = ({
       }
 
       switch (result.status) {
-        case "content_duplicate":
+        case "content_duplicate": {
           if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);
 
           const isKnownMissing =
@@ -167,6 +183,7 @@ export const UploadDialog = ({
           }
           handleCancel();
           break;
+        }
 
         case "name_conflict":
           if (overrideEntryId) onRevertOptimistic?.(overrideEntryId);

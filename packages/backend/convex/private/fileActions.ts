@@ -1,10 +1,6 @@
 "use node";
 
-import {
-  contentHashFromArrayBuffer,
-  guessMimeTypeFromExtension,
-  vEntryId,
-} from "@convex-dev/rag";
+import { guessMimeTypeFromExtension, vEntryId } from "@convex-dev/rag";
 import { v } from "convex/values";
 
 import { internal } from "@workspace/backend/_generated/api";
@@ -131,12 +127,9 @@ export const addFile = action({
             error: null,
           };
         }
-        await ctx.runMutation(
-          internal.private.contentHashIndex.deleteByEntryId,
-          {
-            entryId: hashMatch.entryId,
-          },
-        );
+        await ctx.runMutation(internal.private.files.cleanupIndicesByEntryId, {
+          entryId: hashMatch.entryId,
+        });
       }
     }
 
@@ -225,6 +218,12 @@ export const addFile = action({
         mimeType,
       });
 
+      await ctx.runMutation(internal.private.orphans.markPendingOrphan, {
+        storageId,
+        organizationId,
+        createdAt: Date.now(),
+      });
+
       const { entryId, created } = await rag.add(ctx, {
         namespace: organizationId,
         text,
@@ -242,6 +241,11 @@ export const addFile = action({
       });
 
       if (!created) {
+        await ctx
+          .runMutation(internal.private.orphans.removePendingOrphan, {
+            storageId,
+          })
+          .catch(() => {});
         await ctx.storage.delete(storageId);
         return {
           status: "error",
@@ -249,6 +253,40 @@ export const addFile = action({
           entryId: null,
           error: "Failed to create entry.",
         };
+      }
+
+      try {
+        await ctx.runMutation(internal.private.orphans.resolveOrphan, {
+          storageId,
+          entryId,
+        });
+      } catch (resolveError) {
+        console.error("Failed to resolve orphan:", resolveError);
+      }
+
+      if (contentHash) {
+        const raceConditionMatch = await ctx.runQuery(
+          internal.private.contentHashIndex.getByHash,
+          { organizationId, contentHash, excludeEntryId: args.overrideEntryId },
+        );
+
+        if (raceConditionMatch) {
+          await rag.deleteAsync(ctx, { entryId });
+          await Promise.all([
+            ctx
+              .runMutation(internal.private.orphans.removePendingOrphan, {
+                storageId,
+              })
+              .catch(() => {}),
+            ctx.storage.delete(storageId).catch(() => {}),
+          ]);
+          return {
+            status: "content_duplicate",
+            url: null,
+            entryId: raceConditionMatch.entryId as EntryId,
+            error: null,
+          };
+        }
       }
 
       // Update indices synchronously
@@ -274,18 +312,22 @@ export const addFile = action({
             (oldEntry.metadata as EntryMetadata | undefined)?.storageId ?? null,
           organizationId,
         });
-
-        await ctx.runMutation(
-          internal.private.contentHashIndex.deleteByEntryId,
-          {
-            entryId: args.overrideEntryId,
-          },
-        );
       }
+
+      await ctx
+        .runMutation(internal.private.orphans.removePendingOrphan, {
+          storageId,
+        })
+        .catch(() => {});
 
       return { status: "success", url: fileUrl, entryId, error: null };
     } catch (error) {
-      await ctx.storage.delete(storageId);
+      await ctx.storage.delete(storageId).catch(() => {});
+      await ctx
+        .runMutation(internal.private.orphans.removePendingOrphan, {
+          storageId,
+        })
+        .catch(() => {});
       return {
         status: "error",
         url: null,
@@ -431,7 +473,7 @@ export const updateFile = action({
       await ctx.runMutation(internal.private.files.markPendingDeletion, {
         filename: entry.key ?? newFilename,
         entryId: args.entryId,
-        storageId: metadata?.storageId ?? null,
+        storageId: null,
         organizationId,
       });
 

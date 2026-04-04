@@ -5,6 +5,20 @@ import { internalAction } from "@workspace/backend/_generated/server";
 import rag from "@workspace/backend/system/ai/rag";
 
 const BATCH_SIZE = 20;
+const MAX_RETRIES = 3;
+
+const isNotFoundError = (err: unknown): boolean => {
+  const msg =
+    err instanceof Error
+      ? err.message.toLowerCase()
+      : String(err).toLowerCase();
+  return (
+    msg.includes("not found") ||
+    msg.includes("does not exist") ||
+    msg.includes("storage object not found") ||
+    msg.includes("no document")
+  );
+};
 
 export const processPendingDeletions = internalAction({
   args: {},
@@ -13,39 +27,56 @@ export const processPendingDeletions = internalAction({
       internal.private.files.listPendingDeletions,
       { limit: BATCH_SIZE },
     );
+
     if (pending.length === 0) return;
 
     for (const row of pending) {
       try {
-        if (row.storageId) {
-          try {
-            await ctx.storage.delete(row.storageId);
-          } catch (storageErr) {
-            console.warn(
-              `Storage ID ${row.storageId} already deleted or not found.`,
-            );
-          }
-        }
-
-        await ctx.runMutation(
-          internal.private.contentHashIndex.deleteByEntryId,
-          {
-            entryId: row.entryId,
-          },
-        );
-
-        await rag.deleteAsync(ctx, { entryId: row.entryId as EntryId });
+        await Promise.all([
+          row.storageId
+            ? ctx.storage.delete(row.storageId).catch((err) => {
+                if (!isNotFoundError(err)) throw err;
+              })
+            : Promise.resolve(),
+          rag
+            .deleteAsync(ctx, { entryId: row.entryId as EntryId })
+            .catch((err) => {
+              if (!isNotFoundError(err)) throw err;
+            }),
+        ]);
 
         await ctx.runMutation(internal.private.files.removePendingDeletion, {
           id: row._id,
         });
       } catch (error) {
-        console.error(`Failed to clean up ${row.entryId}, will retry:`, error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const nextRetry = (row.retryCount ?? 0) + 1;
+        console.error(
+          `Deletion failed for row ${row._id} (attempt ${nextRetry}):`,
+          errorMessage,
+        );
+
+        if (nextRetry >= MAX_RETRIES) {
+          await ctx.runMutation(internal.private.files.moveToDeadLetterQueue, {
+            id: row._id,
+            error: errorMessage,
+          });
+        } else {
+          await ctx.runMutation(internal.private.files.incrementRetryCount, {
+            id: row._id,
+            retryCount: nextRetry,
+          });
+        }
       }
     }
 
     if (pending.length === BATCH_SIZE) {
-      await ctx.runAction(internal.pendingDeletions.processPendingDeletions);
+      await ctx.scheduler.runAfter(
+        100,
+        internal.pendingDeletions.processPendingDeletions,
+        {},
+      );
     }
   },
 });

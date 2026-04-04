@@ -161,6 +161,7 @@ export const deleteConversationBatch = internalMutation({
           .withIndex("by_conversation_id", (q) =>
             q.eq("conversationId", conversation._id),
           )
+          .order("asc")
           .take(500);
         hasMoreRequests = requests.length === 500;
         for (const req of requests) {
@@ -197,6 +198,7 @@ export const deleteSessionBatch = internalMutation({
           .withIndex("by_contact_session_id", (q) =>
             q.eq("contactSessionId", session._id),
           )
+          .order("asc")
           .take(500);
         hasMoreRequests = requests.length === 500;
         for (const req of requests) {

@@ -80,7 +80,14 @@ export const FilesView = () => {
   };
 
   const toggleSelectAll = () => {
-    setSelectedIds(allSelected ? new Set() : new Set(loadedIds));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(loadedIds.slice(0, 100)));
+      if (loadedIds.length > 100) {
+        toast.warning("Selection limited to 100 files at once");
+      }
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -273,7 +280,7 @@ export const FilesView = () => {
                 </TableRow>
               </TableHeader>
               <FileTableBody
-                files={files.results}
+                files={displayFiles}
                 isLoadingFirstPage={isLoadingFirstPage}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}

@@ -405,7 +405,10 @@ export const listPendingDeletions = internalQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const effectiveLimit = Math.max(1, Math.min(args.limit ?? 100, 1000));
-    return await ctx.db.query("pendingDeletions").take(effectiveLimit);
+    return await ctx.db
+      .query("pendingDeletions")
+      .order("asc")
+      .take(effectiveLimit);
   },
 });
 
@@ -496,6 +499,13 @@ export const removePendingDeletionByEntryId = internalMutation({
   },
 });
 
+export const cleanupIndicesByEntryId = internalMutation({
+  args: { entryId: v.string() },
+  handler: async (ctx, { entryId }) => {
+    await cleanupFileIndices(ctx, entryId);
+  },
+});
+
 export const markPendingDeletion = internalMutation({
   args: {
     filename: v.string(),
@@ -513,5 +523,37 @@ export const markPendingDeletion = internalMutation({
       organizationId,
       scheduledAt: Date.now(),
     });
+  },
+});
+
+export const incrementRetryCount = internalMutation({
+  args: {
+    id: v.id("pendingDeletions"),
+    retryCount: v.number(),
+  },
+  handler: async (ctx, { id, retryCount }) => {
+    await ctx.db.patch(id, { retryCount });
+  },
+});
+
+export const moveToDeadLetterQueue = internalMutation({
+  args: {
+    id: v.id("pendingDeletions"),
+    error: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const pending = await ctx.db.get(args.id);
+    if (!pending) return;
+
+    await ctx.db.insert("failedDeletions", {
+      entryId: pending.entryId,
+      storageId: pending.storageId,
+      organizationId: pending.organizationId,
+      filename: pending.filename,
+      error: args.error,
+      failedAt: Date.now(),
+    });
+
+    await ctx.db.delete(args.id);
   },
 });

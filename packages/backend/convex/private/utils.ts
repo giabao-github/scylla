@@ -73,23 +73,6 @@ export const getAuthenticatedOrg = async (
   return { identity, organization };
 };
 
-export const computeFileHash = async (file: File): Promise<string> => {
-  if (typeof window !== "undefined" && "DigestStream" in window) {
-    const digestStream = new (window as any).DigestStream("SHA-256");
-    await file.stream().pipeTo(digestStream);
-    const hashBuffer: ArrayBuffer = await digestStream.digest;
-    return Array.from(new Uint8Array(hashBuffer))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-
-  const buffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-};
-
 export const cleanupFileIndices = async (ctx: MutationCtx, entryId: string) => {
   const hashRow = await ctx.db
     .query("contentHashes")

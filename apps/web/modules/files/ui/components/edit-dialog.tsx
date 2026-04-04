@@ -41,8 +41,8 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
     }
   }, [open, file]);
 
-  const filenameChanged = form.filename !== file?.name;
-  const categoryChanged = form.category !== (file?.category ?? "");
+  const filenameChanged = form.filename.trim() !== file?.name;
+  const categoryChanged = form.category.trim() !== (file?.category ?? "");
   const hasChanges = filenameChanged || categoryChanged;
 
   const handleSave = async () => {

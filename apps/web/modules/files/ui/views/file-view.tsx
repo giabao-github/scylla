@@ -46,16 +46,16 @@ export const FileView = ({
               </div>
               <div className="flex flex-row gap-x-3 items-center min-w-0">
                 <DialogTitle className="text-sm font-semibold truncate cursor-default">
-                  {file?.name}
+                  {file.name}
                 </DialogTitle>
                 <Badge
                   variant="outline"
                   className="text-xs uppercase px-1.5 py-0 cursor-default"
                 >
-                  {file?.type}
+                  {file.type}
                 </Badge>
                 <span className="text-xs cursor-default text-muted-foreground">
-                  {file?.size}
+                  {file.size}
                 </span>
               </div>
               {fileUrl && (

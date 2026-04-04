@@ -32,4 +32,11 @@ crons.cron(
   {},
 );
 
+crons.cron(
+  "Cleanup stale orphans",
+  "0 * * * *",
+  internal.orphanCleanup.cleanupStaleOrphans,
+  {},
+);
+
 export default crons;

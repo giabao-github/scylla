@@ -61,7 +61,14 @@ export const DeleteDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={isDeleting ? undefined : onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isDeleting) {
+          onOpenChange(isOpen);
+        }
+      }}
+    >
       <DialogContent className="max-w-sm md:max-w-md">
         <DialogHeader>
           <DialogTitle>
