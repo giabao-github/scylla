@@ -74,7 +74,15 @@ export const FilesView = () => {
   const toggleSelect = (id: EntryId) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        if (next.size >= 100) {
+          toast.warning("Selection limited to 100 files at once");
+          return prev;
+        }
+        next.add(id);
+      }
       return next;
     });
   };

@@ -224,29 +224,23 @@ export const extractTextContent = async (
   }
 
   if (normalizedMime.startsWith("text/")) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30_000);
-
     let response: Response;
     let bytes: ArrayBuffer;
+    const signal = AbortSignal.timeout(30_000);
 
     try {
-      response = await fetch(url, { signal: controller.signal });
-
+      response = await fetch(url, { signal });
       if (!response.ok) {
         throw new Error(
           `Failed to fetch content: ${response.status} ${response.statusText}`,
         );
       }
-
       bytes = await response.arrayBuffer();
     } catch (err) {
-      if (err instanceof Error && err.name === "TimeoutError") {
+      if (err instanceof DOMException && err.name === "TimeoutError") {
         throw new Error(`Fetch timed out for storage [${storageId}]`);
       }
       throw err;
-    } finally {
-      clearTimeout(timeoutId);
     }
 
     return extractTextFileContent(ctx, storageId, bytes, normalizedMime);

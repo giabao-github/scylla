@@ -2,20 +2,10 @@ import { EntryId } from "@convex-dev/rag";
 
 import { internal } from "@workspace/backend/_generated/api";
 import { internalAction } from "@workspace/backend/_generated/server";
+import { ORPHAN_BATCH_SIZE } from "@workspace/backend/private/orphans";
 import rag from "@workspace/backend/system/ai/rag";
 
-const isNotFoundError = (err: unknown): boolean => {
-  const msg =
-    err instanceof Error
-      ? err.message.toLowerCase()
-      : String(err).toLowerCase();
-  return (
-    msg.includes("not found") ||
-    msg.includes("does not exist") ||
-    msg.includes("storage object not found") ||
-    msg.includes("no document")
-  );
-};
+import { isNotFoundError } from "@workspace/shared/lib/file-utils";
 
 export const cleanupStaleOrphans = internalAction({
   args: {},
@@ -60,6 +50,14 @@ export const cleanupStaleOrphans = internalAction({
       } catch (error) {
         console.error(`Failed to clean up orphan [${row.storageId}]:`, error);
       }
+    }
+
+    if (stale.length === ORPHAN_BATCH_SIZE) {
+      await ctx.scheduler.runAfter(
+        100,
+        internal.orphanCleanup.cleanupStaleOrphans,
+        {},
+      );
     }
   },
 });

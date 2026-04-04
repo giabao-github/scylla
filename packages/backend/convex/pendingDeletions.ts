@@ -4,21 +4,10 @@ import { internal } from "@workspace/backend/_generated/api";
 import { internalAction } from "@workspace/backend/_generated/server";
 import rag from "@workspace/backend/system/ai/rag";
 
+import { isNotFoundError } from "@workspace/shared/lib/file-utils";
+
 const BATCH_SIZE = 20;
 const MAX_RETRIES = 3;
-
-const isNotFoundError = (err: unknown): boolean => {
-  const msg =
-    err instanceof Error
-      ? err.message.toLowerCase()
-      : String(err).toLowerCase();
-  return (
-    msg.includes("not found") ||
-    msg.includes("does not exist") ||
-    msg.includes("storage object not found") ||
-    msg.includes("no document")
-  );
-};
 
 export const processPendingDeletions = internalAction({
   args: {},

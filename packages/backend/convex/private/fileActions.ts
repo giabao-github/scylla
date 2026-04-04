@@ -10,6 +10,7 @@ import { extractTextContent } from "@workspace/backend/lib/extractTextContent";
 import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
 import rag from "@workspace/backend/system/ai/rag";
 
+import { isNotFoundError } from "@workspace/shared/lib/file-utils";
 import { EntryId } from "@workspace/shared/types/file";
 
 type EntryMetadata = {
@@ -18,6 +19,7 @@ type EntryMetadata = {
   filename: string;
   category: string | null;
   contentHash?: string;
+  mimeType?: string;
 };
 
 type AddFileResult =
@@ -82,6 +84,21 @@ export const addFile = action({
     const oldEntry = overrideEntryId
       ? await rag.getEntry(ctx, { entryId: overrideEntryId })
       : null;
+
+    if (
+      overrideEntryId &&
+      oldEntry &&
+      oldEntry.metadata?.uploadedBy !== organizationId
+    ) {
+      await ctx.storage.delete(storageId);
+      return {
+        status: "error",
+        url: null,
+        entryId: null,
+        error: "You do not have permission to replace this file.",
+      };
+    }
+
     const namespace = await rag.getNamespace(ctx, {
       namespace: organizationId,
     });
@@ -186,6 +203,7 @@ export const addFile = action({
       "application/octet-stream";
 
     // Step 5: Normal upload path
+    let createdEntryId: string | null = null;
     try {
       if (!args.overrideEntryId && namespace) {
         const pendingMatches = await ctx.runQuery(
@@ -195,9 +213,17 @@ export const addFile = action({
         await Promise.all(
           pendingMatches.map(async (pending) => {
             try {
-              await rag.deleteAsync(ctx, {
-                entryId: pending.entryId as EntryId,
-              });
+              await Promise.all([
+                rag.deleteAsync(ctx, { entryId: pending.entryId as EntryId }),
+                pending.storageId
+                  ? ctx.storage.delete(pending.storageId).catch((err) => {
+                      if (!isNotFoundError(err)) throw err;
+                      console.warn(
+                        `Storage [${pending.storageId}] already deleted, skipping.`,
+                      );
+                    })
+                  : Promise.resolve(),
+              ]);
               await ctx.runMutation(
                 internal.private.files.removePendingDeletionByEntryId,
                 { entryId: pending.entryId },
@@ -212,16 +238,16 @@ export const addFile = action({
         );
       }
 
-      const text = await extractTextContent(ctx, {
-        storageId,
-        filename,
-        mimeType,
-      });
-
       await ctx.runMutation(internal.private.orphans.markPendingOrphan, {
         storageId,
         organizationId,
         createdAt: Date.now(),
+      });
+
+      const text = await extractTextContent(ctx, {
+        storageId,
+        filename,
+        mimeType,
       });
 
       const { entryId, created } = await rag.add(ctx, {
@@ -236,6 +262,7 @@ export const addFile = action({
           filename,
           category: category ?? null,
           contentHash,
+          mimeType,
           replacedEntryId: args.overrideEntryId,
         } as EntryMetadata,
       });
@@ -254,6 +281,8 @@ export const addFile = action({
           error: "Failed to create entry.",
         };
       }
+
+      createdEntryId = entryId;
 
       try {
         await ctx.runMutation(internal.private.orphans.resolveOrphan, {
@@ -328,6 +357,13 @@ export const addFile = action({
           storageId,
         })
         .catch(() => {});
+
+      if (createdEntryId) {
+        await rag
+          .deleteAsync(ctx, { entryId: createdEntryId as EntryId })
+          .catch(() => {});
+      }
+
       return {
         status: "error",
         url: null,
@@ -402,6 +438,7 @@ export const updateFile = action({
       return { status: "error" as const, error: "File not found in storage" };
     }
 
+    let createdEntryId: string | null = null;
     try {
       if (isRenaming) {
         const pendingMatches = await ctx.runQuery(
@@ -411,9 +448,17 @@ export const updateFile = action({
         await Promise.all(
           pendingMatches.map(async (pending) => {
             try {
-              await rag.deleteAsync(ctx, {
-                entryId: pending.entryId as EntryId,
-              });
+              await Promise.all([
+                rag.deleteAsync(ctx, { entryId: pending.entryId as EntryId }),
+                pending.storageId
+                  ? ctx.storage.delete(pending.storageId).catch((err) => {
+                      if (!isNotFoundError(err)) throw err;
+                      console.warn(
+                        `Storage [${pending.storageId}] already deleted, skipping.`,
+                      );
+                    })
+                  : Promise.resolve(),
+              ]);
               await ctx.runMutation(
                 internal.private.files.removePendingDeletionByEntryId,
                 { entryId: pending.entryId },
@@ -429,7 +474,9 @@ export const updateFile = action({
       }
 
       const mimeType =
-        guessMimeTypeFromExtension(newFilename) || "application/octet-stream";
+        metadata?.mimeType ||
+        guessMimeTypeFromExtension(newFilename) ||
+        "application/octet-stream";
 
       const text = await extractTextContent(ctx, {
         storageId,
@@ -455,7 +502,8 @@ export const updateFile = action({
         throw new Error("Failed to create updated entry");
       }
 
-      // Update indices for the new entry
+      createdEntryId = newEntryId;
+
       await ctx.runMutation(internal.private.files.upsertFileName, {
         organizationId,
         filename: newFilename,
@@ -479,6 +527,18 @@ export const updateFile = action({
 
       return { status: "success" as const, error: null };
     } catch (error) {
+      if (createdEntryId) {
+        await Promise.all([
+          rag
+            .deleteAsync(ctx, { entryId: createdEntryId as EntryId })
+            .catch(() => {}),
+          ctx
+            .runMutation(internal.private.files.cleanupIndicesByEntryId, {
+              entryId: createdEntryId,
+            })
+            .catch(() => {}),
+        ]);
+      }
       return {
         status: "error" as const,
         error: error instanceof Error ? error.message : "Failed to update file",

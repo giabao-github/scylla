@@ -66,3 +66,33 @@ export const computeFileHash = async (file: File): Promise<string> => {
   const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
   return toHexString(hashBuffer);
 };
+
+export const isNotFoundError = (err: unknown): boolean => {
+  if (err && typeof err === "object") {
+    const error = err as Record<string, any>;
+
+    if (
+      error.code === "ENOENT" ||
+      error.code === "NOT_FOUND" ||
+      error.status === 404 ||
+      error.statusCode === 404
+    ) {
+      return true;
+    }
+
+    if (error.data?.code === "NOT_FOUND") {
+      return true;
+    }
+  }
+
+  const msg =
+    err instanceof Error
+      ? err.message.toLowerCase()
+      : String(err).toLowerCase();
+
+  return (
+    msg.includes("not found") ||
+    msg.includes("does not exist") ||
+    msg.includes("no document")
+  );
+};

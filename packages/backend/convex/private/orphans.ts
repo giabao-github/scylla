@@ -5,6 +5,8 @@ import {
   internalQuery,
 } from "@workspace/backend/_generated/server";
 
+export const ORPHAN_BATCH_SIZE = 100;
+
 export const markPendingOrphan = internalMutation({
   args: {
     storageId: v.id("_storage"),
@@ -61,13 +63,11 @@ export const removePendingOrphan = internalMutation({
 });
 
 export const listStaleOrphans = internalQuery({
-  args: {
-    createdBefore: v.number(),
-  },
+  args: { createdBefore: v.number() },
   handler: async (ctx, { createdBefore }) => {
     return await ctx.db
       .query("pendingOrphans")
       .withIndex("by_created_at", (q) => q.lt("createdAt", createdBefore))
-      .take(100);
+      .take(ORPHAN_BATCH_SIZE);
   },
 });

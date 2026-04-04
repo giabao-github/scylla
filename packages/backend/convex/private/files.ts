@@ -95,7 +95,9 @@ const convertEntryToPublicFile = async (
     );
   }
 
-  const url = storageId ? await ctx.storage.getUrl(storageId) : null;
+  const url = isValidStorageId(storageId)
+    ? await ctx.storage.getUrl(storageId)
+    : null;
 
   return {
     id: entry.entryId,
@@ -193,7 +195,6 @@ export const deleteFile = mutation({
   },
   handler: async (ctx, { entryId }) => {
     const { organizationId } = await getAuthenticatedOrgId(ctx);
-
     const entry = await rag.getEntry(ctx, { entryId });
 
     if (!entry || entry.metadata?.uploadedBy !== organizationId) {
@@ -203,8 +204,16 @@ export const deleteFile = mutation({
       });
     }
 
-    const metadata = entry.metadata as EntryMetadata | undefined;
+    const existingPending = await ctx.db
+      .query("pendingDeletions")
+      .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
+      .unique();
 
+    if (existingPending) {
+      return;
+    }
+
+    const metadata = entry.metadata as EntryMetadata | undefined;
     await cleanupFileIndices(ctx, entryId);
 
     const storageId = isValidStorageId(metadata?.storageId)
@@ -249,9 +258,20 @@ export const deleteFiles = mutation({
       }
     }
 
+    let skippedDueToPending = 0;
     for (const entry of entries) {
       if (!entry) continue;
       const metadata = entry.metadata as EntryMetadata | undefined;
+
+      const existingPending = await ctx.db
+        .query("pendingDeletions")
+        .withIndex("by_entry_id", (q) => q.eq("entryId", entry.entryId))
+        .unique();
+
+      if (existingPending) {
+        skippedDueToPending++;
+        continue;
+      }
 
       await cleanupFileIndices(ctx, entry.entryId);
 
@@ -268,8 +288,11 @@ export const deleteFiles = mutation({
       });
     }
 
-    const skipped = entries.filter((e) => e === null).length;
-    return { deleted: entries.length - skipped, skipped };
+    const notFound = entries.filter((e) => e === null).length;
+    return {
+      deleted: entries.length - notFound - skippedDueToPending,
+      skipped: notFound + skippedDueToPending,
+    };
   },
 });
 
@@ -337,8 +360,9 @@ export const list = query({
           if (
             (entry.metadata as EntryMetadata | undefined)?.category === category
           ) {
-            matched.push(entry);
-            if (matched.length === targetCount) break;
+            if (matched.length < targetCount) {
+              matched.push(entry);
+            }
           }
         }
 
