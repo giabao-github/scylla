@@ -87,8 +87,6 @@ export default defineSchema({
       "status",
       "lastMessageAt",
     ]),
-  // Note: Legacy messageRequests rows lacking updatedAt/status fields are intentionally
-  // excluded from indexes (e.g., by_status_and_updated_at) and will expire via 24h cleanup.
   messageRequests: defineTable({
     requestId: v.string(),
     contactSessionId: v.optional(v.id("contactSessions")),
@@ -110,4 +108,52 @@ export default defineSchema({
     .index("by_created_at", ["createdAt"])
     .index("by_updated_at", ["updatedAt"])
     .index("by_status_and_updated_at", ["status", "updatedAt"]),
+  contentHashes: defineTable({
+    organizationId: v.string(),
+    contentHash: v.string(),
+    entryId: v.string(),
+  })
+    .index("by_org_id_and_hash", ["organizationId", "contentHash"])
+    .index("by_entry_id", ["entryId"]),
+  pendingDeletions: defineTable({
+    filename: v.string(),
+    entryId: v.string(),
+    storageId: v.union(v.id("_storage"), v.null()),
+    organizationId: v.string(),
+    retryCount: v.optional(v.number()),
+    scheduledAt: v.number(),
+    claimedAt: v.optional(v.number()),
+  })
+    .index("by_entry_id", ["entryId"])
+    .index("by_org_id", ["organizationId"])
+    .index("by_org_id_and_filename", ["organizationId", "filename"])
+    .index("by_scheduled_at", ["scheduledAt"]),
+  failedDeletions: defineTable({
+    entryId: v.string(),
+    storageId: v.union(v.id("_storage"), v.null()),
+    organizationId: v.string(),
+    filename: v.string(),
+    error: v.string(),
+    failedAt: v.number(),
+  })
+    .index("by_org_id", ["organizationId"])
+    .index("by_entry_id", ["entryId"])
+    .index("by_failed_at", ["failedAt"]),
+  fileNameIndex: defineTable({
+    organizationId: v.string(),
+    filename: v.string(),
+    entryId: v.string(),
+  })
+    .index("by_org_id_and_filename", ["organizationId", "filename"])
+    .index("by_entry_id", ["entryId"]),
+  pendingOrphans: defineTable({
+    storageId: v.id("_storage"),
+    entryId: v.optional(v.string()),
+    organizationId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_org_id", ["organizationId"])
+    .index("by_storage_id", ["storageId"])
+    .index("by_created_at", ["createdAt"])
+    .index("by_org_id_and_created_at", ["organizationId", "createdAt"]),
 });

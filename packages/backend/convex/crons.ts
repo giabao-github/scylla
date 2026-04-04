@@ -25,4 +25,18 @@ crons.cron(
   {},
 );
 
+crons.cron(
+  "Cleanup pending file deletions",
+  "*/15 * * * *",
+  internal.pendingDeletions.processPendingDeletions,
+  {},
+);
+
+crons.cron(
+  "Cleanup stale orphans",
+  "0 * * * *",
+  internal.orphanCleanup.cleanupStaleOrphans,
+  {},
+);
+
 export default crons;

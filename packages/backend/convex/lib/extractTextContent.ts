@@ -7,7 +7,7 @@ import { Id } from "@workspace/backend/_generated/dataModel";
 
 const AI_MODELS = {
   image: google.chat("gemini-flash-lite-latest"),
-  pdf: google.chat("gemini-flash-lite-latest"),
+  document: google.chat("gemini-flash-lite-latest"),
   html: google.chat("gemini-flash-lite-latest"),
   video: google.chat("gemini-flash-latest"),
 } as const;
@@ -17,6 +17,12 @@ const SUPPORTED_IMAGE_TYPES = [
   "image/png",
   "image/webp",
   "image/gif",
+] as const;
+
+const DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ] as const;
 
 const SYSTEM_PROMPTS = {
@@ -40,8 +46,8 @@ const SYSTEM_PROMPTS = {
     - Plain text or markdown (use markdown if structure exists).
     - No explanations, no meta commentary.
   `,
-  pdf: `
-    You extract and reconstruct text content from PDF files.
+  document: `
+    You extract and reconstruct text content from PDF or Word files.
 
     Rules:
     - Perform faithful extraction (no summarization).
@@ -51,7 +57,7 @@ const SYSTEM_PROMPTS = {
       + bullet points
       + tables (format as markdown tables)
     - Maintain reading order across pages.
-    - If the PDF contains scanned pages:
+    - If the PDF or Word contains scanned pages:
       + apply OCR and follow same rules.
     - If content is partially unreadable:
       + mark unclear sections as [unreadable].
@@ -104,7 +110,6 @@ const SYSTEM_PROMPTS = {
 export type ExtractTextContentArgs = {
   storageId: Id<"_storage">;
   filename: string;
-  bytes?: ArrayBuffer;
   mimeType: string;
 };
 
@@ -123,14 +128,14 @@ const extractImageText = async (url: string): Promise<string> => {
   return result.text;
 };
 
-const extractPdfText = async (
+const extractDocumentText = async (
   url: string,
   mimeType: string,
   filename: string,
 ): Promise<string> => {
   const result = await generateText({
-    model: AI_MODELS.pdf,
-    system: SYSTEM_PROMPTS.pdf,
+    model: AI_MODELS.document,
+    system: SYSTEM_PROMPTS.document,
     messages: [
       {
         role: "user",
@@ -138,7 +143,7 @@ const extractPdfText = async (
           { type: "file", data: new URL(url), mediaType: mimeType, filename },
           {
             type: "text",
-            text: "Extract all text from the PDF verbatim, preserving structure. Output only the extracted text.",
+            text: "Extract all text from the document verbatim, preserving structure. Output only the extracted text.",
           },
         ],
       },
@@ -190,14 +195,14 @@ export const extractTextContent = async (
   ctx: { storage: StorageActionWriter },
   args: ExtractTextContentArgs,
 ): Promise<string> => {
-  const { storageId, filename, bytes, mimeType } = args;
+  const { storageId, filename, mimeType } = args;
 
   const allowedTypes = [
     ...SUPPORTED_IMAGE_TYPES,
-    "application/pdf",
     "text/plain",
     "text/html",
     "text/markdown",
+    ...DOCUMENT_MIME_TYPES,
   ];
 
   const [base = ""] = mimeType.toLowerCase().split(";");
@@ -214,11 +219,30 @@ export const extractTextContent = async (
     return extractImageText(url);
   }
 
-  if (normalizedMime === "application/pdf") {
-    return extractPdfText(url, normalizedMime, filename);
+  if (DOCUMENT_MIME_TYPES.some((type) => type === normalizedMime)) {
+    return extractDocumentText(url, normalizedMime, filename);
   }
 
   if (normalizedMime.startsWith("text/")) {
+    let response: Response;
+    let bytes: ArrayBuffer;
+    const signal = AbortSignal.timeout(30_000);
+
+    try {
+      response = await fetch(url, { signal });
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch content: ${response.status} ${response.statusText}`,
+        );
+      }
+      bytes = await response.arrayBuffer();
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "TimeoutError") {
+        throw new Error(`Fetch timed out for storage [${storageId}]`);
+      }
+      throw err;
+    }
+
     return extractTextFileContent(ctx, storageId, bytes, normalizedMime);
   }
 

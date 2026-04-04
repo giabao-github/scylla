@@ -1,7 +1,9 @@
 import { v } from "convex/values";
 
 import { internal } from "@workspace/backend/_generated/api";
+import { Id } from "@workspace/backend/_generated/dataModel";
 import {
+  MutationCtx,
   internalAction,
   internalMutation,
 } from "@workspace/backend/_generated/server";
@@ -17,6 +19,28 @@ type RemoveOrganizationResult =
         | "finalization_incomplete"
         | "finalization_failed";
     };
+
+const MESSAGE_REQUEST_BATCH = 500;
+const MAX_BATCHES_PER_PARENT = 20;
+
+const purgeMessageRequests = async (
+  ctx: MutationCtx,
+  fetchBatch: () => Promise<{ _id: Id<"messageRequests"> }[]>,
+): Promise<{ done: boolean }> => {
+  let hasMore = true;
+  let batches = 0;
+
+  while (hasMore && batches < MAX_BATCHES_PER_PARENT) {
+    const requests = await fetchBatch();
+    hasMore = requests.length === MESSAGE_REQUEST_BATCH;
+    for (const req of requests) {
+      await ctx.db.delete(req._id);
+    }
+    batches += 1;
+  }
+
+  return { done: !hasMore };
+};
 
 export const removeOrganization = internalAction({
   args: {
@@ -154,15 +178,21 @@ export const deleteConversationBatch = internalMutation({
       .paginate({ cursor, numItems: 25 });
 
     for (const conversation of page.page) {
-      const requests = await ctx.db
-        .query("messageRequests")
-        .withIndex("by_conversation_id", (q) =>
-          q.eq("conversationId", conversation._id),
-        )
-        .collect();
+      const { done } = await purgeMessageRequests(ctx, () =>
+        ctx.db
+          .query("messageRequests")
+          .withIndex("by_conversation_id", (q) =>
+            q.eq("conversationId", conversation._id),
+          )
+          .order("asc")
+          .take(MESSAGE_REQUEST_BATCH),
+      );
 
-      for (const req of requests) {
-        await ctx.db.delete(req._id);
+      if (!done) {
+        console.warn(
+          `[deleteConversationBatch] Message request cap hit for conversation [${conversation._id}], deferring.`,
+        );
+        continue;
       }
 
       await ctx.db.delete(conversation._id);
@@ -187,15 +217,23 @@ export const deleteSessionBatch = internalMutation({
       .paginate({ cursor, numItems: 100 });
 
     for (const session of page.page) {
-      const requests = await ctx.db
-        .query("messageRequests")
-        .withIndex("by_contact_session_id", (q) =>
-          q.eq("contactSessionId", session._id),
-        )
-        .collect();
-      for (const req of requests) {
-        await ctx.db.delete(req._id);
+      const { done } = await purgeMessageRequests(ctx, () =>
+        ctx.db
+          .query("messageRequests")
+          .withIndex("by_contact_session_id", (q) =>
+            q.eq("contactSessionId", session._id),
+          )
+          .order("asc")
+          .take(MESSAGE_REQUEST_BATCH),
+      );
+
+      if (!done) {
+        console.warn(
+          `[deleteSessionBatch] Message request cap hit for session [${session._id}], deferring.`,
+        );
+        continue;
       }
+
       await ctx.db.delete(session._id);
     }
 

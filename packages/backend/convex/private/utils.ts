@@ -2,7 +2,10 @@ import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 
 import { Doc } from "@workspace/backend/_generated/dataModel";
-import type { DatabaseReader } from "@workspace/backend/_generated/server";
+import {
+  type DatabaseReader,
+  MutationCtx,
+} from "@workspace/backend/_generated/server";
 
 interface OrgUserIdentity extends UserIdentity {
   orgId?: string;
@@ -11,7 +14,6 @@ interface OrgUserIdentity extends UserIdentity {
 interface ValidatedOrgUserIdentity extends UserIdentity {
   orgId: string;
 }
-
 interface AuthContext {
   auth: {
     getUserIdentity: () => Promise<OrgUserIdentity | null>;
@@ -69,4 +71,22 @@ export const getAuthenticatedOrg = async (
   }
 
   return { identity, organization };
+};
+
+export const cleanupFileIndices = async (ctx: MutationCtx, entryId: string) => {
+  const hashRow = await ctx.db
+    .query("contentHashes")
+    .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
+    .unique();
+  if (hashRow) {
+    await ctx.db.delete(hashRow._id);
+  }
+
+  const fileNameRow = await ctx.db
+    .query("fileNameIndex")
+    .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
+    .unique();
+  if (fileNameRow) {
+    await ctx.db.delete(fileNameRow._id);
+  }
 };
