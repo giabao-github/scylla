@@ -161,7 +161,7 @@ export const addFile = action({
       };
     }
 
-    // Step 4: Verify file is accessible — HEAD only, no body download
+    // Step 4: Get file URL
     const fileUrl = await ctx.storage.getUrl(storageId);
     if (!fileUrl) {
       await ctx.storage.delete(storageId);
@@ -170,30 +170,6 @@ export const addFile = action({
         url: null,
         entryId: null,
         error: "Uploaded file could not be found in storage.",
-      };
-    }
-
-    try {
-      const probe = await fetch(fileUrl, {
-        method: "HEAD",
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!probe.ok) {
-        await ctx.storage.delete(storageId);
-        return {
-          status: "error",
-          url: null,
-          entryId: null,
-          error: "Failed to access file in storage.",
-        };
-      }
-    } catch {
-      await ctx.storage.delete(storageId);
-      return {
-        status: "error",
-        url: null,
-        entryId: null,
-        error: "Failed to reach storage.",
       };
     }
 
@@ -284,6 +260,34 @@ export const addFile = action({
 
       createdEntryId = entryId;
 
+      const claimResult = await ctx.runMutation(
+        internal.private.files.claimFileName,
+        {
+          organizationId,
+          filename,
+          entryId,
+        },
+      );
+
+      if (!claimResult.success) {
+        await Promise.all([
+          rag.deleteAsync(ctx, { entryId }).catch(console.error),
+          ctx.storage.delete(storageId).catch(console.error),
+          ctx
+            .runMutation(internal.private.orphans.removePendingOrphan, {
+              storageId,
+            })
+            .catch(() => {}),
+        ]);
+        return {
+          status: "name_conflict",
+          existingEntryId: claimResult.conflictEntryId as EntryId,
+          url: null,
+          entryId: null,
+          error: null,
+        };
+      }
+
       try {
         await ctx.runMutation(internal.private.orphans.resolveOrphan, {
           storageId,
@@ -294,43 +298,33 @@ export const addFile = action({
       }
 
       if (contentHash) {
-        const raceConditionMatch = await ctx.runQuery(
-          internal.private.contentHashIndex.getByHash,
-          { organizationId, contentHash, excludeEntryId: args.overrideEntryId },
+        const hashClaimResult = await ctx.runMutation(
+          internal.private.files.claimContentHash,
+          {
+            organizationId,
+            contentHash,
+            entryId,
+          },
         );
 
-        if (raceConditionMatch) {
+        if (!hashClaimResult.success) {
           await rag.deleteAsync(ctx, { entryId });
           await Promise.all([
             ctx
-              .runMutation(internal.private.orphans.removePendingOrphan, {
-                storageId,
+              .runMutation(internal.private.files.cleanupIndicesByEntryId, {
+                entryId,
               })
               .catch(() => {}),
             ctx.storage.delete(storageId).catch(() => {}),
           ]);
+
           return {
             status: "content_duplicate",
             url: null,
-            entryId: raceConditionMatch.entryId as EntryId,
+            entryId: hashClaimResult.conflictEntryId as EntryId,
             error: null,
           };
         }
-      }
-
-      // Update indices synchronously
-      await ctx.runMutation(internal.private.files.upsertFileName, {
-        organizationId,
-        filename,
-        entryId,
-      });
-
-      if (contentHash) {
-        await ctx.runMutation(internal.private.contentHashIndex.upsert, {
-          organizationId,
-          contentHash,
-          entryId,
-        });
       }
 
       if (args.overrideEntryId && oldEntry) {
@@ -359,9 +353,16 @@ export const addFile = action({
         .catch(() => {});
 
       if (createdEntryId) {
-        await rag
-          .deleteAsync(ctx, { entryId: createdEntryId as EntryId })
-          .catch(() => {});
+        await Promise.all([
+          rag
+            .deleteAsync(ctx, { entryId: createdEntryId as EntryId })
+            .catch(() => {}),
+          ctx
+            .runMutation(internal.private.files.cleanupIndicesByEntryId, {
+              entryId: createdEntryId,
+            })
+            .catch(() => {}),
+        ]);
       }
 
       return {
@@ -504,11 +505,19 @@ export const updateFile = action({
 
       createdEntryId = newEntryId;
 
-      await ctx.runMutation(internal.private.files.upsertFileName, {
-        organizationId,
-        filename: newFilename,
-        entryId: newEntryId,
-      });
+      const claimResult = await ctx.runMutation(
+        internal.private.files.claimFileName,
+        {
+          organizationId,
+          filename: newFilename,
+          entryId: newEntryId,
+        },
+      );
+
+      if (!claimResult.success) {
+        await rag.deleteAsync(ctx, { entryId: newEntryId });
+        return { status: "name_conflict", error: null };
+      }
 
       if (metadata?.contentHash) {
         await ctx.runMutation(internal.private.contentHashIndex.upsert, {

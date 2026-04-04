@@ -37,12 +37,15 @@ const isValidStorageId = (value: unknown): value is Id<"_storage"> => {
   return typeof value === "string" && value.length > 0;
 };
 
-const encodeFilteredCursor = (c: FilteredCursor) =>
-  Buffer.from(JSON.stringify(c)).toString("base64");
+const encodeFilteredCursor = (c: FilteredCursor): string => {
+  const json = JSON.stringify(c);
+  return btoa(encodeURIComponent(json));
+};
 
 const decodeFilteredCursor = (s: string): FilteredCursor | null => {
   try {
-    const parsed = JSON.parse(Buffer.from(s, "base64").toString("utf8"));
+    const json = decodeURIComponent(atob(s));
+    const parsed = JSON.parse(json);
     if (parsed?.__type === "filtered") {
       return parsed as FilteredCursor;
     }
@@ -463,32 +466,6 @@ export const listPendingDeletionsByFilename = internalQuery({
   },
 });
 
-export const upsertFileName = internalMutation({
-  args: {
-    organizationId: v.string(),
-    filename: v.string(),
-    entryId: v.string(),
-  },
-  handler: async (ctx, { organizationId, filename, entryId }) => {
-    const existing = await ctx.db
-      .query("fileNameIndex")
-      .withIndex("by_org_id_and_filename", (q) =>
-        q.eq("organizationId", organizationId).eq("filename", filename),
-      )
-      .first();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, { entryId });
-    } else {
-      await ctx.db.insert("fileNameIndex", {
-        organizationId,
-        filename,
-        entryId,
-      });
-    }
-  },
-});
-
 export const deleteFileNameByEntryId = internalMutation({
   args: { entryId: v.string() },
   handler: async (ctx, { entryId }) => {
@@ -540,6 +517,13 @@ export const markPendingDeletion = internalMutation({
   handler: async (ctx, { filename, entryId, storageId, organizationId }) => {
     await cleanupFileIndices(ctx, entryId);
 
+    const existingPending = await ctx.db
+      .query("pendingDeletions")
+      .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
+      .unique();
+
+    if (existingPending) return;
+
     await ctx.db.insert("pendingDeletions", {
       filename,
       entryId,
@@ -579,5 +563,64 @@ export const moveToDeadLetterQueue = internalMutation({
     });
 
     await ctx.db.delete(args.id);
+  },
+});
+
+export const claimFileName = internalMutation({
+  args: {
+    organizationId: v.string(),
+    filename: v.string(),
+    entryId: v.string(),
+  },
+  handler: async (ctx, { organizationId, filename, entryId }) => {
+    const existing = await ctx.db
+      .query("fileNameIndex")
+      .withIndex("by_org_id_and_filename", (q) =>
+        q.eq("organizationId", organizationId).eq("filename", filename),
+      )
+      .first();
+
+    if (existing) {
+      if (existing.entryId === entryId) {
+        return { success: true };
+      }
+      return { success: false, conflictEntryId: existing.entryId };
+    }
+
+    await ctx.db.insert("fileNameIndex", {
+      organizationId,
+      filename,
+      entryId,
+    });
+
+    return { success: true };
+  },
+});
+
+export const claimContentHash = internalMutation({
+  args: {
+    organizationId: v.string(),
+    contentHash: v.string(),
+    entryId: v.string(),
+  },
+  handler: async (ctx, { organizationId, contentHash, entryId }) => {
+    const existing = await ctx.db
+      .query("contentHashes")
+      .withIndex("by_org_id_and_hash", (q) =>
+        q.eq("organizationId", organizationId).eq("contentHash", contentHash),
+      )
+      .first();
+
+    if (existing) {
+      if (existing.entryId === entryId) return { success: true };
+      return { success: false, conflictEntryId: existing.entryId };
+    }
+
+    await ctx.db.insert("contentHashes", {
+      organizationId,
+      contentHash,
+      entryId,
+    });
+    return { success: true };
   },
 });

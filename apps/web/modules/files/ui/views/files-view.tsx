@@ -148,12 +148,10 @@ export const FilesView = () => {
 
   useEffect(() => {
     setSelectedIds((prevSelected) => {
-      const existingIds = new Set(files.results.map((f) => f.id));
-
+      const existingIds = new Set(displayFiles.map((f) => f.id));
       const nextSelected = new Set(
         [...prevSelected].filter((id) => existingIds.has(id)),
       );
-
       if (nextSelected.size !== prevSelected.size) {
         if (nextSelected.size === 0) {
           setBulkDeleteConfirmOpen(false);
@@ -162,7 +160,7 @@ export const FilesView = () => {
       }
       return prevSelected;
     });
-  }, [files.results]);
+  }, [displayFiles]);
 
   return (
     <>
