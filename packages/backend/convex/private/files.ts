@@ -33,8 +33,21 @@ type FilteredCursor = {
   rawCursor: string | null;
 };
 
+const STALE_CLAIM_MS = 5 * 60 * 1000;
+
 const isValidStorageId = (value: unknown): value is Id<"_storage"> => {
   return typeof value === "string" && value.length > 0;
+};
+
+const isPendingDeletion = async (
+  ctx: QueryCtx,
+  entryId: string,
+): Promise<boolean> => {
+  const row = await ctx.db
+    .query("pendingDeletions")
+    .withIndex("by_entry_id", (q) => q.eq("entryId", entryId))
+    .unique();
+  return row !== null;
 };
 
 const encodeFilteredCursor = (c: FilteredCursor): string => {
@@ -46,7 +59,10 @@ const decodeFilteredCursor = (s: string): FilteredCursor | null => {
   try {
     const json = decodeURIComponent(atob(s));
     const parsed = JSON.parse(json);
-    if (parsed?.__type === "filtered") {
+    if (
+      parsed?.__type === "filtered" &&
+      (typeof parsed.rawCursor === "string" || parsed.rawCursor === null)
+    ) {
       return parsed as FilteredCursor;
     }
     return null;
@@ -315,12 +331,6 @@ export const list = query({
       return { page: [], isDone: true, continueCursor: "" };
     }
 
-    const pendingDeletions = await ctx.db
-      .query("pendingDeletions")
-      .withIndex("by_org_id", (q) => q.eq("organizationId", organizationId))
-      .take(1000);
-    const pendingIds = new Set(pendingDeletions.map((p) => p.entryId));
-
     if (category) {
       let rawCursor: string | null = null;
 
@@ -353,13 +363,19 @@ export const list = query({
           if (replacedId) replacedEntryIds.add(replacedId);
         }
 
-        for (const entry of results.page) {
+        // Remove items matched in earlier batches that are now known replaced.
+        for (let i = matched.length - 1; i >= 0; i--) {
           if (
-            pendingIds.has(entry.entryId) ||
-            replacedEntryIds.has(entry.entryId)
+            replacedEntryIds.has(matched[i]!.entryId) ||
+            (await isPendingDeletion(ctx, matched[i]!.entryId))
           ) {
-            continue;
+            matched.splice(i, 1);
           }
+        }
+
+        for (const entry of results.page) {
+          if (replacedEntryIds.has(entry.entryId)) continue;
+          if (await isPendingDeletion(ctx, entry.entryId)) continue;
           if (
             (entry.metadata as EntryMetadata | undefined)?.category === category
           ) {
@@ -410,13 +426,18 @@ export const list = query({
         .filter(Boolean),
     );
 
-    const files = await Promise.all(
+    const visibleEntries = await Promise.all(
       results.page
-        .filter(
-          (entry) =>
-            !pendingIds.has(entry.entryId) &&
-            !replacedEntryIds.has(entry.entryId),
-        )
+        .filter((entry) => !replacedEntryIds.has(entry.entryId))
+        .map(async (entry) => {
+          const pending = await isPendingDeletion(ctx, entry.entryId);
+          return pending ? null : entry;
+        }),
+    );
+
+    const files = await Promise.all(
+      visibleEntries
+        .filter((e): e is Entry => e !== null)
         .map((entry) => convertEntryToPublicFile(ctx, entry)),
     );
 
@@ -432,10 +453,17 @@ export const listPendingDeletions = internalQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const effectiveLimit = Math.max(1, Math.min(args.limit ?? 100, 1000));
-    return await ctx.db
+    const now = Date.now();
+    const staleThreshold = now - STALE_CLAIM_MS;
+
+    const rows = await ctx.db
       .query("pendingDeletions")
       .order("asc")
-      .take(effectiveLimit);
+      .take(effectiveLimit * 3);
+
+    return rows
+      .filter((r) => r.claimedAt === undefined || r.claimedAt < staleThreshold)
+      .slice(0, effectiveLimit);
   },
 });
 
@@ -622,5 +650,22 @@ export const claimContentHash = internalMutation({
       entryId,
     });
     return { success: true };
+  },
+});
+
+export const claimPendingDeletion = internalMutation({
+  args: { id: v.id("pendingDeletions") },
+  handler: async (ctx, { id }) => {
+    const row = await ctx.db.get(id);
+    if (!row) return { claimed: false };
+
+    const now = Date.now();
+    const isAlreadyClaimed =
+      row.claimedAt !== undefined && now - row.claimedAt < STALE_CLAIM_MS;
+
+    if (isAlreadyClaimed) return { claimed: false };
+
+    await ctx.db.patch(id, { claimedAt: now });
+    return { claimed: true };
   },
 });

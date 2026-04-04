@@ -20,41 +20,41 @@ export const processPendingDeletions = internalAction({
     if (pending.length === 0) return;
 
     for (const row of pending) {
-      try {
-        await Promise.all([
-          row.storageId
-            ? ctx.storage.delete(row.storageId).catch((err) => {
-                if (!isNotFoundError(err)) throw err;
-              })
-            : Promise.resolve(),
-          rag
-            .deleteAsync(ctx, { entryId: row.entryId as EntryId })
-            .catch((err) => {
-              if (!isNotFoundError(err)) throw err;
-            }),
-        ]);
+      const { claimed } = await ctx.runMutation(
+        internal.private.files.claimPendingDeletion,
+        { id: row._id },
+      );
 
+      if (!claimed) {
+        console.info(`Skipping already-claimed deletion [${row.entryId}]`);
+        continue;
+      }
+
+      try {
+        if (row.storageId) {
+          await ctx.storage.delete(row.storageId).catch((err) => {
+            if (!isNotFoundError(err)) throw err;
+            console.warn(
+              `Storage [${row.storageId}] already deleted, skipping.`,
+            );
+          });
+        }
+        await rag.deleteAsync(ctx, { entryId: row.entryId as EntryId });
         await ctx.runMutation(internal.private.files.removePendingDeletion, {
           id: row._id,
         });
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        const nextRetry = (row.retryCount ?? 0) + 1;
-        console.error(
-          `Deletion failed for row ${row._id} (attempt ${nextRetry}):`,
-          errorMessage,
-        );
-
-        if (nextRetry >= MAX_RETRIES) {
+        console.error(`Failed to clean up ${row.entryId}, will retry:`, error);
+        const nextRetryCount = (row.retryCount ?? 0) + 1;
+        if (nextRetryCount > MAX_RETRIES) {
           await ctx.runMutation(internal.private.files.moveToDeadLetterQueue, {
             id: row._id,
-            error: errorMessage,
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         } else {
           await ctx.runMutation(internal.private.files.incrementRetryCount, {
             id: row._id,
-            retryCount: nextRetry,
+            retryCount: nextRetryCount,
           });
         }
       }

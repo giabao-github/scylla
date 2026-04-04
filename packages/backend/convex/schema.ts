@@ -120,8 +120,9 @@ export default defineSchema({
     entryId: v.string(),
     storageId: v.union(v.id("_storage"), v.null()),
     organizationId: v.string(),
-    scheduledAt: v.number(),
     retryCount: v.optional(v.number()),
+    scheduledAt: v.number(),
+    claimedAt: v.optional(v.number()),
   })
     .index("by_entry_id", ["entryId"])
     .index("by_org_id", ["organizationId"])
