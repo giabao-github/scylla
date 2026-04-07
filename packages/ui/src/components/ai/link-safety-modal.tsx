@@ -23,20 +23,11 @@ export const LinkSafetyModal = ({
   } | null>(null);
 
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<Element | null>(null);
-  useEffect(() => {
-    if (isOpen) {
-      triggerRef.current = document.activeElement;
-    } else {
-      if (triggerRef.current instanceof HTMLElement) {
-        triggerRef.current.focus();
-      }
-      triggerRef.current = null;
-    }
-  }, [isOpen]);
 
   const titleId = useId();
+  const descriptionId = useId();
 
   const handleCopy = async () => {
     try {
@@ -109,6 +100,18 @@ export const LinkSafetyModal = ({
   }, []);
 
   useEffect(() => {
+    if (isOpen) {
+      triggerRef.current = document.activeElement;
+      closeButtonRef.current?.focus();
+    } else {
+      if (triggerRef.current instanceof HTMLElement) {
+        triggerRef.current.focus();
+      }
+      triggerRef.current = null;
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!isOpen) return;
 
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
@@ -135,10 +138,26 @@ export const LinkSafetyModal = ({
 
   useEffect(() => {
     if (!isOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
         onClose();
+      }
+      if (e.key !== "Tab") return;
+
+      const focusable = modalRef.current?.querySelectorAll<HTMLElement>(
+        "button, [href], input, [tabindex]:not([tabindex='-1'])",
+      );
+      if (!focusable || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
@@ -158,6 +177,7 @@ export const LinkSafetyModal = ({
       onClick={(e) => e.stopPropagation()}
       aria-modal="true"
       aria-labelledby={titleId}
+      aria-describedby={descriptionId}
       role="dialog"
     >
       {/* Header */}
@@ -171,6 +191,7 @@ export const LinkSafetyModal = ({
         </span>
         <button
           type="button"
+          ref={closeButtonRef}
           onClick={onClose}
           className="p-0.5 ml-auto rounded-full transition-colors text-muted-foreground hover:bg-accent"
           aria-label="Close"
@@ -180,7 +201,7 @@ export const LinkSafetyModal = ({
       </div>
 
       {/* Description */}
-      <p className="px-4 pb-3 text-xs text-muted-foreground">
+      <p id={descriptionId} className="px-4 pb-3 text-xs text-muted-foreground">
         You're about to visit an external website.
       </p>
 

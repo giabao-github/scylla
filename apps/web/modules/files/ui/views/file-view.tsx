@@ -101,6 +101,11 @@ export const FileView = ({
     }
   };
 
+  const isViewable =
+    file?.type === "txt" || file?.type === "md" || file?.type === "pdf";
+  const isLoadingUrl = fileUrl === undefined;
+  const hasNoUrl = fileUrl === null;
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -114,6 +119,7 @@ export const FileView = ({
     const controller = new AbortController();
     setLoading(true);
     setError(false);
+    setContent("");
 
     fetch(fileUrl, { signal: controller.signal })
       .then((r) => {
@@ -135,12 +141,6 @@ export const FileView = ({
 
     return () => controller.abort();
   }, [fileUrl, file?.type]);
-
-  const isLoadingUrl = fileUrl === undefined;
-  const hasNoUrl = fileUrl === null;
-
-  const isViewable =
-    file?.type === "txt" || file?.type === "md" || file?.type === "pdf";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,7 +167,7 @@ export const FileView = ({
               </div>
               {fileUrl && (
                 <div className="flex gap-2 items-center mr-8 ml-auto">
-                  {file.type !== "pdf" && (
+                  {(file.type === "txt" || file.type === "md") && (
                     <Button
                       disabled={loading || error || !content}
                       title="Copy file content"

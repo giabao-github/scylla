@@ -128,7 +128,14 @@ export const cleanupPendingDeletions = async (
   await Promise.all(
     uniquePending.map(async (pending) => {
       try {
-        await rag.deleteAsync(ctx, { entryId: pending.entryId as EntryId });
+        await rag
+          .deleteAsync(ctx, { entryId: pending.entryId as EntryId })
+          .catch((err) => {
+            if (!isNotFoundError(err)) throw err;
+            console.warn(
+              `RAG entry [${pending.entryId}] already deleted, skipping.`,
+            );
+          });
 
         if (pending.storageId) {
           await ctx.storage.delete(pending.storageId).catch((err) => {

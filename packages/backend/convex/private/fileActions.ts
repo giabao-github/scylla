@@ -472,7 +472,7 @@ export const updateFile = action({
 
       if (!claimResult.success) {
         await Promise.all([
-          rag.deleteAsync(ctx, { entryId: newEntryId }),
+          rag.deleteAsync(ctx, { entryId: newEntryId }).catch(console.error),
           ctx
             .runMutation(internal.private.files.cleanupIndicesByEntryId, {
               entryId: newEntryId,

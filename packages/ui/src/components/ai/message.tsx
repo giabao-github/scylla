@@ -42,7 +42,7 @@ export const Message = ({ className, from, ...props }: MessageProps) => (
   <div
     className={cn(
       "group relative flex w-full max-w-[95%] flex-col gap-2",
-      "has-aria-modal:z-50",
+      "has-aria-modal:z-30",
       from === "user" ? "is-user ml-auto justify-end" : "is-assistant",
       className,
     )}
@@ -345,6 +345,11 @@ export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
 const streamdownPlugins = { cjk, code, math, mermaid };
 
+const linkSafetyConfig = {
+  enabled: true,
+  renderModal: LinkSafetyModal,
+};
+
 export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
     <Streamdown
@@ -353,10 +358,7 @@ export const MessageResponse = memo(
         className,
       )}
       plugins={streamdownPlugins}
-      linkSafety={{
-        enabled: true,
-        renderModal: (props) => <LinkSafetyModal {...props} />,
-      }}
+      linkSafety={linkSafetyConfig}
       {...props}
     />
   ),

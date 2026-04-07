@@ -14,7 +14,12 @@ type ClaimResult =
   | { status: "already_done"; userMessageId: string | null }
   | { status: "in_progress" }
   | { status: "new" }
-  | { status: "retry"; userMessageId: string | null; aiResponseSaved: boolean };
+  | {
+      status: "retry";
+      userMessageId: string | null;
+      aiResponseSaved: boolean;
+      userMessageAt: number;
+    };
 
 export const claim = internalMutation({
   args: {
@@ -164,6 +169,7 @@ export const claimAndSaveUserMessage = internalMutation({
         status: "retry",
         userMessageId: existing.userMessageId ?? null,
         aiResponseSaved: existing.aiResponseSaved ?? false,
+        userMessageAt: existing.userMessageAt ?? 0,
       };
     }
 
@@ -223,8 +229,9 @@ export const setUserMessageId = internalMutation({
   args: {
     requestId: v.string(),
     messageId: v.string(),
+    messageAt: v.number(),
   },
-  handler: async (ctx, { requestId, messageId }) => {
+  handler: async (ctx, { requestId, messageId, messageAt }) => {
     const existing = await requireMessageRequest(ctx, requestId);
 
     if (existing.userMessageId) {
@@ -244,6 +251,7 @@ export const setUserMessageId = internalMutation({
 
     await ctx.db.patch(existing._id, {
       userMessageId: messageId,
+      userMessageAt: messageAt,
       updatedAt: Date.now(),
     });
   },

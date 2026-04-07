@@ -33,23 +33,26 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
   const [form, setForm] = useState({ filename: "", category: "" });
 
   const baseOriginal = file
-    ? file.name.endsWith(`.${file.type}`)
+    ? file.name.toLowerCase().endsWith(`.${file.type?.toLowerCase()}`)
       ? file.name.slice(0, -(file.type.length + 1))
       : file.name
     : "";
 
-  useEffect(() => {
-    if (open && file) {
-      setForm({
-        filename: baseOriginal,
-        category: file.category ?? "",
-      });
-    }
-  }, [open, file, baseOriginal]);
-
   const filenameChanged = form.filename.trim() !== baseOriginal;
   const categoryChanged = form.category.trim() !== (file?.category ?? "");
   const hasChanges = filenameChanged || categoryChanged;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (
+      e.key === "Enter" &&
+      !isSaving &&
+      form.filename.trim() &&
+      form.category.trim() &&
+      hasChanges
+    ) {
+      handleSave();
+    }
+  };
 
   const handleSave = async () => {
     if (!file || !hasChanges) {
@@ -90,6 +93,15 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
     }
   };
 
+  useEffect(() => {
+    if (open && file) {
+      setForm({
+        filename: baseOriginal,
+        category: file.category ?? "",
+      });
+    }
+  }, [open, file, baseOriginal]);
+
   return (
     <Dialog
       open={open}
@@ -116,17 +128,24 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
                 id="edit-filename"
                 disabled={isSaving}
                 value={form.filename}
+                onKeyDown={handleKeyDown}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, filename: e.target.value }))
                 }
                 className={cn(
-                  "w-full focus-visible:ring-1 pr-12 font-medium truncate",
+                  "w-full focus-visible:ring-1 font-medium truncate",
+                  file?.type && file.type.length > 4 ? "pr-20" : "pr-12",
                   filenameChanged &&
                     "border-emerald-500 focus-visible:border-emerald-500 focus-visible:ring-emerald-500",
                 )}
               />
               {file?.type && (
-                <span className="absolute right-3 top-1/2 text-xs font-semibold -translate-y-1/2 select-none text-muted-foreground">
+                <span
+                  className={cn(
+                    "absolute right-3 top-1/2 text-xs font-semibold -translate-y-1/2 select-none",
+                    file.type.length > 4 ? "pr-2" : "pr-0",
+                  )}
+                >
                   .{file.type}
                 </span>
               )}
@@ -140,6 +159,7 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
               id="edit-category"
               disabled={isSaving}
               value={form.category}
+              onKeyDown={handleKeyDown}
               placeholder="Documentation, Support, Product, etc."
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, category: e.target.value }))
@@ -161,7 +181,12 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
             Cancel
           </Button>
           <Button
-            disabled={isSaving || !form.filename.trim() || !hasChanges}
+            disabled={
+              isSaving ||
+              !form.filename.trim() ||
+              !form.category.trim() ||
+              !hasChanges
+            }
             onClick={handleSave}
           >
             {isSaving ? "Saving..." : "Save"}

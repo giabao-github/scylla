@@ -66,7 +66,7 @@
   --shadow-2xl: 0px 8px 16px -4px hsl(0 0% 0% / 0.2);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
-  --scrollbar-thumb: oklch(81.116% 0.10139 293.557);
+  --scrollbar-thumb: oklch(0.81116 0.10139 293.557);
 }
 
 .dark {
@@ -203,7 +203,9 @@
   button {
     @apply cursor-pointer select-none disabled:cursor-default;
   }
+}
 
+@layer components {
   .markdown-content {
     ul,
     ol {
@@ -217,7 +219,6 @@
     }
     li {
       @apply leading-relaxed;
-      display: list-item;
     }
     li::marker {
       @apply opacity-80 text-inherit;
@@ -229,11 +230,6 @@
       @apply whitespace-pre-wrap;
     }
   }
-}
-
-div[role="presentation"] {
-  --foreground: hsl(240 10% 3.9%) !important;
-  color: hsl(220, 15%, 20%) !important;
 }
 
 .scrollbar-themed {

@@ -40,7 +40,10 @@ export const search = createTool({
     );
 
     if (!organization) {
-      return "No relevant information found in the knowledge base.";
+      throw new ConvexError({
+        message: "Cannot search: organization not found",
+        code: "ORGANIZATION_NOT_FOUND",
+      });
     }
 
     try {

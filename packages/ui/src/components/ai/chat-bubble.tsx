@@ -18,6 +18,14 @@ interface ChatBubbleProps {
   onRetry?: () => void;
 }
 
+const linkButtonBase = [
+  "[&_button[data-streamdown='link']]:underline",
+  "[&_button[data-streamdown='link']]:underline-offset-2",
+  "[&_button[data-streamdown='link']]:transition-colors",
+  "[&_button[data-streamdown='link']]:duration-150",
+  "[&_button[data-streamdown='link']]:break-all",
+];
+
 export const ChatBubble = ({
   text,
   variant,
@@ -79,11 +87,7 @@ export const ChatBubble = ({
                     "text-foreground",
                     "[&_button[data-streamdown='link']]:text-rose-400",
                     "[&_button[data-streamdown='link']]:hover:text-rose-300",
-                    "[&_button[data-streamdown='link']]:underline",
-                    "[&_button[data-streamdown='link']]:underline-offset-2",
-                    "[&_button[data-streamdown='link']]:transition-colors",
-                    "[&_button[data-streamdown='link']]:duration-150",
-                    "[&_button[data-streamdown='link']]:break-all",
+                    ...linkButtonBase,
                   ]
                 : [
                     "text-white",
@@ -91,11 +95,7 @@ export const ChatBubble = ({
                     "[&_button[data-streamdown='link']]:hover:text-amber-300",
                     "[&_button[data-streamdown='link']]:decoration-amber-200/50",
                     "[&_button[data-streamdown='link']]:hover:decoration-amber-300/60",
-                    "[&_button[data-streamdown='link']]:underline",
-                    "[&_button[data-streamdown='link']]:underline-offset-2",
-                    "[&_button[data-streamdown='link']]:transition-colors",
-                    "[&_button[data-streamdown='link']]:duration-150",
-                    "[&_button[data-streamdown='link']]:break-all",
+                    ...linkButtonBase,
                   ],
             )}
           >

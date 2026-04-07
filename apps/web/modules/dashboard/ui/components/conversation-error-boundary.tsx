@@ -5,6 +5,12 @@ import { Component, ReactNode } from "react";
 import { Button } from "@workspace/ui/components/button";
 import Link from "next/link";
 
+interface ConvexErrorWithCode extends Error {
+  data?: { code?: string };
+}
+
+const PERSISTENT_ERROR_CODES = new Set(["UNAUTHORIZED", "NOT_FOUND"]);
+
 export class ConversationErrorBoundary extends Component<
   { children: ReactNode },
   { hasError: boolean; error: Error | null }
@@ -15,25 +21,40 @@ export class ConversationErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
-  private getErrorMessage(): string {
-    const error = this.state.error as any;
-    const code = error?.data?.code;
-
-    if (code === "UNAUTHORIZED") {
-      return "You don't have permission to view this conversation.";
-    }
-    if (code === "NOT_FOUND") {
-      return "This conversation is no longer available.";
-    }
-    return "An error occurred while loading this conversation.";
-  }
-
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error(
       "ConversationErrorBoundary has caught an error:",
       error,
       errorInfo,
     );
+  }
+
+  private isConvexErrorWithCode(
+    error: Error | null,
+  ): error is ConvexErrorWithCode {
+    return (
+      error !== null &&
+      "data" in error &&
+      (error.data === undefined ||
+        (typeof error.data === "object" && error.data !== null))
+    );
+  }
+
+  private get errorCode(): string | undefined {
+    return this.isConvexErrorWithCode(this.state.error)
+      ? this.state.error.data?.code
+      : undefined;
+  }
+
+  private get isPersistentError(): boolean {
+    return this.errorCode ? PERSISTENT_ERROR_CODES.has(this.errorCode) : false;
+  }
+
+  private getErrorMessage(): string {
+    if (this.isPersistentError) {
+      return "This conversation is not available.";
+    }
+    return "An error occurred while loading this conversation.";
   }
 
   render() {
@@ -53,9 +74,19 @@ export class ConversationErrorBoundary extends Component<
             <div className="dino-obstacle"></div>
             <div className="dino-ground"></div>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/conversations">Go to conversations</Link>
-          </Button>
+          {this.isPersistentError ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/conversations">Go to conversations</Link>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => this.setState({ hasError: false, error: null })}
+            >
+              Try again
+            </Button>
+          )}
         </div>
       );
     }

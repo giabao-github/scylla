@@ -15,6 +15,7 @@ import { getConversationByThreadId } from "@workspace/backend/system/utils";
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { modelCatalog } from "@workspace/shared/constants/model-catalog";
 
+const MAX_TOOL_CALL_ITERATIONS = 5;
 const MAX_REQUEST_IDS = 100;
 const MAX_PROMPT_LENGTH = 10_000;
 const ALLOWED_MODEL_IDS = new Set<string>(modelCatalog.map((m) => m.id));
@@ -135,7 +136,7 @@ export const create = action({
     const aiResponseSaved =
       result.status === "retry" ? result.aiResponseSaved : false;
 
-    let userMessageAt = 0;
+    let userMessageAt = result.status === "retry" ? result.userMessageAt : 0;
 
     try {
       if (!userMessageId) {
@@ -154,6 +155,7 @@ export const create = action({
           {
             requestId,
             messageId,
+            messageAt: message._creationTime,
           },
         );
 
@@ -174,7 +176,7 @@ export const create = action({
           while (
             aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
               ?.finishReason === "tool-calls" &&
-            steps < 5
+            steps < MAX_TOOL_CALL_ITERATIONS
           ) {
             if (aiResponse.text?.trim()) {
               const ts = Math.max(Date.now(), userMessageAt + 1);
@@ -193,6 +195,23 @@ export const create = action({
 
             aiResponse = await thread.generateText({});
             steps++;
+
+            if (steps >= MAX_TOOL_CALL_ITERATIONS) {
+              console.warn("[AI] Tool call chain truncated", {
+                requestId,
+                steps,
+              });
+            }
+          }
+
+          if (
+            aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
+              ?.finishReason === "tool-calls"
+          ) {
+            throw new ConvexError({
+              code: "AI_TOOL_LOOP_LIMIT",
+              message: `Assistant did not finish after ${MAX_TOOL_CALL_ITERATIONS} tool rounds`,
+            });
           }
 
           const aiMessageAt = Math.max(Date.now(), userMessageAt + 1);
