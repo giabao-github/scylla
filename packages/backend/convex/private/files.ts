@@ -594,7 +594,7 @@ export const markPendingDeletion = internalMutation({
   },
   handler: async (
     ctx,
-    { filename, contentHash, entryId, storageId, organizationId },
+    { filename, contentHash: incomingHash, entryId, storageId, organizationId },
   ) => {
     await cleanupFileIndices(ctx, entryId);
 
@@ -604,6 +604,12 @@ export const markPendingDeletion = internalMutation({
       .unique();
 
     if (existingPending) return;
+
+    let contentHash = incomingHash;
+    if (!contentHash) {
+      const entry = await rag.getEntry(ctx, { entryId: entryId as EntryId });
+      contentHash = (entry?.metadata as EntryMetadata | undefined)?.contentHash;
+    }
 
     await ctx.db.insert("pendingDeletions", {
       filename,

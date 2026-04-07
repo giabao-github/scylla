@@ -98,6 +98,7 @@ export default defineSchema({
     ),
     userMessageId: v.optional(v.string()),
     aiResponseSaved: v.optional(v.boolean()),
+    lastMessageSynced: v.optional(v.boolean()),
     userMessageAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),

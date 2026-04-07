@@ -14,6 +14,8 @@ import {
   ConversationStatus,
 } from "@workspace/shared/constants/conversation";
 
+import { supportAgent } from "./ai/agents/supportAgent";
+
 const UPDATED_AT_THROTTLE_MS = 5000;
 
 const assertValidTransition = (
@@ -97,6 +99,33 @@ export const updateLastMessage = internalMutation({
       lastMessageAt: messageAt,
       updatedAt: now,
     });
+  },
+});
+
+export const getLastAssistantMessage = internalQuery({
+  args: { threadId: v.string() },
+  handler: async (ctx, { threadId }) => {
+    const result = await supportAgent.listMessages(ctx, {
+      threadId,
+      paginationOpts: { cursor: null, numItems: 20 },
+    });
+
+    for (let i = result.page.length - 1; i >= 0; i--) {
+      const msg = result.page[i];
+      if (
+        msg &&
+        msg.message?.role === "assistant" &&
+        typeof msg.message?.content === "string" &&
+        msg.message.content.trim()
+      ) {
+        return {
+          text: msg.message.content,
+          _creationTime: msg._creationTime,
+        };
+      }
+    }
+
+    return null;
   },
 });
 

@@ -18,6 +18,7 @@ type ClaimResult =
       status: "retry";
       userMessageId: string | null;
       aiResponseSaved: boolean;
+      lastMessageSynced: boolean;
       userMessageAt: number;
     };
 
@@ -169,7 +170,8 @@ export const claimAndSaveUserMessage = internalMutation({
         status: "retry",
         userMessageId: existing.userMessageId ?? null,
         aiResponseSaved: existing.aiResponseSaved ?? false,
-        userMessageAt: existing.userMessageAt ?? 0,
+        lastMessageSynced: existing.lastMessageSynced ?? false,
+        userMessageAt: existing.userMessageAt ?? existing.createdAt,
       };
     }
 
@@ -192,6 +194,18 @@ export const markAiResponseSaved = internalMutation({
     if (existing.aiResponseSaved) return;
     await ctx.db.patch(existing._id, {
       aiResponseSaved: true,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const markLastMessageSynced = internalMutation({
+  args: { requestId: v.string() },
+  handler: async (ctx, { requestId }) => {
+    const existing = await requireMessageRequest(ctx, requestId);
+    if (existing.lastMessageSynced) return;
+    await ctx.db.patch(existing._id, {
+      lastMessageSynced: true,
       updatedAt: Date.now(),
     });
   },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import { PublicFile } from "@workspace/shared/types/file";
@@ -27,10 +27,25 @@ interface EditDialogProps {
   file: PublicFile | null;
 }
 
+const SUFFIX_PADDING_BUFFER = 20;
+
 export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
   const updateFile = useAction(api.private.fileActions.updateFile);
+  const suffixRef = useRef<HTMLSpanElement>(null);
+
+  const estimatedSuffixWidth = file?.type
+    ? file.type.length * 8 + SUFFIX_PADDING_BUFFER
+    : 0;
+
   const [isSaving, setIsSaving] = useState(false);
+  const [suffixWidth, setSuffixWidth] = useState(estimatedSuffixWidth);
   const [form, setForm] = useState({ filename: "", category: "" });
+
+  useEffect(() => {
+    if (suffixRef.current) {
+      setSuffixWidth(suffixRef.current.offsetWidth + SUFFIX_PADDING_BUFFER);
+    }
+  }, [file?.type]);
 
   const baseOriginal = file
     ? file.name.toLowerCase().endsWith(`.${file.type?.toLowerCase()}`)
@@ -132,19 +147,17 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, filename: e.target.value }))
                 }
+                style={file?.type ? { paddingRight: suffixWidth } : undefined}
                 className={cn(
                   "w-full focus-visible:ring-1 font-medium truncate",
-                  file?.type && file.type.length > 4 ? "pr-20" : "pr-12",
                   filenameChanged &&
                     "border-emerald-500 focus-visible:border-emerald-500 focus-visible:ring-emerald-500",
                 )}
               />
               {file?.type && (
                 <span
-                  className={cn(
-                    "absolute right-3 top-1/2 text-xs font-semibold -translate-y-1/2 select-none",
-                    file.type.length > 4 ? "pr-2" : "pr-0",
-                  )}
+                  ref={suffixRef}
+                  className="absolute right-3 top-1/2 text-xs font-semibold -translate-y-1/2 select-none text-muted-foreground"
                 >
                   .{file.type}
                 </span>

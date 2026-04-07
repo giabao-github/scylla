@@ -170,6 +170,38 @@ export const create = action({
         const agent = agentForModel(modelId, conversation.status);
         const { thread } = await agent.continueThread(ctx, { threadId });
 
+        if (
+          result.status === "retry" &&
+          result.aiResponseSaved &&
+          !result.lastMessageSynced
+        ) {
+          try {
+            const lastMsg = await ctx.runQuery(
+              internal.system.conversations.getLastAssistantMessage,
+              { threadId },
+            );
+            if (lastMsg?.text) {
+              await ctx.runMutation(
+                internal.system.conversations.updateLastMessage,
+                {
+                  threadId,
+                  lastMessage: { text: lastMsg.text, role: "assistant" },
+                  messageAt: lastMsg._creationTime,
+                },
+              );
+              await ctx.runMutation(
+                internal.system.messageRequests.markLastMessageSynced,
+                { requestId },
+              );
+            }
+          } catch (err) {
+            console.error(
+              "[retry] Failed to resync last assistant message",
+              err,
+            );
+          }
+        }
+
         if (!aiResponseSaved) {
           let aiResponse = await thread.generateText({});
           let steps = 0;
@@ -230,6 +262,10 @@ export const create = action({
                   lastMessage: { text: aiResponse.text, role: "assistant" },
                   messageAt: aiMessageAt,
                 },
+              );
+              await ctx.runMutation(
+                internal.system.messageRequests.markLastMessageSynced,
+                { requestId },
               );
             } catch (err) {
               console.error(
