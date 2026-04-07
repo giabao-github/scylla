@@ -6,8 +6,12 @@ import { ConvexError, v } from "convex/values";
 
 import { components, internal } from "@workspace/backend/_generated/api";
 import { action, mutation, query } from "@workspace/backend/_generated/server";
-import { getAuthenticatedOrg, getAuthenticatedOrgId } from "@workspace/backend/private/utils";
+import {
+  getAuthenticatedOrg,
+  getAuthenticatedOrgId,
+} from "@workspace/backend/private/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
+import { OPERATOR_MESSAGE_ENHANCEMENT_PROMPT } from "@workspace/backend/system/ai/prompts";
 import { getConversationByThreadId } from "@workspace/backend/system/utils";
 
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
@@ -144,27 +148,6 @@ export const getMany = query({
   },
 });
 
-const enhancePrompt = `You are a senior customer support and UX writing specialist for Scylla.
-
-Your task is to REWRITE and POLISH the provided message. 
-
-CRITICAL RULES:
-- DO NOT answer the customer's question.
-- DO NOT add new information, instructions, or follow-up questions.
-- DO NOT add greetings (like "Hello {{name}}") or signatures unless they were in the original text.
-- ONLY improve the existing words, grammar, and tone of the input.
-- If the input is one sentence, the output should generally be one or two sentences.
-
-Objectives:
-- Fix grammar, spelling, and awkward phrasing.
-- Ensure a professional, friendly, and human tone.
-- Maintain the exact same scope of information as the original.
-
-Output format:
-- Provide ONLY the improved text. 
-- No explanations, no "Here is the improved version," no conversational filler.
-`;
-
 export const enhanceResponse = action({
   args: {
     prompt: v.string(),
@@ -191,7 +174,7 @@ export const enhanceResponse = action({
       const response = await generateText({
         model: google.chat("gemini-flash-lite-latest"),
         messages: [
-          { role: "system", content: enhancePrompt },
+          { role: "system", content: OPERATOR_MESSAGE_ENHANCEMENT_PROMPT },
           { role: "user", content: prompt },
         ],
         abortSignal: AbortSignal.timeout(ENHANCE_TIMEOUT_MS),

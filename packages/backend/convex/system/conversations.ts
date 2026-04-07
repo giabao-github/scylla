@@ -50,7 +50,7 @@ const assertValidTransition = (
   }
 };
 
-export const getConversationByThreadIdQuery = internalQuery({
+export const getByThreadId = internalQuery({
   args: { threadId: v.string() },
   handler: async (ctx, args) => getConversationByThreadId(ctx, args.threadId),
 });

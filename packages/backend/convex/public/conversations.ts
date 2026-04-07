@@ -25,16 +25,6 @@ export const create = mutation({
       });
     }
 
-    const existing = await ctx.db
-      .query("conversations")
-      .withIndex("by_contact_session_id_and_last_message_at", (q) =>
-        q.eq("contactSessionId", session._id),
-      )
-      .filter((q) => q.neq(q.field("status"), CONVERSATION_STATUS.RESOLVED))
-      .first();
-
-    if (existing) return existing._id;
-
     const { threadId } = await supportAgent.createThread(ctx, {
       userId: organizationId,
     });

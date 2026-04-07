@@ -112,7 +112,7 @@ export const ConversationsPanel = () => {
 
   return (
     <div
-      className="flex flex-col w-full h-full bg-center bg-cover text-sidebar-foreground"
+      className="flex flex-col w-full h-full bg-slate-950 bg-center bg-cover bg-no-repeat text-sidebar-foreground isolate"
       style={{
         backgroundImage: "url(/panel-background.jpg)",
       }}

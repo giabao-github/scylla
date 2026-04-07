@@ -35,7 +35,6 @@ import { ConvexError } from "convex/values";
 import { Loader2Icon, MoreHorizontalIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -59,7 +58,7 @@ const formSchema = z.object({
 const isVisibleMessage = (m: { role: string; text?: string }) =>
   m.role === "user" || !!m.text;
 
-const PAGE_SIZE = 7;
+const PAGE_SIZE = 10;
 const MESSAGES = [
   { isUser: false, width: "w-52" },
   { isUser: true, width: "w-64" },
@@ -333,7 +332,7 @@ export const ConversationIdView = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-muted">
+    <div className="flex flex-col h-full max-h-screen bg-muted">
       <header className="flex items-center justify-between border-b bg-background p-2.5 shrink-0">
         <Button
           size="sm"
@@ -352,12 +351,8 @@ export const ConversationIdView = ({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-y-auto flex-col gap-5 px-4 py-6 h-full"
-        style={{
-          maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT,
-          scrollbarWidth: "thin",
-          scrollbarColor: "#C4B5FD transparent",
-        }}
+        className="flex overflow-y-auto flex-col gap-5 px-4 pt-6 pb-16 h-full scrollbar-themed"
+        style={{ maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT }}
       >
         <div>
           {isLoadingMore && (
@@ -384,7 +379,7 @@ export const ConversationIdView = ({
             <Message
               from={isFromClient ? "assistant" : "user"}
               key={msg.id}
-              className="max-w-2/3"
+              className="max-w-1/2"
             >
               <ChatBubble
                 text={msg.text ?? ""}
@@ -397,7 +392,7 @@ export const ConversationIdView = ({
           );
         })}
         {pendingSlots.map((slot) => (
-          <Message from="user" key={slot.localId} className="max-w-2/3">
+          <Message from="user" key={slot.localId} className="max-w-1/2">
             <ChatBubble
               text={slot.text}
               variant="user"
@@ -438,7 +433,7 @@ export const ConversationIdView = ({
                       <PromptInputTextarea
                         disabled={isSending || isEnhancing}
                         placeholder="Response to your client..."
-                        className="text-sm placeholder:text-muted-foreground/50"
+                        className="mt-2 text-sm placeholder:text-muted-foreground/50 disabled:cursor-default"
                         onChange={field.onChange}
                         value={field.value}
                       />

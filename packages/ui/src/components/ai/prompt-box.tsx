@@ -378,19 +378,16 @@ export const PromptBoxDefaultTools = ({
   tools,
   enhanceDisabled,
   enhanceText,
+  showDivider,
   onEnhance,
 }: {
   tools?: PromptBoxToolsConfig;
   enhanceDisabled?: boolean;
   enhanceText?: string;
+  showDivider?: boolean;
   onEnhance?: () => void;
 }) => {
   const resolvedTools = { ...DEFAULT_TOOLS, ...tools };
-  const showDivider =
-    resolvedTools.modelSelector &&
-    (resolvedTools.attachments ||
-      resolvedTools.search ||
-      resolvedTools.enhance);
 
   return (
     <TooltipProvider>

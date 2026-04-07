@@ -30,6 +30,9 @@
       "core-js-pure",
       "esbuild",
       "sharp"
+    ],
+    "ignoredBuiltDependencies": [
+      "@swc/core"
     ]
   },
   "dependencies": {

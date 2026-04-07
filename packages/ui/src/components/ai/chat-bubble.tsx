@@ -42,7 +42,7 @@ export const ChatBubble = ({
   return (
     <div
       className={cn(
-        "flex items-start gap-2.5 w-full",
+        "flex items-start gap-2.5 max-w-full",
         isUser && "flex-row-reverse",
       )}
     >
@@ -73,8 +73,30 @@ export const ChatBubble = ({
 
           <div
             className={cn(
-              "relative z-10",
-              isFailed && !isUser ? "text-foreground" : "text-white",
+              "relative wrap-break-word",
+              isFailed && !isUser
+                ? [
+                    "text-foreground",
+                    "[&_button[data-streamdown='link']]:text-rose-400",
+                    "[&_button[data-streamdown='link']]:hover:text-rose-300",
+                    "[&_button[data-streamdown='link']]:underline",
+                    "[&_button[data-streamdown='link']]:underline-offset-2",
+                    "[&_button[data-streamdown='link']]:transition-colors",
+                    "[&_button[data-streamdown='link']]:duration-150",
+                    "[&_button[data-streamdown='link']]:break-all",
+                  ]
+                : [
+                    "text-white",
+                    "[&_button[data-streamdown='link']]:text-amber-200",
+                    "[&_button[data-streamdown='link']]:hover:text-amber-300",
+                    "[&_button[data-streamdown='link']]:decoration-amber-200/50",
+                    "[&_button[data-streamdown='link']]:hover:decoration-amber-300/60",
+                    "[&_button[data-streamdown='link']]:underline",
+                    "[&_button[data-streamdown='link']]:underline-offset-2",
+                    "[&_button[data-streamdown='link']]:transition-colors",
+                    "[&_button[data-streamdown='link']]:duration-150",
+                    "[&_button[data-streamdown='link']]:break-all",
+                  ],
             )}
           >
             {isAIGenerating && !isUser ? (

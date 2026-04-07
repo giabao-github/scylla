@@ -2,7 +2,7 @@ import { Entry, EntryId, vEntryId } from "@convex-dev/rag";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { Id } from "@workspace/backend/_generated/dataModel";
+import { Doc, Id } from "@workspace/backend/_generated/dataModel";
 import {
   QueryCtx,
   internalMutation,
@@ -238,9 +238,11 @@ export const deleteFile = mutation({
     const storageId = isValidStorageId(metadata?.storageId)
       ? metadata.storageId
       : null;
+    const contentHash = metadata?.contentHash;
 
     await ctx.db.insert("pendingDeletions", {
       filename: metadata?.filename ?? "",
+      contentHash,
       entryId,
       storageId,
       organizationId,
@@ -297,9 +299,11 @@ export const deleteFiles = mutation({
       const storageId = isValidStorageId(metadata?.storageId)
         ? metadata.storageId
         : null;
+      const contentHash = metadata?.contentHash;
 
       await ctx.db.insert("pendingDeletions", {
         filename: metadata?.filename ?? "",
+        contentHash,
         entryId: entry.entryId,
         storageId,
         organizationId,
@@ -364,18 +368,22 @@ export const list = query({
         }
 
         // Remove items matched in earlier batches that are now known replaced.
+        const pendingChecks = await Promise.all(
+          matched.map((e) => isPendingDeletion(ctx, e.entryId)),
+        );
         for (let i = matched.length - 1; i >= 0; i--) {
-          if (
-            replacedEntryIds.has(matched[i]!.entryId) ||
-            (await isPendingDeletion(ctx, matched[i]!.entryId))
-          ) {
+          if (replacedEntryIds.has(matched[i]!.entryId) || pendingChecks[i]) {
             matched.splice(i, 1);
           }
         }
 
-        for (const entry of results.page) {
+        const pagePendingChecks = await Promise.all(
+          results.page.map((e) => isPendingDeletion(ctx, e.entryId)),
+        );
+        for (let idx = 0; idx < results.page.length; idx++) {
+          const entry = results.page[idx]!;
           if (replacedEntryIds.has(entry.entryId)) continue;
-          if (await isPendingDeletion(ctx, entry.entryId)) continue;
+          if (pagePendingChecks[idx]) continue;
           if (
             (entry.metadata as EntryMetadata | undefined)?.category === category
           ) {
@@ -456,14 +464,38 @@ export const listPendingDeletions = internalQuery({
     const now = Date.now();
     const staleThreshold = now - STALE_CLAIM_MS;
 
-    const rows = await ctx.db
-      .query("pendingDeletions")
-      .order("asc")
-      .take(effectiveLimit * 3);
+    const result: Doc<"pendingDeletions">[] = [];
+    let cursor: string | null = null;
+    const batchSize = effectiveLimit * 2;
+    const maxScans = 5;
+    let scans = 0;
 
-    return rows
-      .filter((r) => r.claimedAt === undefined || r.claimedAt < staleThreshold)
-      .slice(0, effectiveLimit);
+    while (result.length < effectiveLimit && scans < maxScans) {
+      const batch = await ctx.db
+        .query("pendingDeletions")
+        .order("asc")
+        .paginate({ cursor, numItems: batchSize });
+
+      for (const row of batch.page) {
+        if (row.claimedAt === undefined || row.claimedAt < staleThreshold) {
+          result.push(row);
+          if (result.length >= effectiveLimit) break;
+        }
+      }
+
+      if (batch.isDone) break;
+      cursor = batch.continueCursor;
+      scans++;
+    }
+
+    if (scans >= maxScans && result.length < effectiveLimit) {
+      console.warn(
+        `listPendingDeletions hit maxScans (${maxScans}). ` +
+          `Returned ${result.length}/${effectiveLimit} requested.`,
+      );
+    }
+
+    return result;
   },
 });
 
@@ -489,6 +521,23 @@ export const listPendingDeletionsByFilename = internalQuery({
         q
           .eq("organizationId", args.organizationId)
           .eq("filename", args.filename),
+      )
+      .collect();
+  },
+});
+
+export const listPendingDeletionsByHash = internalQuery({
+  args: {
+    organizationId: v.string(),
+    contentHash: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("pendingDeletions")
+      .withIndex("by_org_id_and_hash", (q) =>
+        q
+          .eq("organizationId", args.organizationId)
+          .eq("contentHash", args.contentHash),
       )
       .collect();
   },
@@ -538,11 +587,15 @@ export const cleanupIndicesByEntryId = internalMutation({
 export const markPendingDeletion = internalMutation({
   args: {
     filename: v.string(),
+    contentHash: v.optional(v.string()),
     entryId: v.string(),
     storageId: v.union(v.id("_storage"), v.null()),
     organizationId: v.string(),
   },
-  handler: async (ctx, { filename, entryId, storageId, organizationId }) => {
+  handler: async (
+    ctx,
+    { filename, contentHash, entryId, storageId, organizationId },
+  ) => {
     await cleanupFileIndices(ctx, entryId);
 
     const existingPending = await ctx.db
@@ -554,6 +607,7 @@ export const markPendingDeletion = internalMutation({
 
     await ctx.db.insert("pendingDeletions", {
       filename,
+      contentHash,
       entryId,
       storageId,
       organizationId,
@@ -565,10 +619,11 @@ export const markPendingDeletion = internalMutation({
 export const incrementRetryCount = internalMutation({
   args: {
     id: v.id("pendingDeletions"),
-    retryCount: v.number(),
   },
-  handler: async (ctx, { id, retryCount }) => {
-    await ctx.db.patch(id, { retryCount });
+  handler: async (ctx, { id }) => {
+    const row = await ctx.db.get(id);
+    if (!row) return;
+    await ctx.db.patch(id, { retryCount: (row.retryCount ?? 0) + 1 });
   },
 });
 

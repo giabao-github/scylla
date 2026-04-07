@@ -7,7 +7,10 @@ import { internal } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { action } from "@workspace/backend/_generated/server";
 import { extractTextContent } from "@workspace/backend/lib/extractTextContent";
-import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
+import {
+  cleanupPendingDeletions,
+  getAuthenticatedOrgId,
+} from "@workspace/backend/private/utils";
 import rag from "@workspace/backend/system/ai/rag";
 
 import { isNotFoundError } from "@workspace/shared/lib/file-utils";
@@ -182,35 +185,11 @@ export const addFile = action({
     let createdEntryId: string | null = null;
     try {
       if (!args.overrideEntryId && namespace) {
-        const pendingMatches = await ctx.runQuery(
-          internal.private.files.listPendingDeletionsByFilename,
-          { organizationId, filename },
-        );
-        await Promise.all(
-          pendingMatches.map(async (pending) => {
-            try {
-              await Promise.all([
-                rag.deleteAsync(ctx, { entryId: pending.entryId as EntryId }),
-                pending.storageId
-                  ? ctx.storage.delete(pending.storageId).catch((err) => {
-                      if (!isNotFoundError(err)) throw err;
-                      console.warn(
-                        `Storage [${pending.storageId}] already deleted, skipping.`,
-                      );
-                    })
-                  : Promise.resolve(),
-              ]);
-              await ctx.runMutation(
-                internal.private.files.removePendingDeletionByEntryId,
-                { entryId: pending.entryId },
-              );
-            } catch (error) {
-              console.error(
-                `Failed to cleanup pending deletion for entry [${pending.entryId}]:`,
-                error,
-              );
-            }
-          }),
+        await cleanupPendingDeletions(
+          ctx,
+          organizationId,
+          filename,
+          contentHash,
         );
       }
 
@@ -328,11 +307,12 @@ export const addFile = action({
       }
 
       if (args.overrideEntryId && oldEntry) {
+        const oldMetadata = oldEntry.metadata as EntryMetadata | undefined;
         await ctx.runMutation(internal.private.files.markPendingDeletion, {
-          filename: oldEntry.key ?? filename,
+          filename: oldEntry.key ?? oldMetadata?.filename ?? filename,
+          contentHash: oldMetadata?.contentHash,
           entryId: args.overrideEntryId,
-          storageId:
-            (oldEntry.metadata as EntryMetadata | undefined)?.storageId ?? null,
+          storageId: oldMetadata?.storageId ?? null,
           organizationId,
         });
       }
@@ -442,35 +422,11 @@ export const updateFile = action({
     let createdEntryId: string | null = null;
     try {
       if (isRenaming) {
-        const pendingMatches = await ctx.runQuery(
-          internal.private.files.listPendingDeletionsByFilename,
-          { organizationId, filename: newFilename },
-        );
-        await Promise.all(
-          pendingMatches.map(async (pending) => {
-            try {
-              await Promise.all([
-                rag.deleteAsync(ctx, { entryId: pending.entryId as EntryId }),
-                pending.storageId
-                  ? ctx.storage.delete(pending.storageId).catch((err) => {
-                      if (!isNotFoundError(err)) throw err;
-                      console.warn(
-                        `Storage [${pending.storageId}] already deleted, skipping.`,
-                      );
-                    })
-                  : Promise.resolve(),
-              ]);
-              await ctx.runMutation(
-                internal.private.files.removePendingDeletionByEntryId,
-                { entryId: pending.entryId },
-              );
-            } catch (error) {
-              console.error(
-                `Failed to cleanup pending deletion for entry [${pending.entryId}]:`,
-                error,
-              );
-            }
-          }),
+        await cleanupPendingDeletions(
+          ctx,
+          organizationId,
+          newFilename,
+          metadata?.contentHash,
         );
       }
 
@@ -515,7 +471,14 @@ export const updateFile = action({
       );
 
       if (!claimResult.success) {
-        await rag.deleteAsync(ctx, { entryId: newEntryId });
+        await Promise.all([
+          rag.deleteAsync(ctx, { entryId: newEntryId }),
+          ctx
+            .runMutation(internal.private.files.cleanupIndicesByEntryId, {
+              entryId: newEntryId,
+            })
+            .catch(() => {}),
+        ]);
         return { status: "name_conflict", error: null };
       }
 
@@ -528,7 +491,8 @@ export const updateFile = action({
       }
 
       await ctx.runMutation(internal.private.files.markPendingDeletion, {
-        filename: entry.key ?? newFilename,
+        filename: entry.key ?? metadata?.filename ?? newFilename,
+        contentHash: metadata?.contentHash,
         entryId: args.entryId,
         storageId: null,
         organizationId,

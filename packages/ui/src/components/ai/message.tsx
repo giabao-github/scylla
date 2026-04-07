@@ -20,6 +20,7 @@ import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Streamdown } from "streamdown";
 
+import { LinkSafetyModal } from "@workspace/ui/components/ai/link-safety-modal";
 import { Button } from "@workspace/ui/components/button";
 import {
   ButtonGroup,
@@ -40,7 +41,8 @@ export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 export const Message = ({ className, from, ...props }: MessageProps) => (
   <div
     className={cn(
-      "group flex w-full max-w-[95%] flex-col gap-2",
+      "group relative flex w-full max-w-[95%] flex-col gap-2",
+      "has-aria-modal:z-50",
       from === "user" ? "is-user ml-auto justify-end" : "is-assistant",
       className,
     )}
@@ -57,7 +59,7 @@ export const MessageContent = ({
 }: MessageContentProps) => (
   <div
     className={cn(
-      "flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
+      "flex w-fit min-w-0 max-w-full flex-col gap-2 text-sm",
       "group-[.is-user]:ml-auto group-[.is-user]:rounded-xl group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:text-foreground",
       "group-[.is-assistant]:text-foreground",
       className,
@@ -347,10 +349,14 @@ export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
     <Streamdown
       className={cn(
-        "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        "relative size-full markdown-content [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className,
       )}
       plugins={streamdownPlugins}
+      linkSafety={{
+        enabled: true,
+        renderModal: (props) => <LinkSafetyModal {...props} />,
+      }}
       {...props}
     />
   ),

@@ -1002,7 +1002,7 @@ export const PromptInputTextarea = (props: PromptInputTextareaProps) => {
     <InputGroupTextarea
       {...rest}
       className={cn(
-        "px-4 pt-4 max-h-48 field-sizing-content min-h-16",
+        "px-4 pt-2 max-h-48 scrollbar-themed field-sizing-content min-h-16",
         className,
       )}
       name="message"

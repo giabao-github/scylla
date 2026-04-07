@@ -22,6 +22,13 @@ export const findStuckDeletions = internalQuery({
   },
 });
 
+export const getById = internalQuery({
+  args: { id: v.id("organizations") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
 export const resumeStaleDeletions = internalAction({
   args: {},
   handler: async (ctx) => {

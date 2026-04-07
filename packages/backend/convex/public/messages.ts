@@ -9,6 +9,7 @@ import { action, query } from "@workspace/backend/_generated/server";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import { escalateConversation } from "@workspace/backend/system/ai/tools/escalateConversation";
 import { resolveConversation } from "@workspace/backend/system/ai/tools/resolveConversation";
+import { search } from "@workspace/backend/system/ai/tools/search";
 import { getConversationByThreadId } from "@workspace/backend/system/utils";
 
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
@@ -17,6 +18,12 @@ import { modelCatalog } from "@workspace/shared/constants/model-catalog";
 const MAX_REQUEST_IDS = 100;
 const MAX_PROMPT_LENGTH = 10_000;
 const ALLOWED_MODEL_IDS = new Set<string>(modelCatalog.map((m) => m.id));
+
+type SupportTools = {
+  resolveConversation: typeof resolveConversation;
+  escalateConversation: typeof escalateConversation;
+  search: typeof search;
+};
 
 const resolveModel = (modelId: string) => {
   if (!ALLOWED_MODEL_IDS.has(modelId)) {
@@ -35,11 +42,12 @@ const resolveModel = (modelId: string) => {
 };
 
 const agentForModel = (modelId: string | undefined, status: string) => {
-  const tools: Record<string, any> = {};
+  const tools: Partial<SupportTools> = {};
 
   if (status === CONVERSATION_STATUS.UNRESOLVED) {
     tools.resolveConversation = resolveConversation;
     tools.escalateConversation = escalateConversation;
+    tools.search = search;
   }
 
   const base = modelId
@@ -81,7 +89,7 @@ export const create = action({
     }
 
     const conversation = await ctx.runQuery(
-      internal.system.conversations.getConversationByThreadIdQuery,
+      internal.system.conversations.getByThreadId,
       { threadId },
     );
 
@@ -127,6 +135,8 @@ export const create = action({
     const aiResponseSaved =
       result.status === "retry" ? result.aiResponseSaved : false;
 
+    let userMessageAt = 0;
+
     try {
       if (!userMessageId) {
         const { messageId, message } = await saveMessage(
@@ -137,6 +147,7 @@ export const create = action({
             message: { role: "user", content: prompt },
           },
         );
+        userMessageAt = message._creationTime;
 
         await ctx.runMutation(
           internal.system.messageRequests.setUserMessageId,
@@ -158,10 +169,33 @@ export const create = action({
         const { thread } = await agent.continueThread(ctx, { threadId });
 
         if (!aiResponseSaved) {
-          const aiResponse = await thread.generateText({});
-          const lastSavedMessage =
-            aiResponse.savedMessages[aiResponse.savedMessages.length - 1];
-          const aiMessageAt = lastSavedMessage?._creationTime ?? Date.now();
+          let aiResponse = await thread.generateText({});
+          let steps = 0;
+          while (
+            aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
+              ?.finishReason === "tool-calls" &&
+            steps < 5
+          ) {
+            if (aiResponse.text?.trim()) {
+              const ts = Math.max(Date.now(), userMessageAt + 1);
+              await ctx.runMutation(
+                internal.system.conversations.updateLastMessage,
+                {
+                  threadId,
+                  lastMessage: {
+                    role: "assistant",
+                    text: aiResponse.text.trim(),
+                  },
+                  messageAt: ts,
+                },
+              );
+            }
+
+            aiResponse = await thread.generateText({});
+            steps++;
+          }
+
+          const aiMessageAt = Math.max(Date.now(), userMessageAt + 1);
 
           if (aiResponse.text) {
             await ctx.runMutation(

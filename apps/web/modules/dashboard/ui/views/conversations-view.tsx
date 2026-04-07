@@ -11,6 +11,8 @@ export const ConversationsView = () => {
           height={120}
           quality={85}
           priority
+          draggable={false}
+          className="select-none"
         />
       </div>
     </div>

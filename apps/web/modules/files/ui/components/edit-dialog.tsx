@@ -32,16 +32,22 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({ filename: "", category: "" });
 
+  const baseOriginal = file
+    ? file.name.endsWith(`.${file.type}`)
+      ? file.name.slice(0, -(file.type.length + 1))
+      : file.name
+    : "";
+
   useEffect(() => {
     if (open && file) {
       setForm({
-        filename: file.name,
+        filename: baseOriginal,
         category: file.category ?? "",
       });
     }
-  }, [open, file]);
+  }, [open, file, baseOriginal]);
 
-  const filenameChanged = form.filename.trim() !== file?.name;
+  const filenameChanged = form.filename.trim() !== baseOriginal;
   const categoryChanged = form.category.trim() !== (file?.category ?? "");
   const hasChanges = filenameChanged || categoryChanged;
 
@@ -55,7 +61,11 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
     try {
       const result = await updateFile({
         entryId: file.id,
-        filename: filenameChanged ? form.filename.trim() : undefined,
+        filename: filenameChanged
+          ? file.type
+            ? `${form.filename.trim()}.${file.type}`
+            : form.filename.trim()
+          : undefined,
         category: categoryChanged ? form.category.trim() : undefined,
       });
 
@@ -101,19 +111,26 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
             <Label htmlFor="edit-filename" className="font-semibold">
               Filename
             </Label>
-            <Input
-              id="edit-filename"
-              disabled={isSaving}
-              value={form.filename}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, filename: e.target.value }))
-              }
-              className={cn(
-                "w-full focus-visible:ring-1",
-                filenameChanged &&
-                  "border-emerald-500 focus-visible:border-emerald-500 focus-visible:ring-emerald-500",
+            <div className="relative">
+              <Input
+                id="edit-filename"
+                disabled={isSaving}
+                value={form.filename}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, filename: e.target.value }))
+                }
+                className={cn(
+                  "w-full focus-visible:ring-1 pr-12 font-medium truncate",
+                  filenameChanged &&
+                    "border-emerald-500 focus-visible:border-emerald-500 focus-visible:ring-emerald-500",
+                )}
+              />
+              {file?.type && (
+                <span className="absolute right-3 top-1/2 text-xs font-semibold -translate-y-1/2 select-none text-muted-foreground">
+                  .{file.type}
+                </span>
               )}
-            />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit-category" className="font-semibold">
