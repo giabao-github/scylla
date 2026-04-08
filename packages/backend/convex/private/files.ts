@@ -31,6 +31,7 @@ type EntryMetadata = {
 type FilteredCursor = {
   __type: "filtered";
   rawCursor: string | null;
+  bufferedEntryIds?: string[];
 };
 
 const STALE_CLAIM_MS = 5 * 60 * 1000;
@@ -61,7 +62,10 @@ const decodeFilteredCursor = (s: string): FilteredCursor | null => {
     const parsed = JSON.parse(json);
     if (
       parsed?.__type === "filtered" &&
-      (typeof parsed.rawCursor === "string" || parsed.rawCursor === null)
+      (typeof parsed.rawCursor === "string" || parsed.rawCursor === null) &&
+      (parsed.bufferedEntryIds === undefined ||
+        (Array.isArray(parsed.bufferedEntryIds) &&
+          parsed.bufferedEntryIds.every((id: unknown) => typeof id === "string")))
     ) {
       return parsed as FilteredCursor;
     }
@@ -242,7 +246,7 @@ export const deleteFile = mutation({
 
     await ctx.db.insert("pendingDeletions", {
       filename: metadata?.filename ?? "",
-      contentHash,
+      ...(contentHash !== undefined ? { contentHash } : {}),
       entryId,
       storageId,
       organizationId,
@@ -303,7 +307,7 @@ export const deleteFiles = mutation({
 
       await ctx.db.insert("pendingDeletions", {
         filename: metadata?.filename ?? "",
-        contentHash,
+        ...(contentHash !== undefined ? { contentHash } : {}),
         entryId: entry.entryId,
         storageId,
         organizationId,
@@ -337,12 +341,14 @@ export const list = query({
 
     if (category) {
       let rawCursor: string | null = null;
+      let bufferedEntryIds: string[] = [];
 
       const decoded = paginationOpts.cursor
         ? decodeFilteredCursor(paginationOpts.cursor)
         : null;
       if (decoded) {
         rawCursor = decoded.rawCursor;
+        bufferedEntryIds = decoded.bufferedEntryIds ?? [];
       }
 
       const targetCount = paginationOpts.numItems;
@@ -354,7 +360,46 @@ export const list = query({
 
       const replacedEntryIds = new Set<string>();
 
-      do {
+      if (bufferedEntryIds.length > 0) {
+        const bufferedEntries = await Promise.all(
+          bufferedEntryIds.map((entryId) =>
+            rag.getEntry(ctx, { entryId: entryId as EntryId }),
+          ),
+        );
+        const bufferedPendingChecks = await Promise.all(
+          bufferedEntries.map((entry) =>
+            entry ? isPendingDeletion(ctx, entry.entryId) : Promise.resolve(false),
+          ),
+        );
+
+        const remainingBufferedEntryIds: string[] = [];
+
+        for (let idx = 0; idx < bufferedEntries.length; idx++) {
+          const entry = bufferedEntries[idx];
+          if (!entry) continue;
+          if (bufferedPendingChecks[idx]) continue;
+          if (
+            (entry.metadata as EntryMetadata | undefined)?.category !== category
+          ) {
+            continue;
+          }
+
+          if (matched.length < targetCount) {
+            matched.push(entry);
+          } else {
+            remainingBufferedEntryIds.push(entry.entryId);
+          }
+        }
+
+        bufferedEntryIds = remainingBufferedEntryIds;
+      }
+
+      while (
+        matched.length < targetCount &&
+        bufferedEntryIds.length === 0 &&
+        !isDone &&
+        scanned < maxScan
+      ) {
         const batchSize = Math.max(targetCount * 2, 50);
         const results = await rag.list(ctx, {
           namespaceId: namespace.namespaceId,
@@ -389,6 +434,8 @@ export const list = query({
           ) {
             if (matched.length < targetCount) {
               matched.push(entry);
+            } else {
+              bufferedEntryIds.push(entry.entryId);
             }
           }
         }
@@ -396,7 +443,7 @@ export const list = query({
         scanned += results.page.length;
         isDone = results.isDone;
         cursor = isDone ? null : results.continueCursor;
-      } while (matched.length < targetCount && !isDone && scanned < maxScan);
+      }
 
       if (scanned >= maxScan && matched.length < targetCount) {
         console.warn(
@@ -405,11 +452,12 @@ export const list = query({
         );
       }
 
-      const nextCursor = isDone
+      const nextCursor = isDone && bufferedEntryIds.length === 0
         ? ""
         : encodeFilteredCursor({
             __type: "filtered",
             rawCursor: cursor,
+            bufferedEntryIds,
           });
 
       const files = await Promise.all(
@@ -627,7 +675,7 @@ export const markPendingDeletion = internalMutation({
 
     await ctx.db.insert("pendingDeletions", {
       filename,
-      contentHash,
+      ...(contentHash !== undefined ? { contentHash } : {}),
       entryId,
       storageId,
       organizationId,
