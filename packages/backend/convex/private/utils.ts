@@ -13,6 +13,10 @@ import rag from "@workspace/backend/system/ai/rag";
 
 import { isNotFoundError } from "@workspace/shared/lib/file-utils";
 
+type EntryMetadata = {
+  contentHash?: string;
+};
+
 interface OrgUserIdentity extends UserIdentity {
   orgId?: string;
 }
@@ -103,18 +107,24 @@ export const cleanupPendingDeletions = async (
   filename: string,
   contentHash?: string,
 ): Promise<void> => {
-  const [pendingNameMatches, pendingHashMatches] = await Promise.all([
-    ctx.runQuery(internal.private.files.listPendingDeletionsByFilename, {
-      organizationId,
-      filename,
-    }),
-    contentHash
-      ? ctx.runQuery(internal.private.files.listPendingDeletionsByHash, {
-          organizationId,
-          contentHash,
-        })
-      : Promise.resolve([]),
-  ]);
+  const [pendingNameMatches, pendingHashMatches, pendingOrgMatches] =
+    await Promise.all([
+      ctx.runQuery(internal.private.files.listPendingDeletionsByFilename, {
+        organizationId,
+        filename,
+      }),
+      contentHash
+        ? ctx.runQuery(internal.private.files.listPendingDeletionsByHash, {
+            organizationId,
+            contentHash,
+          })
+        : Promise.resolve([] as Doc<"pendingDeletions">[]),
+      contentHash
+        ? ctx.runQuery(internal.private.files.listPendingDeletionsByOrg, {
+            organizationId,
+          })
+        : Promise.resolve([] as Doc<"pendingDeletions">[]),
+    ]);
 
   const seenEntryIds = new Set<string>();
   const uniquePending = [...pendingNameMatches, ...pendingHashMatches].filter(
@@ -124,6 +134,54 @@ export const cleanupPendingDeletions = async (
       return true;
     },
   );
+
+  if (contentHash) {
+    const hydratedHashMatches = await Promise.all(
+      pendingOrgMatches
+        .filter(
+          (pending) =>
+            !pending.contentHash && !seenEntryIds.has(pending.entryId),
+        )
+        .map(async (pending) => {
+          try {
+            const entry = await rag.getEntry(ctx, {
+              entryId: pending.entryId as EntryId,
+            });
+            const pendingHash = (entry?.metadata as EntryMetadata | undefined)
+              ?.contentHash;
+
+            if (pendingHash !== contentHash) {
+              return null;
+            }
+
+            await ctx.runMutation(
+              internal.private.files.backfillPendingDeletionContentHash,
+              {
+                id: pending._id,
+                contentHash: pendingHash,
+              },
+            );
+
+            return {
+              ...pending,
+              contentHash: pendingHash,
+            };
+          } catch (error) {
+            console.error(
+              `Failed to hydrate content hash for pending deletion [${pending.entryId}]:`,
+              error,
+            );
+            return null;
+          }
+        }),
+    );
+
+    for (const pending of hydratedHashMatches) {
+      if (!pending || seenEntryIds.has(pending.entryId)) continue;
+      seenEntryIds.add(pending.entryId);
+      uniquePending.push(pending);
+    }
+  }
 
   await Promise.all(
     uniquePending.map(async (pending) => {

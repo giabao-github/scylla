@@ -473,15 +473,13 @@ export const listPendingDeletions = internalQuery({
     while (result.length < effectiveLimit && scans < maxScans) {
       const batch = await ctx.db
         .query("pendingDeletions")
-        .order("asc")
+        .withIndex("by_scheduled_at", (q) => q.lte("scheduledAt", now))
         .paginate({ cursor, numItems: batchSize });
 
       for (const row of batch.page) {
-        const isScheduledNow =
-          row.scheduledAt === undefined || row.scheduledAt <= now;
         const isNotClaimed =
           row.claimedAt === undefined || row.claimedAt < staleThreshold;
-        if (isScheduledNow && isNotClaimed) {
+        if (isNotClaimed) {
           result.push(row);
           if (result.length >= effectiveLimit) break;
         }
@@ -578,6 +576,18 @@ export const removePendingDeletionByEntryId = internalMutation({
     if (row) {
       await ctx.db.delete(row._id);
     }
+  },
+});
+
+export const backfillPendingDeletionContentHash = internalMutation({
+  args: {
+    id: v.id("pendingDeletions"),
+    contentHash: v.string(),
+  },
+  handler: async (ctx, { id, contentHash }) => {
+    const row = await ctx.db.get(id);
+    if (!row || row.contentHash === contentHash) return;
+    await ctx.db.patch(id, { contentHash });
   },
 });
 
@@ -730,7 +740,10 @@ export const claimPendingDeletion = internalMutation({
 
     if (isAlreadyClaimed) return { claimed: false };
 
-    await ctx.db.patch(id, { claimedAt: now });
+    await ctx.db.patch(id, {
+      claimedAt: now,
+      scheduledAt: now + STALE_CLAIM_MS,
+    });
     return { claimed: true };
   },
 });
