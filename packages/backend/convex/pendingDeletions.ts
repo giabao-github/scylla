@@ -54,7 +54,6 @@ export const processPendingDeletions = internalAction({
         } else {
           await ctx.runMutation(internal.private.files.incrementRetryCount, {
             id: row._id,
-            retryCount: nextRetryCount,
           });
         }
       }

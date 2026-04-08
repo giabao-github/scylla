@@ -14,7 +14,13 @@ type ClaimResult =
   | { status: "already_done"; userMessageId: string | null }
   | { status: "in_progress" }
   | { status: "new" }
-  | { status: "retry"; userMessageId: string | null; aiResponseSaved: boolean };
+  | {
+      status: "retry";
+      userMessageId: string | null;
+      aiResponseSaved: boolean;
+      lastMessageSynced: boolean;
+      userMessageAt: number;
+    };
 
 export const claim = internalMutation({
   args: {
@@ -164,6 +170,8 @@ export const claimAndSaveUserMessage = internalMutation({
         status: "retry",
         userMessageId: existing.userMessageId ?? null,
         aiResponseSaved: existing.aiResponseSaved ?? false,
+        lastMessageSynced: existing.lastMessageSynced ?? false,
+        userMessageAt: existing.userMessageAt ?? existing.createdAt,
       };
     }
 
@@ -186,6 +194,18 @@ export const markAiResponseSaved = internalMutation({
     if (existing.aiResponseSaved) return;
     await ctx.db.patch(existing._id, {
       aiResponseSaved: true,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const markLastMessageSynced = internalMutation({
+  args: { requestId: v.string() },
+  handler: async (ctx, { requestId }) => {
+    const existing = await requireMessageRequest(ctx, requestId);
+    if (existing.lastMessageSynced) return;
+    await ctx.db.patch(existing._id, {
+      lastMessageSynced: true,
       updatedAt: Date.now(),
     });
   },
@@ -223,8 +243,9 @@ export const setUserMessageId = internalMutation({
   args: {
     requestId: v.string(),
     messageId: v.string(),
+    messageAt: v.number(),
   },
-  handler: async (ctx, { requestId, messageId }) => {
+  handler: async (ctx, { requestId, messageId, messageAt }) => {
     const existing = await requireMessageRequest(ctx, requestId);
 
     if (existing.userMessageId) {
@@ -244,6 +265,7 @@ export const setUserMessageId = internalMutation({
 
     await ctx.db.patch(existing._id, {
       userMessageId: messageId,
+      userMessageAt: messageAt,
       updatedAt: Date.now(),
     });
   },

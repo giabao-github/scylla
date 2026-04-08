@@ -2,8 +2,9 @@
 
 import * as React from "react";
 
-import { cn } from "@workspace/ui/lib/utils";
 import { Tooltip as TooltipPrimitive } from "radix-ui";
+
+import { cn } from "@workspace/ui/lib/utils";
 
 function TooltipProvider({
   delayDuration = 0,
@@ -26,10 +27,15 @@ function TooltipTrigger({
 
 function TooltipContent({
   className,
+  arrowClassName,
+  arrowVariant = "diamond",
   sideOffset = 0,
   children,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: React.ComponentProps<typeof TooltipPrimitive.Content> & {
+  arrowClassName?: string;
+  arrowVariant?: "diamond" | "triangle";
+}) {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
@@ -42,7 +48,14 @@ function TooltipContent({
         {...props}
       >
         {children}
-        <TooltipPrimitive.Arrow className="bg-foreground fill-foreground z-50 size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px]" />
+        <TooltipPrimitive.Arrow
+          className={cn(
+            arrowVariant === "triangle"
+              ? "fill-foreground z-50 size-[15px] translate-y-[-3px] scale-x-125 scale-y-[0.65] opacity-100"
+              : "fill-foreground z-50 size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px]",
+            arrowClassName,
+          )}
+        />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   );

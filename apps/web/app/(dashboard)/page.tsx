@@ -9,7 +9,16 @@ export const metadata: Metadata = {
 export default function Page() {
   return (
     <div className="flex flex-col gap-y-4 justify-center items-center text-base min-h-svh">
-      <Image src="/logo.png" alt="Scylla logo" width={100} height={100} />
+      <Image
+        src="/logo.png"
+        alt="Scylla logo"
+        width={100}
+        height={100}
+        quality={85}
+        priority
+        draggable={false}
+        className="select-none"
+      />
     </div>
   );
 }

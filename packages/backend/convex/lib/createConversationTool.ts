@@ -3,7 +3,7 @@ import { FunctionReference } from "convex/server";
 import { ConvexError } from "convex/values";
 import z from "zod";
 
-import { components } from "@workspace/backend/_generated/api";
+import { components, internal } from "@workspace/backend/_generated/api";
 
 export const createConversationTool = (options: {
   description: string;
@@ -35,17 +35,38 @@ export const createConversationTool = (options: {
       });
 
       if (didTransition) {
+        let savedMessage;
         try {
-          await saveMessage(ctx, components.agent, {
+          ({ message: savedMessage } = await saveMessage(ctx, components.agent, {
             threadId: ctx.threadId,
             message: {
               role: "assistant",
               content: options.confirmationMessage,
             },
-          });
+          }));
         } catch (err) {
           console.error(
             `[createConversationTool] Status updated but confirmation message failed for thread [${ctx.threadId}]:`,
+            err,
+          );
+          return options.confirmationMessage;
+        }
+
+        try {
+          await ctx.runMutation(
+            internal.system.conversations.updateLastMessage,
+            {
+              threadId: ctx.threadId,
+              lastMessage: {
+                role: "assistant",
+                text: options.confirmationMessage,
+              },
+              messageAt: savedMessage._creationTime,
+            },
+          );
+        } catch (err) {
+          console.error(
+            `[createConversationTool] Confirmation message saved but lastMessage update failed for thread [${ctx.threadId}]:`,
             err,
           );
         }

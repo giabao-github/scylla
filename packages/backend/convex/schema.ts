@@ -98,6 +98,8 @@ export default defineSchema({
     ),
     userMessageId: v.optional(v.string()),
     aiResponseSaved: v.optional(v.boolean()),
+    lastMessageSynced: v.optional(v.boolean()),
+    userMessageAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -117,6 +119,7 @@ export default defineSchema({
     .index("by_entry_id", ["entryId"]),
   pendingDeletions: defineTable({
     filename: v.string(),
+    contentHash: v.optional(v.string()),
     entryId: v.string(),
     storageId: v.union(v.id("_storage"), v.null()),
     organizationId: v.string(),
@@ -127,6 +130,7 @@ export default defineSchema({
     .index("by_entry_id", ["entryId"])
     .index("by_org_id", ["organizationId"])
     .index("by_org_id_and_filename", ["organizationId", "filename"])
+    .index("by_org_id_and_hash", ["organizationId", "contentHash"])
     .index("by_scheduled_at", ["scheduledAt"]),
   failedDeletions: defineTable({
     entryId: v.string(),

@@ -73,10 +73,20 @@ const isUserMessageConfirmed = (
   messages: UIMessage[],
   confirmedId?: string,
 ): boolean => {
-  if (!confirmedId) return false;
+  if (confirmedId) {
+    return messages.some(
+      (m) =>
+        !slot.snapshotIds.has(m.id) &&
+        m.role === "user" &&
+        m.id === confirmedId,
+    );
+  }
   return messages.some(
     (m) =>
-      !slot.snapshotIds.has(m.id) && m.role === "user" && m.id === confirmedId,
+      m.role === "user" &&
+      m.text === slot.userText &&
+      m._creationTime >= slot.submittedAt &&
+      !slot.snapshotIds.has(m.id),
   );
 };
 
@@ -411,11 +421,7 @@ export const WidgetChatScreen = () => {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex overflow-y-auto flex-col flex-1 gap-5 px-4 py-6"
-          style={{
-            scrollbarWidth: "thin",
-            scrollbarColor: "#C4B5FD transparent",
-          }}
+          className="flex overflow-y-auto flex-col flex-1 gap-5 px-4 py-6 scrollbar-themed"
         >
           <div>
             {isLoadingMore && (
@@ -444,7 +450,7 @@ export const WidgetChatScreen = () => {
                 <Message
                   from={isUser ? "user" : "assistant"}
                   key={msg.id}
-                  className="max-w-2/3"
+                  className="max-w-1/2"
                 >
                   <ChatBubble
                     text={msg.text}
@@ -460,7 +466,7 @@ export const WidgetChatScreen = () => {
                 <Message
                   key={`pending-user-${slot.localId}`}
                   from="user"
-                  className="max-w-2/3"
+                  className="max-w-1/2"
                 >
                   <ChatBubble text={slot.userText} variant="user" />
                 </Message>
@@ -472,7 +478,7 @@ export const WidgetChatScreen = () => {
               <Message
                 key={`pending-ai-${slot.localId}`}
                 from="assistant"
-                className="max-w-2/3"
+                className="max-w-1/2"
               >
                 <ChatBubble
                   text=""
@@ -512,7 +518,7 @@ export const WidgetChatScreen = () => {
                       render={({ field }) => (
                         <PromptInputTextarea
                           placeholder="Ask anything..."
-                          className="text-sm"
+                          className="mt-2 text-sm placeholder:text-muted-foreground/50 disabled:cursor-default"
                           onChange={field.onChange}
                           value={field.value}
                         />

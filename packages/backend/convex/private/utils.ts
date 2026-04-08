@@ -1,11 +1,21 @@
+import { EntryId } from "@convex-dev/rag";
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 
+import { internal } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import {
+  ActionCtx,
   type DatabaseReader,
   MutationCtx,
 } from "@workspace/backend/_generated/server";
+import rag from "@workspace/backend/system/ai/rag";
+
+import { isNotFoundError } from "@workspace/shared/lib/file-utils";
+
+type EntryMetadata = {
+  contentHash?: string;
+};
 
 interface OrgUserIdentity extends UserIdentity {
   orgId?: string;
@@ -89,4 +99,121 @@ export const cleanupFileIndices = async (ctx: MutationCtx, entryId: string) => {
   if (fileNameRow) {
     await ctx.db.delete(fileNameRow._id);
   }
+};
+
+export const cleanupPendingDeletions = async (
+  ctx: ActionCtx,
+  organizationId: string,
+  filename: string,
+  contentHash?: string,
+): Promise<void> => {
+  const [pendingNameMatches, pendingHashMatches, pendingOrgMatches] =
+    await Promise.all([
+      ctx.runQuery(internal.private.files.listPendingDeletionsByFilename, {
+        organizationId,
+        filename,
+      }),
+      contentHash
+        ? ctx.runQuery(internal.private.files.listPendingDeletionsByHash, {
+            organizationId,
+            contentHash,
+          })
+        : Promise.resolve([] as Doc<"pendingDeletions">[]),
+      contentHash
+        ? ctx.runQuery(internal.private.files.listPendingDeletionsByOrg, {
+            organizationId,
+          })
+        : Promise.resolve([] as Doc<"pendingDeletions">[]),
+    ]);
+
+  const seenEntryIds = new Set<string>();
+  const uniquePending = [...pendingNameMatches, ...pendingHashMatches].filter(
+    (p) => {
+      if (seenEntryIds.has(p.entryId)) return false;
+      seenEntryIds.add(p.entryId);
+      return true;
+    },
+  );
+
+  if (contentHash) {
+    const hydratedHashMatches = await Promise.all(
+      pendingOrgMatches
+        .filter(
+          (pending) =>
+            !pending.contentHash && !seenEntryIds.has(pending.entryId),
+        )
+        .map(async (pending) => {
+          try {
+            const entry = await rag.getEntry(ctx, {
+              entryId: pending.entryId as EntryId,
+            });
+            const pendingHash = (entry?.metadata as EntryMetadata | undefined)
+              ?.contentHash;
+
+            if (pendingHash !== contentHash) {
+              return null;
+            }
+
+            await ctx.runMutation(
+              internal.private.files.backfillPendingDeletionContentHash,
+              {
+                id: pending._id,
+                contentHash: pendingHash,
+              },
+            );
+
+            return {
+              ...pending,
+              contentHash: pendingHash,
+            };
+          } catch (error) {
+            console.error(
+              `Failed to hydrate content hash for pending deletion [${pending.entryId}]:`,
+              error,
+            );
+            return null;
+          }
+        }),
+    );
+
+    for (const pending of hydratedHashMatches) {
+      if (!pending || seenEntryIds.has(pending.entryId)) continue;
+      seenEntryIds.add(pending.entryId);
+      uniquePending.push(pending);
+    }
+  }
+
+  await Promise.all(
+    uniquePending.map(async (pending) => {
+      try {
+        await rag
+          .deleteAsync(ctx, { entryId: pending.entryId as EntryId })
+          .catch((err) => {
+            if (!isNotFoundError(err)) throw err;
+            console.warn(
+              `RAG entry [${pending.entryId}] already deleted, skipping.`,
+            );
+          });
+
+        if (pending.storageId) {
+          await ctx.storage.delete(pending.storageId).catch((err) => {
+            if (!isNotFoundError(err)) throw err;
+            console.warn(
+              `Storage [${pending.storageId}] already deleted, skipping.`,
+            );
+          });
+        }
+
+        await ctx.runMutation(
+          internal.private.files.removePendingDeletionByEntryId,
+          { entryId: pending.entryId },
+        );
+      } catch (error) {
+        console.error(
+          `Failed to cleanup pending deletion for entry [${pending.entryId}]:`,
+          error,
+        );
+      }
+    }),
+  );
 };

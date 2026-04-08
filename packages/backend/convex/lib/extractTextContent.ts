@@ -6,9 +6,9 @@ import type { StorageActionWriter } from "convex/server";
 import { Id } from "@workspace/backend/_generated/dataModel";
 
 const AI_MODELS = {
-  image: google.chat("gemini-flash-lite-latest"),
-  document: google.chat("gemini-flash-lite-latest"),
-  html: google.chat("gemini-flash-lite-latest"),
+  image: google.chat("gemini-flash-latest"),
+  document: google.chat("gemini-flash-latest"),
+  html: google.chat("gemini-flash-latest"),
   video: google.chat("gemini-flash-latest"),
 } as const;
 

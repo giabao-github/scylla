@@ -66,6 +66,7 @@
   --shadow-2xl: 0px 8px 16px -4px hsl(0 0% 0% / 0.2);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
+  --scrollbar-thumb: oklch(0.81116 0.10139 293.557);
 }
 
 .dark {
@@ -124,6 +125,7 @@
   --shadow-xl:
     0px 8px 16px -4px hsl(0 0% 0% / 0.08), 0px 8px 10px -5px hsl(0 0% 0% / 0.08);
   --shadow-2xl: 0px 8px 16px -4px hsl(0 0% 0% / 0.2);
+  --scrollbar-thumb: oklch(0.6056 0.2189 292.7172);
 }
 
 @theme inline {
@@ -199,8 +201,51 @@
     @apply bg-background text-foreground;
   }
   button {
-    @apply cursor-pointer disabled:cursor-default;
+    @apply cursor-pointer select-none disabled:cursor-default;
   }
+}
+
+@layer components {
+  .markdown-content {
+    ul,
+    ol {
+      @apply flex flex-col gap-1 ml-4;
+    }
+    ul {
+      @apply list-disc;
+    }
+    ol {
+      @apply list-decimal;
+    }
+    li {
+      @apply leading-relaxed;
+    }
+    li::marker {
+      @apply opacity-80 text-inherit;
+    }
+    li > p {
+      @apply inline;
+    }
+    p {
+      @apply whitespace-pre-wrap;
+    }
+  }
+}
+
+.scrollbar-themed {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.scrollbar-themed::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-themed::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-themed::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
 }
 
 @keyframes l23 {
