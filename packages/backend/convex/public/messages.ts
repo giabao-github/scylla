@@ -193,6 +193,11 @@ export const create = action({
                 internal.system.messageRequests.markLastMessageSynced,
                 { requestId },
               );
+            } else {
+              console.warn("[retry] No assistant message found to resync", {
+                requestId,
+                threadId,
+              });
             }
           } catch (err) {
             console.error(
@@ -227,19 +232,16 @@ export const create = action({
 
             aiResponse = await thread.generateText({});
             steps++;
-
-            if (steps >= MAX_TOOL_CALL_ITERATIONS) {
-              console.warn("[AI] Tool call chain truncated", {
-                requestId,
-                steps,
-              });
-            }
           }
 
           if (
             aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
               ?.finishReason === "tool-calls"
           ) {
+            console.warn("[AI] Tool call chain truncated", {
+              requestId,
+              steps,
+            });
             throw new ConvexError({
               code: "AI_TOOL_LOOP_LIMIT",
               message: `Assistant did not finish after ${MAX_TOOL_CALL_ITERATIONS} tool rounds`,

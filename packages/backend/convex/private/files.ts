@@ -477,7 +477,11 @@ export const listPendingDeletions = internalQuery({
         .paginate({ cursor, numItems: batchSize });
 
       for (const row of batch.page) {
-        if (row.claimedAt === undefined || row.claimedAt < staleThreshold) {
+        const isScheduledNow =
+          row.scheduledAt === undefined || row.scheduledAt <= now;
+        const isNotClaimed =
+          row.claimedAt === undefined || row.claimedAt < staleThreshold;
+        if (isScheduledNow && isNotClaimed) {
           result.push(row);
           if (result.length >= effectiveLimit) break;
         }
