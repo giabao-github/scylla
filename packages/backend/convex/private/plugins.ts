@@ -52,6 +52,7 @@ export const remove = mutation({
         organizationId,
         service: args.service,
         secretName: existingPlugin.secretName,
+        connectedAt: existingPlugin.lastConnectedAt,
       },
     );
   },

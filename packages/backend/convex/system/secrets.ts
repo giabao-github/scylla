@@ -63,35 +63,36 @@ export const upsert = internalAction({
       },
     );
 
-    try {
-      await ctx.runMutation(internal.system.plugins.upsert, {
-        organizationId: args.organizationId,
-        service: args.service,
-        secretName,
-      });
-    } catch (error) {
-      console.error(`Failed to upsert plugin ${secretName}:`, error);
+    if (!existingPlugin || existingPlugin.secretName !== secretName) {
+      try {
+        await ctx.runMutation(internal.system.plugins.upsert, {
+          organizationId: args.organizationId,
+          service: args.service,
+          secretName,
+        });
+      } catch (error) {
+        console.error(`Failed to upsert plugin ${secretName}:`, error);
 
-      if (!existingPlugin) {
-        try {
-          await deleteSecretValue(secretName);
-        } catch (rollbackError) {
-          console.error(
-            `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
-              `Both plugin upsert and subsequent AWS rollback failed.\n` +
-              `Manual cleanup required in AWS Secrets Manager for: ${secretName}.\n` +
-              `Error details:`,
-            rollbackError,
-          );
+        if (!existingPlugin) {
+          try {
+            await deleteSecretValue(secretName);
+          } catch (rollbackError) {
+            console.error(
+              `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
+                `Both plugin upsert and subsequent AWS rollback failed.\n` +
+                `Manual cleanup required in AWS Secrets Manager for: ${secretName}.\n` +
+                `Error details:`,
+              rollbackError,
+            );
+          }
         }
+
+        throw new ConvexError({
+          code: "PLUGIN_UPSERT_FAILED",
+          message: "Failed to upsert plugin",
+        });
       }
-
-      throw new ConvexError({
-        code: "PLUGIN_UPSERT_FAILED",
-        message: "Failed to upsert plugin",
-      });
     }
-
     return { status: "success" };
   },
 });
@@ -119,17 +120,21 @@ export const deleteSecretIfUnreferenced = internalAction({
     organizationId: v.string(),
     service: v.literal("vapi"),
     secretName: v.string(),
+    connectedAt: v.number(),
   },
-  handler: async (ctx, { organizationId, service, secretName }) => {
+  handler: async (
+    ctx,
+    { organizationId, service, secretName, connectedAt },
+  ) => {
     const currentPlugin = await ctx.runQuery(
       internal.private.plugins.getPluginByOrgAndServiceQuery,
       { organizationId, service },
     );
 
-    if (currentPlugin) {
+    if (currentPlugin && currentPlugin.lastConnectedAt !== connectedAt) {
       console.info(
         `[deleteSecretIfUnreferenced] Plugin for [${organizationId}/${service}] ` +
-          `was reconnected — skipping secret deletion.`,
+          `was reconnected (connectedAt mismatch) — skipping secret deletion.`,
       );
       return;
     }

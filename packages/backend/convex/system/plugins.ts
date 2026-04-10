@@ -22,12 +22,14 @@ export const upsert = internalMutation({
     if (existingPlugin) {
       await ctx.db.patch(existingPlugin._id, {
         secretName: args.secretName,
+        lastConnectedAt: Date.now(),
       });
     } else {
       await ctx.db.insert("plugins", {
         organizationId: args.organizationId,
         service: args.service,
         secretName: args.secretName,
+        lastConnectedAt: Date.now(),
       });
     }
   },

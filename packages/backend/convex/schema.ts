@@ -14,6 +14,7 @@ export default defineSchema({
     organizationId: v.string(),
     service: v.union(v.literal("vapi")),
     secretName: v.string(),
+    lastConnectedAt: v.number(),
   })
     .index("by_org_id", ["organizationId"])
     .index("by_org_id_and_service", ["organizationId", "service"]),
