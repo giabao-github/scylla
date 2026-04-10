@@ -8,6 +8,7 @@ import {
   ActionCtx,
   type DatabaseReader,
   MutationCtx,
+  QueryCtx,
 } from "@workspace/backend/_generated/server";
 import rag from "@workspace/backend/system/ai/rag";
 
@@ -16,6 +17,8 @@ import { isNotFoundError } from "@workspace/shared/lib/file-utils";
 type EntryMetadata = {
   contentHash?: string;
 };
+
+type PluginService = "vapi";
 
 interface OrgUserIdentity extends UserIdentity {
   orgId?: string;
@@ -33,6 +36,19 @@ interface AuthContext {
 interface AuthDbContext extends AuthContext {
   db: DatabaseReader;
 }
+
+const asyncMapBatch = async <T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> => {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += limit) {
+    const chunk = items.slice(i, i + limit);
+    results.push(...(await Promise.all(chunk.map(fn))));
+  }
+  return results;
+};
 
 export const getAuthenticatedOrgId = async (
   ctx: AuthContext,
@@ -136,24 +152,22 @@ export const cleanupPendingDeletions = async (
   );
 
   if (contentHash) {
-    const hydratedHashMatches = await Promise.all(
-      pendingOrgMatches
-        .filter(
-          (pending) =>
-            !pending.contentHash && !seenEntryIds.has(pending.entryId),
-        )
-        .map(async (pending) => {
-          try {
-            const entry = await rag.getEntry(ctx, {
-              entryId: pending.entryId as EntryId,
-            });
-            const pendingHash = (entry?.metadata as EntryMetadata | undefined)
-              ?.contentHash;
+    const pendingToHydrate = pendingOrgMatches.filter(
+      (pending) => !pending.contentHash && !seenEntryIds.has(pending.entryId),
+    );
 
-            if (pendingHash !== contentHash) {
-              return null;
-            }
+    const hydratedHashMatches = await asyncMapBatch(
+      pendingToHydrate,
+      10,
+      async (pending) => {
+        try {
+          const entry = await rag.getEntry(ctx, {
+            entryId: pending.entryId as EntryId,
+          });
+          const pendingHash = (entry?.metadata as EntryMetadata | undefined)
+            ?.contentHash;
 
+          if (pendingHash) {
             await ctx.runMutation(
               internal.private.files.backfillPendingDeletionContentHash,
               {
@@ -161,19 +175,24 @@ export const cleanupPendingDeletions = async (
                 contentHash: pendingHash,
               },
             );
+          }
 
-            return {
-              ...pending,
-              contentHash: pendingHash,
-            };
-          } catch (error) {
-            console.error(
-              `Failed to hydrate content hash for pending deletion [${pending.entryId}]:`,
-              error,
-            );
+          if (pendingHash !== contentHash) {
             return null;
           }
-        }),
+
+          return {
+            ...pending,
+            contentHash: pendingHash,
+          };
+        } catch (error) {
+          console.error(
+            `Failed to hydrate content hash for pending deletion [${pending.entryId}]:`,
+            error,
+          );
+          return null;
+        }
+      },
     );
 
     for (const pending of hydratedHashMatches) {
@@ -183,37 +202,48 @@ export const cleanupPendingDeletions = async (
     }
   }
 
-  await Promise.all(
-    uniquePending.map(async (pending) => {
-      try {
-        await rag
-          .deleteAsync(ctx, { entryId: pending.entryId as EntryId })
-          .catch((err) => {
-            if (!isNotFoundError(err)) throw err;
-            console.warn(
-              `RAG entry [${pending.entryId}] already deleted, skipping.`,
-            );
-          });
+  await asyncMapBatch(uniquePending, 10, async (pending) => {
+    try {
+      await rag
+        .deleteAsync(ctx, { entryId: pending.entryId as EntryId })
+        .catch((err) => {
+          if (!isNotFoundError(err)) throw err;
+          console.warn(
+            `RAG entry [${pending.entryId}] already deleted, skipping.`,
+          );
+        });
 
-        if (pending.storageId) {
-          await ctx.storage.delete(pending.storageId).catch((err) => {
-            if (!isNotFoundError(err)) throw err;
-            console.warn(
-              `Storage [${pending.storageId}] already deleted, skipping.`,
-            );
-          });
-        }
-
-        await ctx.runMutation(
-          internal.private.files.removePendingDeletionByEntryId,
-          { entryId: pending.entryId },
-        );
-      } catch (error) {
-        console.error(
-          `Failed to cleanup pending deletion for entry [${pending.entryId}]:`,
-          error,
-        );
+      if (pending.storageId) {
+        await ctx.storage.delete(pending.storageId).catch((err) => {
+          if (!isNotFoundError(err)) throw err;
+          console.warn(
+            `Storage [${pending.storageId}] already deleted, skipping.`,
+          );
+        });
       }
-    }),
-  );
+
+      await ctx.runMutation(
+        internal.private.files.removePendingDeletionByEntryId,
+        { entryId: pending.entryId },
+      );
+    } catch (error) {
+      console.error(
+        `Failed to cleanup pending deletion for entry [${pending.entryId}]:`,
+        error,
+      );
+    }
+  });
+};
+
+export const getPluginByOrgAndService = async (
+  ctx: QueryCtx | MutationCtx,
+  organizationId: string,
+  service: PluginService,
+) => {
+  return ctx.db
+    .query("plugins")
+    .withIndex("by_org_id_and_service", (q) =>
+      q.eq("organizationId", organizationId).eq("service", service),
+    )
+    .unique();
 };

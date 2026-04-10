@@ -141,7 +141,7 @@ export const WidgetLoadingScreen = ({
 
   return (
     <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
-      <div className="loader"></div>
+      <div className="loader" />
       <p>{loadingMessage || "Loading..."}</p>
     </div>
   );
