@@ -167,17 +167,19 @@ export const cleanupPendingDeletions = async (
           const pendingHash = (entry?.metadata as EntryMetadata | undefined)
             ?.contentHash;
 
+          if (pendingHash) {
+            await ctx.runMutation(
+              internal.private.files.backfillPendingDeletionContentHash,
+              {
+                id: pending._id,
+                contentHash: pendingHash,
+              },
+            );
+          }
+
           if (pendingHash !== contentHash) {
             return null;
           }
-
-          await ctx.runMutation(
-            internal.private.files.backfillPendingDeletionContentHash,
-            {
-              id: pending._id,
-              contentHash: pendingHash,
-            },
-          );
 
           return {
             ...pending,

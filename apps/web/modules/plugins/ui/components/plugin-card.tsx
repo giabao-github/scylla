@@ -48,7 +48,7 @@ export const PluginCard = ({
 
         <div className="flex flex-col gap-1 items-center">
           <div className="flex justify-center items-center p-3 rounded-full border border-white/60 bg-white/65 text-muted-foreground">
-            <ArrowLeftRightIcon className="size-5" />
+            <ArrowLeftRightIcon className="size-5" aria-hidden="true" />
           </div>
         </div>
 
@@ -102,7 +102,7 @@ export const PluginCard = ({
           className="shadow-lg size-full shadow-primary/15"
         >
           Connect
-          <PlugIcon />
+          <PlugIcon aria-hidden="true" />
         </Button>
       </div>
     </GlassPanel>

@@ -13,7 +13,13 @@ import {
 import { ConvexError } from "convex/values";
 import z from "zod";
 
-const handlePutSecretError = (error: unknown): never => {
+const handlePutSecretError = (secretName: string, error: unknown): never => {
+  if (error instanceof Error && error.name === "ResourceNotFoundException") {
+    throw new ConvexError({
+      code: "RESOURCE_NOT_FOUND",
+      message: `Secret "${secretName}" not found`,
+    });
+  }
   if (error instanceof Error && error.name === "ValidationException") {
     throw new ConvexError({
       code: "INVALID_SECRET_VALUE",
@@ -77,7 +83,7 @@ export const upsertSecretValue = async (
           }),
         );
       } catch (putError) {
-        handlePutSecretError(putError);
+        handlePutSecretError(secretName, putError);
       }
     } else if (
       error instanceof Error &&
@@ -93,10 +99,10 @@ export const upsertSecretValue = async (
           }),
         );
       } catch (restoreError) {
-        handlePutSecretError(restoreError);
+        handlePutSecretError(secretName, restoreError);
       }
     } else {
-      handlePutSecretError(error);
+      handlePutSecretError(secretName, error);
     }
   }
 };

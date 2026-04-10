@@ -28,7 +28,12 @@ export const upsert = internalAction({
       });
     }
 
-    if (!args.value.publicApiKey.trim() || !args.value.privateApiKey.trim()) {
+    const value = {
+      publicApiKey: args.value.publicApiKey.trim(),
+      privateApiKey: args.value.privateApiKey.trim(),
+    };
+
+    if (!value.publicApiKey || !value.privateApiKey) {
       throw new ConvexError({
         code: "INVALID_API_KEYS",
         message: "API keys cannot be empty",
@@ -38,9 +43,12 @@ export const upsert = internalAction({
     const secretName = `tenant/${args.organizationId}/${args.service}`;
 
     try {
-      await upsertSecretValue(secretName, args.value);
+      await upsertSecretValue(secretName, value);
     } catch (error) {
       console.error(`Failed to upsert secret ${secretName}:`, error);
+      if (error instanceof ConvexError) {
+        throw error;
+      }
       throw new ConvexError({
         code: "SECRET_UPSERT_FAILED",
         message: "Failed to upsert secret credentials",
@@ -98,6 +106,41 @@ export const deleteSecret = internalAction({
         `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
           `Failed to delete secret after plugin removal.\n` +
           `Manual cleanup required in AWS Secrets Manager for: ${args.secretName}.\n` +
+          `Error details:`,
+        error,
+      );
+      throw error;
+    }
+  },
+});
+
+export const deleteSecretIfUnreferenced = internalAction({
+  args: {
+    organizationId: v.string(),
+    service: v.literal("vapi"),
+    secretName: v.string(),
+  },
+  handler: async (ctx, { organizationId, service, secretName }) => {
+    const currentPlugin = await ctx.runQuery(
+      internal.private.plugins.getPluginByOrgAndServiceQuery,
+      { organizationId, service },
+    );
+
+    if (currentPlugin) {
+      console.info(
+        `[deleteSecretIfUnreferenced] Plugin for [${organizationId}/${service}] ` +
+          `was reconnected — skipping secret deletion.`,
+      );
+      return;
+    }
+
+    try {
+      await deleteSecretValue(secretName);
+    } catch (error) {
+      console.error(
+        `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
+          `Failed to delete secret after plugin removal.\n` +
+          `Manual cleanup required in AWS Secrets Manager for: ${secretName}.\n` +
           `Error details:`,
         error,
       );
