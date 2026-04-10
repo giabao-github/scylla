@@ -97,24 +97,6 @@ export const upsert = internalAction({
   },
 });
 
-export const deleteSecret = internalAction({
-  args: { secretName: v.string() },
-  handler: async (_ctx, args) => {
-    try {
-      await deleteSecretValue(args.secretName);
-    } catch (error) {
-      console.error(
-        `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
-          `Failed to delete secret after plugin removal.\n` +
-          `Manual cleanup required in AWS Secrets Manager for: ${args.secretName}.\n` +
-          `Error details:`,
-        error,
-      );
-      throw error;
-    }
-  },
-});
-
 export const deleteSecretIfUnreferenced = internalAction({
   args: {
     organizationId: v.string(),
