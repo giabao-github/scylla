@@ -28,7 +28,7 @@ export const upsert = internalAction({
       });
     }
 
-    if (!args.value.publicApiKey || !args.value.privateApiKey) {
+    if (!args.value.publicApiKey.trim() || !args.value.privateApiKey.trim()) {
       throw new ConvexError({
         code: "INVALID_API_KEYS",
         message: "API keys cannot be empty",
@@ -47,6 +47,14 @@ export const upsert = internalAction({
       });
     }
 
+    const existingPlugin = await ctx.runQuery(
+      internal.system.plugins.getByOrgIdAndService,
+      {
+        organizationId: args.organizationId,
+        service: args.service,
+      },
+    );
+
     try {
       await ctx.runMutation(internal.system.plugins.upsert, {
         organizationId: args.organizationId,
@@ -55,17 +63,21 @@ export const upsert = internalAction({
       });
     } catch (error) {
       console.error(`Failed to upsert plugin ${secretName}:`, error);
-      try {
-        await deleteSecretValue(secretName);
-      } catch (rollbackError) {
-        console.error(
-          `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
-            `Both plugin upsert and subsequent AWS rollback failed.\n` +
-            `Manual cleanup required in AWS Secrets Manager for: ${secretName}.\n` +
-            `Error details:`,
-          rollbackError,
-        );
+
+      if (!existingPlugin) {
+        try {
+          await deleteSecretValue(secretName);
+        } catch (rollbackError) {
+          console.error(
+            `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
+              `Both plugin upsert and subsequent AWS rollback failed.\n` +
+              `Manual cleanup required in AWS Secrets Manager for: ${secretName}.\n` +
+              `Error details:`,
+            rollbackError,
+          );
+        }
       }
+
       throw new ConvexError({
         code: "PLUGIN_UPSERT_FAILED",
         message: "Failed to upsert plugin",
@@ -73,5 +85,23 @@ export const upsert = internalAction({
     }
 
     return { status: "success" };
+  },
+});
+
+export const deleteSecret = internalAction({
+  args: { secretName: v.string() },
+  handler: async (_ctx, args) => {
+    try {
+      await deleteSecretValue(args.secretName);
+    } catch (error) {
+      console.error(
+        `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
+          `Failed to delete secret after plugin removal.\n` +
+          `Manual cleanup required in AWS Secrets Manager for: ${args.secretName}.\n` +
+          `Error details:`,
+        error,
+      );
+      throw error;
+    }
   },
 });

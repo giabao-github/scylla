@@ -15,7 +15,7 @@ interface PluginCardProps {
   serviceName: string;
   serviceImage: string;
   features: Feature[];
-  onSubmit: () => void;
+  onConnect: () => void;
 }
 
 export const PluginCard = ({
@@ -23,7 +23,7 @@ export const PluginCard = ({
   serviceName,
   serviceImage,
   features,
-  onSubmit,
+  onConnect,
 }: PluginCardProps) => {
   return (
     <GlassPanel
@@ -71,31 +71,34 @@ export const PluginCard = ({
       </div>
 
       <div className="mb-6">
-        <div className="space-y-4">
+        <ul className="space-y-4 list-none">
           {features.map((feature) => (
-            <div
+            <li
               key={feature.id}
               className="flex gap-3 items-center px-3 py-2 rounded-2xl border border-primary/20 bg-white/50"
             >
               <div className="flex justify-center items-center rounded-full bg-secondary/50 size-9">
-                <feature.icon className="size-4 text-muted-foreground" />
+                <feature.icon
+                  className="size-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </div>
               <div className="flex flex-col">
-                <div className="text-sm font-medium">{feature.label}</div>
-                <div className="text-xs text-muted-foreground">
+                <span className="text-sm font-medium">{feature.label}</span>
+                <span className="text-xs text-muted-foreground">
                   {feature.description}
-                </div>
+                </span>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
       <div className="text-center">
         <Button
           variant="default"
           disabled={isDisabled}
-          onClick={onSubmit}
+          onClick={onConnect}
           className="shadow-lg size-full shadow-primary/15"
         >
           Connect

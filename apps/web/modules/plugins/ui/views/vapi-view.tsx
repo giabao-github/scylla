@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,7 +24,7 @@ import {
 } from "@workspace/ui/components/form";
 import { GlassPanel } from "@workspace/ui/components/glass-panel";
 import { Input } from "@workspace/ui/components/input";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import {
   GlobeIcon,
   PhoneCallIcon,
@@ -75,11 +75,13 @@ const formSchema = z.object({
 const VapiPluginForm = ({
   open,
   setOpen,
+  setIsPendingConnect,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
+  setIsPendingConnect: (isPendingConnect: boolean) => void;
 }) => {
-  const upsertSecret = useMutation(api.private.secrets.upsert);
+  const upsertSecret = useAction(api.private.secrets.upsert);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -98,12 +100,9 @@ const VapiPluginForm = ({
         },
       });
       setOpen(false);
-      toast.success("Vapi secret successfully created");
+      setIsPendingConnect(true);
     } catch (error) {
-      console.error(
-        "Failed to create Vapi secret:",
-        error instanceof Error ? error.message : error,
-      );
+      console.error("Failed to create Vapi secret:", error);
       toast.error("Failed to create Vapi secret");
     }
   };
@@ -125,6 +124,7 @@ const VapiPluginForm = ({
           <Link
             href="https://aws.amazon.com/secrets-manager/"
             target="_blank"
+            rel="noopener noreferrer"
             className="underline hover:text-primary focus-visible:outline-none focus-visible:text-primary"
           >
             AWS Secrets Manager
@@ -186,17 +186,17 @@ const VapiPluginForm = ({
 
 export const VapiView = () => {
   const vapiPlugin = useQuery(api.private.plugins.getOne, { service: "vapi" });
+  const removePlugin = useMutation(api.private.plugins.remove);
 
   const [connectOpen, setConnectOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isPendingConnect, setIsPendingConnect] = useState(false);
 
-  const handleSubmit = () => {
-    if (!vapiPlugin) {
-      setConnectOpen(true);
-    }
+  const prevPluginRef = useRef<typeof vapiPlugin>(undefined);
+
+  const handleConnect = () => {
+    setConnectOpen(true);
   };
-
-  const removePlugin = useMutation(api.private.plugins.remove);
 
   const handleDisconnect = async () => {
     setIsDeleting(true);
@@ -211,6 +211,14 @@ export const VapiView = () => {
     }
   };
 
+  useEffect(() => {
+    if (isPendingConnect && vapiPlugin && !prevPluginRef.current) {
+      toast.success("Vapi plugin connected");
+      setIsPendingConnect(false);
+    }
+    prevPluginRef.current = vapiPlugin;
+  }, [vapiPlugin, isPendingConnect]);
+
   const isLoading = vapiPlugin === undefined;
 
   if (isLoading) {
@@ -224,7 +232,11 @@ export const VapiView = () => {
 
   return (
     <>
-      <VapiPluginForm open={connectOpen} setOpen={setConnectOpen} />
+      <VapiPluginForm
+        open={connectOpen}
+        setOpen={setConnectOpen}
+        setIsPendingConnect={setIsPendingConnect}
+      />
       <div className="flex flex-col p-8 min-h-screen bg-white">
         <div className="mx-auto w-full max-w-3xl">
           <div className="space-y-2">
@@ -265,7 +277,7 @@ export const VapiView = () => {
                 serviceName="Vapi"
                 serviceImage="/vapi.svg"
                 features={vapiFeatures}
-                onSubmit={handleSubmit}
+                onConnect={handleConnect}
               />
             )}
           </div>

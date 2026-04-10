@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 
 import {
   internalMutation,
@@ -32,6 +32,7 @@ export const upsert = internalMutation({
     }
   },
 });
+
 export const getByOrgIdAndService = internalQuery({
   args: {
     organizationId: v.string(),

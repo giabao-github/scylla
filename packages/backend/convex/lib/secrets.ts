@@ -7,37 +7,50 @@ import {
   type GetSecretValueCommandOutput,
   PutSecretValueCommand,
   ResourceExistsException,
+  RestoreSecretCommand,
   SecretsManagerClient,
 } from "@aws-sdk/client-secrets-manager";
 import { ConvexError } from "convex/values";
+import z from "zod";
+
+const handlePutSecretError = (error: unknown): never => {
+  if (error instanceof Error && error.name === "ValidationException") {
+    throw new ConvexError({
+      code: "INVALID_SECRET_VALUE",
+      message: `Invalid secret name or value: ${error.message}`,
+    });
+  }
+  throw error;
+};
 
 export const createSecretsManagerClient = (): SecretsManagerClient => {
   const region = process.env.AWS_REGION;
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-
-  if (!region || !accessKeyId || !secretAccessKey) {
+  if (!region) {
     throw new ConvexError({
-      code: "MISSING_AWS_ENV_VARS",
-      message:
-        "Missing required AWS environment variables: AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY",
+      code: "MISSING_AWS_REGION",
+      message: "Missing required AWS environment variable: AWS_REGION",
     });
   }
-
-  return new SecretsManagerClient({
-    region,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
-  });
+  return new SecretsManagerClient({ region });
 };
 
 export const getSecretValue = async (
   secretName: string,
 ): Promise<GetSecretValueCommandOutput> => {
   const client = createSecretsManagerClient();
-  return await client.send(new GetSecretValueCommand({ SecretId: secretName }));
+  try {
+    return await client.send(
+      new GetSecretValueCommand({ SecretId: secretName }),
+    );
+  } catch (error) {
+    if (error instanceof Error && error.name === "ResourceNotFoundException") {
+      throw new ConvexError({
+        code: "RESOURCE_NOT_FOUND",
+        message: `Secret "${secretName}" not found`,
+      });
+    }
+    throw error;
+  }
 };
 
 export const upsertSecretValue = async (
@@ -49,55 +62,45 @@ export const upsertSecretValue = async (
 
   try {
     await client.send(
-      new CreateSecretCommand({
-        Name: secretName,
-        SecretString: secretString,
-      }),
+      new CreateSecretCommand({ Name: secretName, SecretString: secretString }),
     );
   } catch (error) {
     if (
       error instanceof ResourceExistsException ||
       (error instanceof Error && error.name === "ResourceExistsException")
     ) {
-      await client.send(
-        new PutSecretValueCommand({
-          SecretId: secretName,
-          SecretString: secretString,
-        }),
-      );
-    } else if (error instanceof Error && error.name === "ValidationException") {
-      throw new ConvexError({
-        code: "INVALID_SECRET_VALUE",
-        message: `Invalid secret name or value: ${error.message}`,
-      });
+      try {
+        await client.send(
+          new PutSecretValueCommand({
+            SecretId: secretName,
+            SecretString: secretString,
+          }),
+        );
+      } catch (putError) {
+        handlePutSecretError(putError);
+      }
     } else if (
       error instanceof Error &&
-      error.name === "ResourceNotFoundException"
+      error.name === "InvalidRequestException" &&
+      error.message.includes("scheduled for deletion")
     ) {
-      throw new ConvexError({
-        code: "RESOURCE_NOT_FOUND",
-        message: `Resource not found while creating secret "${secretName}": ${error.message}`,
-      });
+      await client.send(new RestoreSecretCommand({ SecretId: secretName }));
+      try {
+        await client.send(
+          new PutSecretValueCommand({
+            SecretId: secretName,
+            SecretString: secretString,
+          }),
+        );
+      } catch (restoreError) {
+        handlePutSecretError(restoreError);
+      }
     } else {
-      throw error;
+      handlePutSecretError(error);
     }
   }
 };
 
-export const parseSecretString = <T = Record<string, unknown>>(
-  secret: GetSecretValueCommandOutput,
-): T | null => {
-  if (!secret.SecretString) return null;
-  try {
-    return JSON.parse(secret.SecretString) as T;
-  } catch (error) {
-    console.error("Failed to parse secret string:", error);
-    throw new ConvexError({
-      code: "BAD_REQUEST",
-      message: `Failed to parse secret string as JSON: ${error instanceof Error ? error.message : String(error)}`,
-    });
-  }
-};
 export const deleteSecretValue = async (secretName: string): Promise<void> => {
   const client = createSecretsManagerClient();
   try {
@@ -112,5 +115,20 @@ export const deleteSecretValue = async (secretName: string): Promise<void> => {
       return;
     }
     throw error;
+  }
+};
+
+export const parseSecretString = <T>(
+  secret: GetSecretValueCommandOutput,
+  schema: z.ZodType<T>,
+): T | null => {
+  if (!secret.SecretString) return null;
+  try {
+    return schema.parse(JSON.parse(secret.SecretString));
+  } catch (error) {
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message: `Failed to parse secret string: ${error instanceof Error ? error.message : String(error)}`,
+    });
   }
 };

@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
 
-const transparencyClasses = {
+const transparencyLevels = {
   subtle: 40,
   default: 55,
   strong: 68,
@@ -17,13 +17,14 @@ const blurClasses = {
 } as const;
 
 interface GlassPanelProps extends React.ComponentProps<"div"> {
-  transparency?: keyof typeof transparencyClasses | number;
+  transparency?: keyof typeof transparencyLevels | number;
   blur?: keyof typeof blurClasses;
   tintColor?: string;
   borderColor?: string;
   /**
    * Space-separated RGB values for the highlight color (e.g., "255 255 255").
-   * Used with CSS rgb() syntax for opacity control.
+   * Must be in this exact format for CSS `rgb()` opacity control to work.
+   * Do NOT pass hex, named colors, or `rgb()` strings.
    */
   highlightColor?: string;
 }
@@ -41,8 +42,10 @@ export const GlassPanel = ({
 }: GlassPanelProps) => {
   const transparencyPercent =
     typeof transparency === "number"
-      ? Math.min(Math.max(transparency, 0), 100)
-      : transparencyClasses[transparency];
+      ? Number.isFinite(transparency)
+        ? Math.min(Math.max(transparency, 0), 100)
+        : transparencyLevels.default
+      : transparencyLevels[transparency];
   const fillPercent = 100 - transparencyPercent;
   const sheenOpacity = Math.min(Math.max(fillPercent / 100, 0.12), 0.42);
 

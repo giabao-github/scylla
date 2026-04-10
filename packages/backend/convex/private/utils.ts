@@ -18,6 +18,8 @@ type EntryMetadata = {
   contentHash?: string;
 };
 
+type PluginService = "vapi";
+
 interface OrgUserIdentity extends UserIdentity {
   orgId?: string;
 }
@@ -234,7 +236,7 @@ export const cleanupPendingDeletions = async (
 export const getPluginByOrgAndService = async (
   ctx: QueryCtx | MutationCtx,
   organizationId: string,
-  service: "vapi",
+  service: PluginService,
 ) => {
   return ctx.db
     .query("plugins")
