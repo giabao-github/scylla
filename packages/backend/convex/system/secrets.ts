@@ -42,41 +42,41 @@ export const upsert = internalAction({
 
     const secretName = `tenant/${args.organizationId}/${args.service}`;
 
-    try {
-      await upsertSecretValue(secretName, value);
-    } catch (error) {
+    await upsertSecretValue(secretName, value).catch((error) => {
       console.error(`Failed to upsert secret ${secretName}:`, error);
-      if (error instanceof ConvexError) {
-        throw error;
-      }
-      throw new ConvexError({
-        code: "SECRET_UPSERT_FAILED",
-        message: "Failed to upsert secret credentials",
-      });
-    }
+      throw error instanceof ConvexError
+        ? error
+        : new ConvexError({
+            code: "SECRET_UPSERT_FAILED",
+            message: "Failed to upsert secret credentials",
+          });
+    });
 
     const existingPlugin = await ctx.runQuery(
       internal.system.plugins.getByOrgIdAndService,
-      {
-        organizationId: args.organizationId,
-        service: args.service,
-      },
+      { organizationId: args.organizationId, service: args.service },
     );
 
-    if (!existingPlugin || existingPlugin.secretName !== secretName) {
-      try {
-        await ctx.runMutation(internal.system.plugins.upsert, {
-          organizationId: args.organizationId,
-          service: args.service,
-          secretName,
-        });
-      } catch (error) {
+    if (existingPlugin?.secretName === secretName) {
+      return { status: "success" };
+    }
+
+    await ctx
+      .runMutation(internal.system.plugins.upsert, {
+        organizationId: args.organizationId,
+        service: args.service,
+        secretName,
+      })
+      .catch(async (error) => {
         console.error(`Failed to upsert plugin ${secretName}:`, error);
 
-        if (!existingPlugin) {
-          try {
-            await deleteSecretValue(secretName);
-          } catch (rollbackError) {
+        const currentPlugin = await ctx.runQuery(
+          internal.system.plugins.getByOrgIdAndService,
+          { organizationId: args.organizationId, service: args.service },
+        );
+
+        if (!currentPlugin) {
+          await deleteSecretValue(secretName).catch((rollbackError) => {
             console.error(
               `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
                 `Both plugin upsert and subsequent AWS rollback failed.\n` +
@@ -84,15 +84,15 @@ export const upsert = internalAction({
                 `Error details:`,
               rollbackError,
             );
-          }
+          });
         }
 
         throw new ConvexError({
           code: "PLUGIN_UPSERT_FAILED",
           message: "Failed to upsert plugin",
         });
-      }
-    }
+      });
+
     return { status: "success" };
   },
 });
@@ -121,9 +121,7 @@ export const deleteSecretIfUnreferenced = internalAction({
       return;
     }
 
-    try {
-      await deleteSecretValue(secretName);
-    } catch (error) {
+    await deleteSecretValue(secretName).catch((error) => {
       console.error(
         `[CRITICAL ALERT] Orphaned AWS Secret detected!\n` +
           `Failed to delete secret after plugin removal.\n` +
@@ -132,6 +130,6 @@ export const deleteSecretIfUnreferenced = internalAction({
         error,
       );
       throw error;
-    }
+    });
   },
 });
