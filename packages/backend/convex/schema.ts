@@ -10,6 +10,13 @@ export default defineSchema({
     name: v.string(),
     tokenIdentifier: v.string(),
   }).index("by_token_identifier", ["tokenIdentifier"]),
+  plugins: defineTable({
+    organizationId: v.string(),
+    service: v.union(v.literal("vapi")),
+    secretName: v.string(),
+  })
+    .index("by_org_id", ["organizationId"])
+    .index("by_org_id_and_service", ["organizationId", "service"]),
   organizations: defineTable({
     name: v.string(),
     organizationId: v.string(),

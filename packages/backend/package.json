@@ -23,6 +23,7 @@
     "@ai-sdk/google": "^3.0.58",
     "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/provider-utils": "^4.0.19",
+    "@aws-sdk/client-secrets-manager": "^3.1027.0",
     "@clerk/backend": "^3.0.1",
     "@clerk/nextjs": "^6.37.3",
     "@convex-dev/agent": "^0.6.1",
