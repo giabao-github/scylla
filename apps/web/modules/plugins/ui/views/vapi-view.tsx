@@ -22,7 +22,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form";
-import { GlassPanel } from "@workspace/ui/components/glass-panel";
 import { Input } from "@workspace/ui/components/input";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
@@ -39,6 +38,7 @@ import {
   Feature,
   PluginCard,
 } from "@/modules/plugins/ui/components/plugin-card";
+import { VapiConnectedView } from "@/modules/plugins/ui/components/vapi-connected-view";
 
 const vapiFeatures: Feature[] = [
   {
@@ -72,14 +72,12 @@ const formSchema = z.object({
   privateApiKey: z.string().min(1, { message: "Private API key is required" }),
 });
 
-const VapiPluginForm = ({
+const VapiPluginConnectForm = ({
   open,
   setOpen,
-  setIsPendingConnect,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
-  setIsPendingConnect: (isPendingConnect: boolean) => void;
 }) => {
   const upsertSecret = useAction(api.private.secrets.upsert);
   const form = useForm<z.infer<typeof formSchema>>({
@@ -100,7 +98,6 @@ const VapiPluginForm = ({
         },
       });
       setOpen(false);
-      setIsPendingConnect(true);
     } catch (error) {
       console.error("Failed to create Vapi secret:", error);
       toast.error("Failed to create Vapi secret");
@@ -184,40 +181,92 @@ const VapiPluginForm = ({
   );
 };
 
-export const VapiView = () => {
-  const vapiPlugin = useQuery(api.private.plugins.getOne, { service: "vapi" });
+const VapiPluginDisconnectForm = ({
+  open,
+  setOpen,
+}: {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) => {
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const removePlugin = useMutation(api.private.plugins.remove);
 
+  const onSubmit = async () => {
+    try {
+      setIsDisconnecting(true);
+      await removePlugin({
+        service: "vapi",
+      });
+      setOpen(false);
+    } catch (error) {
+      console.error("Failed to disconnect Vapi plugin:", error);
+      toast.error("Failed to disconnect Vapi plugin");
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => !isDisconnecting && setOpen(isOpen)}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Disconnect Vapi</DialogTitle>
+        </DialogHeader>
+        <DialogDescription>
+          Are you sure you want to disconnect the Vapi plugin? You can connect
+          to Vapi again using your credentials.
+        </DialogDescription>
+        <DialogFooter className="space-x-2">
+          <Button
+            disabled={isDisconnecting}
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={isDisconnecting}
+            variant="danger"
+            onClick={onSubmit}
+          >
+            {isDisconnecting ? "Disconnecting..." : "Disconnect"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export const VapiView = () => {
+  const vapiPlugin = useQuery(api.private.plugins.getOne, { service: "vapi" });
+
   const [connectOpen, setConnectOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isPendingConnect, setIsPendingConnect] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const prevPluginRef = useRef<typeof vapiPlugin>(undefined);
 
-  const handleConnect = () => {
-    setConnectOpen(true);
-  };
-
-  const handleDisconnect = async () => {
-    setIsDeleting(true);
-    try {
-      await removePlugin({ service: "vapi" });
-      toast.success("Vapi plugin disconnected");
-    } catch (error) {
-      console.error("Failed to disconnect Vapi plugin:", error);
-      toast.error("Failed to disconnect plugin");
-    } finally {
-      setIsDeleting(false);
+  const toggleConnection = () => {
+    if (vapiPlugin) {
+      setDisconnectOpen(true);
+    } else {
+      setConnectOpen(true);
     }
   };
 
   useEffect(() => {
-    if (isPendingConnect && vapiPlugin && !prevPluginRef.current) {
-      toast.success("Vapi plugin connected");
-      setIsPendingConnect(false);
+    if (vapiPlugin !== undefined) {
+      if (prevPluginRef.current === null && vapiPlugin) {
+        toast.success("Vapi plugin connected");
+      }
+      if (prevPluginRef.current && vapiPlugin === null) {
+        toast.success("Vapi plugin disconnected");
+      }
+      prevPluginRef.current = vapiPlugin;
     }
-    prevPluginRef.current = vapiPlugin;
-  }, [vapiPlugin, isPendingConnect]);
+  }, [vapiPlugin]);
 
   const isLoading = vapiPlugin === undefined;
 
@@ -232,10 +281,10 @@ export const VapiView = () => {
 
   return (
     <>
-      <VapiPluginForm
-        open={connectOpen}
-        setOpen={setConnectOpen}
-        setIsPendingConnect={setIsPendingConnect}
+      <VapiPluginConnectForm open={connectOpen} setOpen={setConnectOpen} />
+      <VapiPluginDisconnectForm
+        open={disconnectOpen}
+        setOpen={setDisconnectOpen}
       />
       <div className="flex flex-col p-8 min-h-screen bg-white">
         <div className="mx-auto w-full max-w-3xl">
@@ -249,35 +298,13 @@ export const VapiView = () => {
 
           <div className="mt-8">
             {vapiPlugin ? (
-              <GlassPanel
-                blur="sm"
-                className="p-6"
-                transparency={90}
-                tintColor="rgb(0 255 100)"
-                borderColor="rgb(0 255 100 / 0.1)"
-              >
-                <h3 className="text-lg font-semibold text-green-700">
-                  Vapi Plugin Connected
-                </h3>
-                <p className="mt-4 text-sm text-foreground">
-                  Your Vapi integration is active. You can now use Vapi
-                  assistants in your applications.
-                </p>
-                <Button
-                  disabled={isDeleting}
-                  variant="danger"
-                  onClick={handleDisconnect}
-                  className="mt-6 shadow-lg"
-                >
-                  {isDeleting ? "Disconnecting..." : "Disconnect"}
-                </Button>
-              </GlassPanel>
+              <VapiConnectedView onDisconnect={toggleConnection} />
             ) : (
               <PluginCard
                 serviceName="Vapi"
                 serviceImage="/vapi.svg"
                 features={vapiFeatures}
-                onConnect={handleConnect}
+                onConnect={toggleConnection}
               />
             )}
           </div>
