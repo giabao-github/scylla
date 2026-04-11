@@ -28,8 +28,9 @@ const useVapiData = <T>(
         setError(err instanceof Error ? err : new Error(String(err)));
         toast.error(errorMessage);
       } finally {
-        if (signal.cancelled) return;
-        setIsLoading(false);
+        if (!signal.cancelled) {
+          setIsLoading(false);
+        }
       }
     },
     [action, errorMessage],

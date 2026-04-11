@@ -274,7 +274,10 @@ export const getVapiClient = async (ctx: ActionCtx): Promise<VapiClient> => {
   const parsedSecret = parseSecretString(
     secretValue,
     z.object({
-      privateApiKey: z.string().min(1, "Vapi private API key is required"),
+      privateApiKey: z
+        .string()
+        .trim()
+        .min(1, "Vapi private API key is required"),
     }),
   );
 

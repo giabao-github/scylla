@@ -36,8 +36,16 @@ const PhoneNumbersContent = ({
       <TableBody>
         <TableRow>
           <TableCell colSpan={3} className="px-6 py-8">
-            <div className="flex justify-center">
-              <Loader2Icon className="animate-spin text-primary/50" />
+            <div
+              className="flex justify-center"
+              role="status"
+              aria-label="Loading phone numbers"
+            >
+              <Loader2Icon
+                className="animate-spin text-primary/50"
+                aria-hidden="true"
+              />
+              <span className="sr-only">Loading phone numbers...</span>
             </div>
           </TableCell>
         </TableRow>
