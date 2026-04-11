@@ -1,6 +1,8 @@
 import { EntryId } from "@convex-dev/rag";
+import { VapiClient } from "@vapi-ai/server-sdk";
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
+import z from "zod";
 
 import { internal } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
@@ -13,6 +15,8 @@ import {
 import rag from "@workspace/backend/system/ai/rag";
 
 import { isNotFoundError } from "@workspace/shared/lib/file-utils";
+
+import { getSecretValue, parseSecretString } from "../lib/secrets";
 
 type EntryMetadata = {
   contentHash?: string;
@@ -246,4 +250,47 @@ export const getPluginByOrgAndService = async (
       q.eq("organizationId", organizationId).eq("service", service),
     )
     .unique();
+};
+
+export const getVapiClient = async (ctx: ActionCtx): Promise<VapiClient> => {
+  const { organizationId } = await getAuthenticatedOrgId(ctx);
+
+  const plugin = await ctx.runQuery(
+    internal.system.plugins.getByOrgIdAndService,
+    {
+      organizationId,
+      service: "vapi",
+    },
+  );
+
+  if (!plugin) {
+    throw new ConvexError({
+      code: "PLUGIN_NOT_FOUND",
+      message: "Plugin not found",
+    });
+  }
+
+  const secretValue = await getSecretValue(plugin.secretName);
+  const parsedSecret = parseSecretString(
+    secretValue,
+    z.object({
+      privateApiKey: z
+        .string()
+        .trim()
+        .min(1, "Vapi private API key is required"),
+    }),
+  );
+
+  if (!parsedSecret) {
+    throw new ConvexError({
+      code: "SECRET_NOT_FOUND",
+      message: "Secret credentials not found",
+    });
+  }
+
+  const vapiClient = new VapiClient({
+    token: parsedSecret.privateApiKey,
+  });
+
+  return vapiClient;
 };

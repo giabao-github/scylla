@@ -4,6 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { CheckIcon, CopyIcon, ExternalLinkIcon, XIcon } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -45,6 +46,7 @@ export const LinkSafetyModal = ({
       copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy link:", err);
+      toast.error("Failed to copy link");
     }
   };
 

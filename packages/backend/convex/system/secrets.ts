@@ -97,7 +97,7 @@ export const upsert = internalAction({
   },
 });
 
-export const deleteSecretIfUnreferenced = internalAction({
+export const deleteSecret = internalAction({
   args: {
     organizationId: v.string(),
     service: v.literal("vapi"),
@@ -115,7 +115,7 @@ export const deleteSecretIfUnreferenced = internalAction({
 
     if (currentPlugin && currentPlugin.lastConnectedAt !== connectedAt) {
       console.info(
-        `[deleteSecretIfUnreferenced] Plugin for [${organizationId}/${service}] ` +
+        `[deleteSecret] Plugin for [${organizationId}/${service}] ` +
           `was reconnected (connectedAt mismatch) — skipping secret deletion.`,
       );
       return;

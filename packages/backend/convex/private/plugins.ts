@@ -45,16 +45,12 @@ export const remove = mutation({
 
     await ctx.db.delete(existingPlugin._id);
 
-    await ctx.scheduler.runAfter(
-      0,
-      internal.system.secrets.deleteSecretIfUnreferenced,
-      {
-        organizationId,
-        service: args.service,
-        secretName: existingPlugin.secretName,
-        connectedAt: existingPlugin.lastConnectedAt,
-      },
-    );
+    await ctx.scheduler.runAfter(0, internal.system.secrets.deleteSecret, {
+      organizationId,
+      service: args.service,
+      secretName: existingPlugin.secretName,
+      connectedAt: existingPlugin.lastConnectedAt,
+    });
   },
 });
 
