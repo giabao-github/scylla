@@ -9,7 +9,6 @@ export const ConversationsView = () => {
           src="/logo.png"
           width={120}
           height={120}
-          quality={85}
           priority
           draggable={false}
           className="select-none"

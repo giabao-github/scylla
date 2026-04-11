@@ -79,7 +79,7 @@ export const getMany = query({
     if (args.status) {
       conversations = await ctx.db
         .query("conversations")
-        .withIndex("by_organization_id_and_status_and_last_message_at", (q) =>
+        .withIndex("by_org_id_and_status_and_last_message_at", (q) =>
           q
             .eq("organizationId", organizationId)
             .eq("status", args.status as ConversationStatus),
@@ -89,7 +89,7 @@ export const getMany = query({
     } else {
       conversations = await ctx.db
         .query("conversations")
-        .withIndex("by_organization_id_and_last_message_at", (q) =>
+        .withIndex("by_org_id_and_last_message_at", (q) =>
           q.eq("organizationId", organizationId),
         )
         .order("desc")

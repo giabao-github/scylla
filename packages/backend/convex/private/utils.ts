@@ -90,7 +90,7 @@ export const getAuthenticatedOrg = async (
 
   const organization = await ctx.db
     .query("organizations")
-    .withIndex("by_organization_id", (q) => q.eq("organizationId", clerkOrgId))
+    .withIndex("by_org_id", (q) => q.eq("organizationId", clerkOrgId))
     .unique();
 
   if (!organization) {

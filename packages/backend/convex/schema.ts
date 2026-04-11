@@ -26,7 +26,7 @@ export default defineSchema({
     ),
     deletionStartedAt: v.optional(v.number()),
   })
-    .index("by_organization_id", ["organizationId"])
+    .index("by_org_id", ["organizationId"])
     .index("by_deletion_status_and_started_at", [
       "deletionStatus",
       "deletionStartedAt",
@@ -55,7 +55,7 @@ export default defineSchema({
       }),
     ),
   })
-    .index("by_organization_id", ["organizationId"])
+    .index("by_org_id", ["organizationId"])
     .index("by_expires_at", ["expiresAt"])
     .index("by_email", ["email"]),
   conversations: defineTable({
@@ -77,20 +77,17 @@ export default defineSchema({
     ),
     lastMessageAt: v.optional(v.number()),
   })
-    .index("by_organization_id", ["organizationId"])
+    .index("by_org_id", ["organizationId"])
     .index("by_contact_session_id", ["contactSessionId"])
     .index("by_thread_id", ["threadId"])
-    .index("by_organization_id_and_status", ["organizationId", "status"])
+    .index("by_org_id_and_status", ["organizationId", "status"])
     .index("by_updated_at", ["updatedAt"])
     .index("by_contact_session_id_and_last_message_at", [
       "contactSessionId",
       "lastMessageAt",
     ])
-    .index("by_organization_id_and_last_message_at", [
-      "organizationId",
-      "lastMessageAt",
-    ])
-    .index("by_organization_id_and_status_and_last_message_at", [
+    .index("by_org_id_and_last_message_at", ["organizationId", "lastMessageAt"])
+    .index("by_org_id_and_status_and_last_message_at", [
       "organizationId",
       "status",
       "lastMessageAt",
@@ -168,4 +165,17 @@ export default defineSchema({
     .index("by_storage_id", ["storageId"])
     .index("by_created_at", ["createdAt"])
     .index("by_org_id_and_created_at", ["organizationId", "createdAt"]),
+  widgetSettings: defineTable({
+    organizationId: v.string(),
+    greetingMessage: v.string(),
+    defaultSuggestions: v.object({
+      firstSuggestion: v.optional(v.string()),
+      secondSuggestion: v.optional(v.string()),
+      thirdSuggestion: v.optional(v.string()),
+    }),
+    vapiSettings: v.object({
+      assistantId: v.optional(v.string()),
+      phoneNumber: v.optional(v.string()),
+    }),
+  }).index("by_org_id", ["organizationId"]),
 });

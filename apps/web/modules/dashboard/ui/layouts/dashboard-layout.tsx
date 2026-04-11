@@ -18,9 +18,14 @@ export const DashboardLayout = async ({
     <AuthGuard>
       <OrganizationGuard>
         <JotaiProvider>
-          <SidebarProvider defaultOpen={defaultOpen}>
+          <SidebarProvider
+            defaultOpen={defaultOpen}
+            className="h-svh overflow-hidden"
+          >
             <DashboardSidebar />
-            <main className="flex flex-col flex-1">{children}</main>
+            <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              {children}
+            </main>
           </SidebarProvider>
         </JotaiProvider>
       </OrganizationGuard>

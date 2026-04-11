@@ -151,9 +151,7 @@ export const markForDeletion = internalMutation({
   handler: async (ctx, args) => {
     const org = await ctx.db
       .query("organizations")
-      .withIndex("by_organization_id", (q) =>
-        q.eq("organizationId", args.clerkOrgId),
-      )
+      .withIndex("by_org_id", (q) => q.eq("organizationId", args.clerkOrgId))
       .unique();
 
     if (!org) return null;
@@ -174,7 +172,7 @@ export const deleteConversationBatch = internalMutation({
   handler: async (ctx, { orgId, cursor }) => {
     const page = await ctx.db
       .query("conversations")
-      .withIndex("by_organization_id", (q) => q.eq("organizationId", orgId))
+      .withIndex("by_org_id", (q) => q.eq("organizationId", orgId))
       .paginate({ cursor, numItems: 25 });
 
     for (const conversation of page.page) {
@@ -213,7 +211,7 @@ export const deleteSessionBatch = internalMutation({
   handler: async (ctx, { orgId, cursor }) => {
     const page = await ctx.db
       .query("contactSessions")
-      .withIndex("by_organization_id", (q) => q.eq("organizationId", orgId))
+      .withIndex("by_org_id", (q) => q.eq("organizationId", orgId))
       .paginate({ cursor, numItems: 100 });
 
     for (const session of page.page) {
@@ -250,15 +248,11 @@ export const finalizeDeletion = internalMutation({
     const [sessions, conversations] = await Promise.all([
       ctx.db
         .query("contactSessions")
-        .withIndex("by_organization_id", (q) =>
-          q.eq("organizationId", args.orgId),
-        )
+        .withIndex("by_org_id", (q) => q.eq("organizationId", args.orgId))
         .first(),
       ctx.db
         .query("conversations")
-        .withIndex("by_organization_id", (q) =>
-          q.eq("organizationId", args.orgId),
-        )
+        .withIndex("by_org_id", (q) => q.eq("organizationId", args.orgId))
         .first(),
     ]);
 

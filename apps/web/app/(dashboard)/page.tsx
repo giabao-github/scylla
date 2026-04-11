@@ -14,7 +14,6 @@ export default function Page() {
         alt="Scylla logo"
         width={100}
         height={100}
-        quality={85}
         priority
         draggable={false}
         className="select-none"
