@@ -32,6 +32,16 @@ interface VapiConnectedViewProps {
 export const VapiConnectedView = ({ onDisconnect }: VapiConnectedViewProps) => {
   const [activeTab, setActiveTab] =
     useState<VapiConnectedViewTab>("phone-numbers");
+  const [visitedTabs, setVisitedTabs] = useState<Set<VapiConnectedViewTab>>(
+    new Set(["phone-numbers"]),
+  );
+
+  const handleTabChange = (value: string) => {
+    if (value !== "phone-numbers" && value !== "assistants") return;
+    const tab = value;
+    setActiveTab(tab);
+    setVisitedTabs((prev) => new Set(prev).add(tab));
+  };
 
   return (
     <div className="space-y-8">
@@ -104,9 +114,8 @@ export const VapiConnectedView = ({ onDisconnect }: VapiConnectedViewProps) => {
 
       <div className="overflow-hidden rounded-lg border bg-background">
         <Tabs
-          defaultValue="phone-numbers"
           value={activeTab}
-          onValueChange={(value) => setActiveTab(value as VapiConnectedViewTab)}
+          onValueChange={handleTabChange}
           className="gap-0"
         >
           <TabsList className="grid grid-cols-2 p-0 w-full rounded-none min-h-10 bg-muted/30">
@@ -127,14 +136,14 @@ export const VapiConnectedView = ({ onDisconnect }: VapiConnectedViewProps) => {
           </TabsList>
           <TabsContent
             value="phone-numbers"
-            forceMount
+            {...(visitedTabs.has("phone-numbers") ? { forceMount: true } : {})}
             className="data-[state=inactive]:hidden"
           >
             <VapiPhoneNumbersTab />
           </TabsContent>
           <TabsContent
             value="assistants"
-            forceMount
+            {...(visitedTabs.has("assistants") ? { forceMount: true } : {})}
             className="data-[state=inactive]:hidden"
           >
             <VapiAssistantsTab />

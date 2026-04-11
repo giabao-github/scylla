@@ -194,9 +194,7 @@ const VapiPluginDisconnectForm = ({
   const onSubmit = async () => {
     try {
       setIsDisconnecting(true);
-      await removePlugin({
-        service: "vapi",
-      });
+      await removePlugin({ service: "vapi" });
       setOpen(false);
     } catch (error) {
       console.error("Failed to disconnect Vapi plugin:", error);
@@ -248,14 +246,6 @@ export const VapiView = () => {
 
   const prevPluginRef = useRef<typeof vapiPlugin>(undefined);
 
-  const toggleConnection = () => {
-    if (vapiPlugin) {
-      setDisconnectOpen(true);
-    } else {
-      setConnectOpen(true);
-    }
-  };
-
   useEffect(() => {
     if (vapiPlugin !== undefined) {
       if (prevPluginRef.current === null && vapiPlugin) {
@@ -298,13 +288,13 @@ export const VapiView = () => {
 
           <div className="mt-8">
             {vapiPlugin ? (
-              <VapiConnectedView onDisconnect={toggleConnection} />
+              <VapiConnectedView onDisconnect={() => setDisconnectOpen(true)} />
             ) : (
               <PluginCard
                 serviceName="Vapi"
                 serviceImage="/vapi.svg"
                 features={vapiFeatures}
-                onConnect={toggleConnection}
+                onConnect={() => setConnectOpen(true)}
               />
             )}
           </div>

@@ -16,30 +16,37 @@ const useVapiData = <T>(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const result = await action();
-      setData(result);
-      setError(null);
-    } catch (err) {
-      setError(err as Error);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [action, errorMessage]);
+  const fetchData = useCallback(
+    async (signal: { cancelled: boolean }) => {
+      try {
+        const result = await action();
+        if (signal.cancelled) return;
+        setData(result);
+        setError(null);
+      } catch (err) {
+        if (signal.cancelled) return;
+        setError(err instanceof Error ? err : new Error(String(err)));
+        toast.error(errorMessage);
+      } finally {
+        if (signal.cancelled) return;
+        setIsLoading(false);
+      }
+    },
+    [action, errorMessage],
+  );
 
   useEffect(() => {
-    let cancelled = false;
+    const signal = { cancelled: false };
+    setIsLoading(true);
 
     const run = async () => {
-      await fetchData();
+      await fetchData(signal);
     };
 
     run();
 
     return () => {
-      cancelled = true;
+      signal.cancelled = true;
     };
   }, [fetchData]);
 

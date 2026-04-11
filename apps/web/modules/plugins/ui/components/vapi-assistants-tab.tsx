@@ -47,7 +47,6 @@ const AssistantsContent = ({
   }
 
   if (error) {
-    console.error("Failed to load assistants:", error);
     return (
       <TableBody>
         <TableRow>

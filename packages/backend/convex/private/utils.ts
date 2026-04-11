@@ -285,13 +285,6 @@ export const getVapiClient = async (ctx: ActionCtx): Promise<VapiClient> => {
     });
   }
 
-  if (!parsedSecret.privateApiKey) {
-    throw new ConvexError({
-      code: "API_KEY_NOT_FOUND",
-      message: "Vapi private API key not found",
-    });
-  }
-
   const vapiClient = new VapiClient({
     token: parsedSecret.privateApiKey,
   });

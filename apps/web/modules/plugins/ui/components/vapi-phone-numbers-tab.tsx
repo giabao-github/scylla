@@ -46,7 +46,6 @@ const PhoneNumbersContent = ({
   }
 
   if (error) {
-    console.error("Failed to load phone numbers:", error);
     return (
       <TableBody>
         <TableRow>
@@ -96,10 +95,9 @@ const PhoneNumbersContent = ({
               variant={phone.status === "active" ? "success" : "danger"}
               className="capitalize select-none"
             >
-              {phone.status === "active" && (
+              {phone.status === "active" ? (
                 <CheckCircleIcon className="mr-1 size-4" />
-              )}
-              {phone.status !== "active" && (
+              ) : (
                 <XCircleIcon className="mr-1 size-4" />
               )}
               {phone.status || "Unknown"}
