@@ -34,7 +34,14 @@ export const validate = action({
         name: org.name,
       })) as string;
 
-      return { valid: true, id } as const;
+      return {
+        valid: true,
+        id,
+        clerkOrganizationId: org.id,
+        name: org.name,
+        imageUrl: org.imageUrl,
+        createdAt: org.createdAt,
+      } as const;
     } catch (error) {
       if (
         error instanceof Error &&

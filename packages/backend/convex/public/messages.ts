@@ -131,6 +131,14 @@ export const create = action({
       return;
     }
 
+    if (result.status === "conversation_busy") {
+      throw new ConvexError({
+        code: "MESSAGE_IN_PROGRESS",
+        message:
+          "Please wait for the current reply to finish before sending another message.",
+      });
+    }
+
     const userMessageId =
       result.status === "retry" ? result.userMessageId : null;
     const aiResponseSaved =

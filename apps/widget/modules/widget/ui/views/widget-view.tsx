@@ -2,17 +2,25 @@
 
 import { useCallback, useMemo } from "react";
 
+import { api } from "@workspace/backend/_generated/api";
 import {
+  contactSessionIdAtom,
   conversationIdAtom,
   widgetScreenAtom,
 } from "@workspace/shared/atoms/atoms";
+import {
+  CONVERSATION_STATUS,
+  type ConversationStatus,
+} from "@workspace/shared/constants/conversation";
 import { WidgetScreen } from "@workspace/shared/constants/screens";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { Button } from "@workspace/ui/components/button";
+import { ConversationStatusIcon } from "@workspace/ui/components/conversation-status-icon";
 import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
-import { useAtomValue } from "jotai";
-import { useSetAtom } from "jotai";
-import { ArrowLeftIcon, MenuIcon } from "lucide-react";
+import { cn } from "@workspace/ui/lib/utils";
+import { useQuery } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { ArrowLeftIcon, InboxIcon } from "lucide-react";
 
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 import { WidgetAuthScreen } from "@/modules/widget/ui/screens/widget-auth-screen";
@@ -25,6 +33,24 @@ import { WidgetSelectionScreen } from "@/modules/widget/ui/screens/widget-select
 interface WidgetViewProps {
   organizationId: string;
 }
+
+const chatStatusMeta: Record<
+  ConversationStatus,
+  { label: string; className: string }
+> = {
+  [CONVERSATION_STATUS.UNRESOLVED]: {
+    label: "Unresolved",
+    className: "bg-rose-50/18 text-white/95 ring-white/18",
+  },
+  [CONVERSATION_STATUS.ESCALATED]: {
+    label: "Escalated",
+    className: "bg-amber-50/18 text-white/95 ring-white/18",
+  },
+  [CONVERSATION_STATUS.RESOLVED]: {
+    label: "Resolved",
+    className: "bg-emerald-50/18 text-white/95 ring-white/18",
+  },
+};
 
 const getHeaderProps = (screen: WidgetScreen) => {
   switch (screen) {
@@ -57,7 +83,17 @@ const getHeaderProps = (screen: WidgetScreen) => {
   }
 };
 
-const getHeaderContent = (screen: WidgetScreen, onBack: () => void) => {
+const getHeaderContent = ({
+  screen,
+  onBack,
+  onInbox,
+  chatStatus,
+}: {
+  screen: WidgetScreen;
+  onBack: () => void;
+  onInbox: () => void;
+  chatStatus?: ConversationStatus;
+}) => {
   switch (screen) {
     case "loading":
     case "auth":
@@ -72,8 +108,8 @@ const getHeaderContent = (screen: WidgetScreen, onBack: () => void) => {
     case "inbox":
     case "chat":
       return (
-        <div className="flex justify-between p-2 md:p-1">
-          <div className="flex gap-x-6 items-center">
+        <div className="flex justify-between items-start p-2 md:p-1">
+          <div className="flex gap-x-6 items-start min-w-0">
             <FrostLens blur={0} distortion={0} radius={50}>
               <Button
                 variant="transparent"
@@ -84,19 +120,38 @@ const getHeaderContent = (screen: WidgetScreen, onBack: () => void) => {
                 <ArrowLeftIcon strokeWidth={3} />
               </Button>
             </FrostLens>
-            <p className="text-2xl font-semibold">
-              {screen === "inbox" ? "Inbox" : "Scylla AI"}
-            </p>
+            <div className="flex flex-wrap gap-x-4 items-center min-w-0 pt-0.5">
+              <p className="text-2xl font-semibold shrink-0">
+                {screen === "inbox" ? "Inbox" : "Scylla AI"}
+              </p>
+              {screen === "chat" && chatStatus && (
+                <div
+                  className={cn(
+                    "inline-flex gap-2 items-center px-2.5 py-1 text-[11px] font-medium rounded-full ring-1 backdrop-blur-sm shrink-0 cursor-default",
+                    chatStatusMeta[chatStatus].className,
+                  )}
+                >
+                  <ConversationStatusIcon
+                    status={chatStatus}
+                    className="size-4 shrink-0"
+                  />
+                  {chatStatusMeta[chatStatus].label}
+                </div>
+              )}
+            </div>
           </div>
           {screen === "chat" && (
             <FrostLens blur={0} distortion={0} radius={50}>
               <Button
-                disabled
                 variant="transparent"
-                aria-label="Open menu"
-                className="size-10 hover:bg-primary/40"
+                aria-label="Open inbox"
+                className="gap-2 px-3 h-10 hover:bg-primary/40"
+                onClick={onInbox}
               >
-                <MenuIcon strokeWidth={3} />
+                <InboxIcon strokeWidth={2.6} />
+                <span className="hidden text-sm font-medium sm:inline">
+                  Inbox
+                </span>
               </Button>
             </FrostLens>
           )}
@@ -142,8 +197,24 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
 
 export const WidgetView = ({ organizationId }: WidgetViewProps) => {
   const screen = useAtomValue(widgetScreenAtom);
+  const conversationId = useAtomValue(conversationIdAtom);
+  const contactSessionId = useAtomValue(contactSessionIdAtom);
   const setScreen = useSetAtom(widgetScreenAtom);
   const setConversationId = useSetAtom(conversationIdAtom);
+  const validation = useQuery(
+    api.public.contactSessions.validate,
+    contactSessionId ? { contactSessionId } : "skip",
+  );
+  const isValidSession = validation?.valid === true;
+  const conversation = useQuery(
+    api.public.conversations.getOne,
+    screen === WIDGET_SCREENS.CHAT &&
+      conversationId &&
+      contactSessionId &&
+      isValidSession
+      ? { conversationId, contactSessionId }
+      : "skip",
+  );
 
   const headerProps = useMemo(() => getHeaderProps(screen), [screen]);
 
@@ -152,9 +223,20 @@ export const WidgetView = ({ organizationId }: WidgetViewProps) => {
     setConversationId(null);
   }, [setScreen, setConversationId]);
 
+  const onInbox = useCallback(() => {
+    setScreen(WIDGET_SCREENS.INBOX);
+  }, [setScreen]);
+
   const headerContent = useMemo(
-    () => getHeaderContent(screen, onBack),
-    [screen, onBack],
+    () =>
+      getHeaderContent({
+        screen,
+        onBack,
+        onInbox,
+        chatStatus:
+          screen === WIDGET_SCREENS.CHAT ? conversation?.status : undefined,
+      }),
+    [screen, onBack, onInbox, conversation?.status],
   );
 
   return (

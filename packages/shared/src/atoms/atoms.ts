@@ -2,7 +2,7 @@ import { atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { atomWithStorage } from "jotai/utils";
 
-import type { Id } from "@workspace/backend/_generated/dataModel";
+import type { Doc, Id } from "@workspace/backend/_generated/dataModel";
 
 import { ConversationStatus } from "@workspace/shared/constants/conversation";
 import {
@@ -16,16 +16,31 @@ import {
 } from "@workspace/shared/constants/model-catalog";
 import { WidgetScreen } from "@workspace/shared/constants/screens";
 
-// Basic widget state atoms
+// Widget state atoms
 export const widgetScreenAtom = atom<WidgetScreen>("loading");
 export const organizationIdAtom = atom<string | null>(null);
-export const conversationIdAtom = atom<Id<"conversations"> | null>(null);
+export const clerkOrganizationIdAtom = atom<string | null>(null);
+export interface WidgetOrganizationProfile {
+  clerkOrganizationId: string;
+  name: string;
+  imageUrl?: string;
+  createdAt?: number;
+}
 
-// Basic message atoms
+export const organizationProfileAtom = atom<WidgetOrganizationProfile | null>(
+  null,
+);
+export const conversationIdAtom = atom<Id<"conversations"> | null>(null);
+export const widgetSettingsAtom = atom<Omit<
+  Doc<"widgetSettings">,
+  "organizationId"
+> | null>(null);
+
+// Message atoms
 export const errorMessageAtom = atom<string | null>(null);
 export const loadingMessageAtom = atom<string | null>(null);
 
-// Contact session
+// Contact session atoms
 const contactSessionIdAtomFamily = atomFamily((organizationId: string) =>
   atomWithStorage<Id<"contactSessions"> | null>(
     `${CONTACT_SESSION_KEY}_${organizationId}`,
@@ -55,12 +70,13 @@ export const contactSessionIdAtom = atom(
   },
 );
 
-// Agent atoms
+// Agent atom
 export const selectedModelAtom = atomWithStorage<ModelId>(
   SELECTED_MODEL_KEY,
   DEFAULT_MODEL_ID,
 );
 
+// Filter atom
 export const statusFilterAtom = atomWithStorage<ConversationStatus | "all">(
   STATUS_FILTER_KEY,
   "all",

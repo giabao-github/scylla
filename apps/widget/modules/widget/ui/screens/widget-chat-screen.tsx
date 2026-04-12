@@ -15,6 +15,7 @@ import {
   conversationIdAtom,
   selectedModelAtom,
   widgetScreenAtom,
+  widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
@@ -33,8 +34,10 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@workspace/ui/components/ai/prompt-input";
+import { Suggestions } from "@workspace/ui/components/ai/suggestion";
 import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { Form, FormField } from "@workspace/ui/components/form";
+import { LiquidGlass } from "@workspace/ui/components/glass/liquid-glass";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAction, useQuery } from "convex/react";
@@ -92,13 +95,16 @@ const isUserMessageConfirmed = (
 
 export const WidgetChatScreen = () => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
+  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLastMessageIdRef = useRef<string | undefined>(undefined);
   const prevPendingSlotsLenRef = useRef(0);
   const isAtBottomRef = useRef(true);
+  const submitLockRef = useRef(false);
 
   const conversationId = useAtomValue(conversationIdAtom);
+  const widgetSettings = useAtomValue(widgetSettingsAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
   const selectedModel = useAtomValue(selectedModelAtom);
   const setScreen = useSetAtom(widgetScreenAtom);
@@ -122,6 +128,13 @@ export const WidgetChatScreen = () => {
       ? { conversationId, contactSessionId }
       : "skip",
   );
+
+  const suggestions = useMemo(() => {
+    if (!widgetSettings) return [];
+    return Object.values(widgetSettings.defaultSuggestions).filter(
+      Boolean,
+    ) as string[];
+  }, [widgetSettings]);
 
   const pendingRequestIds = useMemo(
     () => pendingSlots.map((s) => s.localId),
@@ -159,9 +172,10 @@ export const WidgetChatScreen = () => {
   const isEscalated = conversation?.status === CONVERSATION_STATUS.ESCALATED;
   const isSessionReady = !!conversation && !!contactSessionId;
   const isGenerating = pendingSlots.some((s) => s.status === "generating");
-  const isBlocked =
-    !conversation || isResolved || isGenerating || form.formState.isSubmitting;
+  const isSubmitting = isGenerating || isSubmittingMessage;
+  const isBlocked = !conversation || isResolved || isSubmitting;
   const submitDisabled = isBlocked || !form.formState.isValid;
+  const suggestionsDisabled = !isSessionReady || isResolved || isSubmitting;
 
   const uiMessages = useMemo(
     () => toUIMessages(messages.results ?? []),
@@ -258,6 +272,8 @@ export const WidgetChatScreen = () => {
             : s,
         ),
       );
+      submitLockRef.current = false;
+      setIsSubmittingMessage(false);
       return;
     }
 
@@ -282,16 +298,23 @@ export const WidgetChatScreen = () => {
             : s,
         ),
       );
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmittingMessage(false);
     }
   };
 
-  const handleSubmit = (promptMessage: PromptInputMessage) => {
+  const trySubmitPromptMessage = (promptMessage: PromptInputMessage) => {
     const text = promptMessage.text.trim();
-    if (!isSessionReady || !text) return;
+    if (!isSessionReady || isResolved || submitLockRef.current || !text) {
+      return false;
+    }
 
     const localId = nanoid();
     const snapshotIds = new Set(visibleMessages.map((m) => m.id));
 
+    submitLockRef.current = true;
+    setIsSubmittingMessage(true);
     form.setValue("message", "");
     setPendingSlots((prev) => [
       ...prev,
@@ -306,6 +329,11 @@ export const WidgetChatScreen = () => {
     ]);
 
     sendMessage(localId, text);
+    return true;
+  };
+
+  const handlePromptSubmit = (promptMessage: PromptInputMessage) => {
+    trySubmitPromptMessage(promptMessage);
   };
 
   const handleRetry = (localId: string) => {
@@ -353,6 +381,8 @@ export const WidgetChatScreen = () => {
   }, [lastVisibleId, pendingSlots.length, scrollToBottom]);
 
   useEffect(() => {
+    submitLockRef.current = false;
+    setIsSubmittingMessage(false);
     setPendingSlots([]);
     prevLastMessageIdRef.current = undefined;
     prevPendingSlotsLenRef.current = 0;
@@ -396,7 +426,7 @@ export const WidgetChatScreen = () => {
             return false;
           }
 
-          if (slot.status === "sent") {
+          if (slot.status === "sent" && isEscalated) {
             const userConfirmed = isUserMessageConfirmed(
               slot,
               visibleMessages,
@@ -408,11 +438,8 @@ export const WidgetChatScreen = () => {
           return true;
         }),
     );
-    // visibleMessages intentionally omitted — messages are currently immutable once saved,
-    // so it only changes meaningfully when lastVisibleId changes.
-    // If message editing/deletion is added, revisit this dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastVisibleId, messageIdsByRequestId]);
+  }, [lastVisibleId, messageIdsByRequestId, isEscalated]);
 
   return (
     <>
@@ -496,12 +523,49 @@ export const WidgetChatScreen = () => {
           })}
         </div>
 
+        <Suggestions className="flex flex-row gap-x-4 justify-end items-center px-4 pt-6 pb-2 w-full">
+          {suggestions.map((suggestion) => (
+            <LiquidGlass
+              key={suggestion}
+              borderRadius={999}
+              blur={10}
+              distortion={12}
+              role="button"
+              tabIndex={suggestionsDisabled ? -1 : 0}
+              aria-label={suggestion}
+              aria-disabled={suggestionsDisabled}
+              interactive={!suggestionsDisabled}
+              tint="rgba(139, 92, 246, 0.18)"
+              tintOpacity={suggestionsDisabled ? 0.4 : 0.7}
+              hoverTintOpacity={0.9}
+              glow="rgba(139, 92, 246, 0.28)"
+              hoverGlow="rgba(139, 92, 246, 0.5)"
+              onClick={
+                suggestionsDisabled
+                  ? undefined
+                  : () =>
+                      trySubmitPromptMessage({
+                        text: suggestion,
+                        files: [],
+                        sources: [],
+                      })
+              }
+              className={cn(
+                "inline-flex items-center px-4 py-1.5 text-sm font-medium whitespace-nowrap select-none",
+                suggestionsDisabled && "opacity-50 cursor-default",
+              )}
+            >
+              {suggestion}
+            </LiquidGlass>
+          ))}
+        </Suggestions>
+
         {!isResolved && (
           <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent shrink-0">
             <div className="mx-auto max-w-4xl">
               <Form {...form}>
                 <PromptBox
-                  onSubmit={handleSubmit}
+                  onSubmit={handlePromptSubmit}
                   className={cn(
                     "rounded-xl border shadow-lg border-border/60 shadow-black/6",
                     "bg-transparent backdrop-blur-sm",
