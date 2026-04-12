@@ -68,6 +68,30 @@ export const CustomizationForm = ({
 }: CustomizationFormProps) => {
   const upsertWidgetSettings = useMutation(api.private.widgetSettings.upsert);
 
+  const form = useForm<FormSchema>({
+    resolver: zodResolver(widgetSettingsSchema),
+    defaultValues: {
+      greetingMessage:
+        initialData?.greetingMessage || "Hello, how can I help you today?",
+      defaultSuggestions: {
+        firstSuggestion: initialData?.defaultSuggestions?.firstSuggestion || "",
+        secondSuggestion:
+          initialData?.defaultSuggestions?.secondSuggestion || "",
+        thirdSuggestion: initialData?.defaultSuggestions?.thirdSuggestion || "",
+      },
+      vapiSettings: {
+        assistantId: initialData?.vapiSettings?.assistantId || "",
+        phoneNumber: initialData?.vapiSettings?.phoneNumber || "",
+      },
+    },
+  });
+
+  const currentValues = form.watch();
+  const hasMeaningfulChanges =
+    JSON.stringify(normalizeFormValue(currentValues)) !==
+    JSON.stringify(normalizeFormValue(form.formState.defaultValues));
+  const isSaveDisabled = form.formState.isSubmitting || !hasMeaningfulChanges;
+
   const handleFillPlaceholder = (
     event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -76,7 +100,6 @@ export const CustomizationForm = ({
     }
 
     const { value, placeholder } = event.currentTarget;
-
     if (value || !placeholder) {
       return;
     }
@@ -93,29 +116,6 @@ export const CustomizationForm = ({
       shouldValidate: true,
     });
   };
-
-  const form = useForm<FormSchema>({
-    resolver: zodResolver(widgetSettingsSchema),
-    defaultValues: {
-      greetingMessage:
-        initialData?.greetingMessage || "Hello, how can I help you today?",
-      defaultSuggestions: {
-        firstSuggestion: initialData?.defaultSuggestions.firstSuggestion || "",
-        secondSuggestion:
-          initialData?.defaultSuggestions.secondSuggestion || "",
-        thirdSuggestion: initialData?.defaultSuggestions.thirdSuggestion || "",
-      },
-      vapiSettings: {
-        assistantId: initialData?.vapiSettings.assistantId || "",
-        phoneNumber: initialData?.vapiSettings.phoneNumber || "",
-      },
-    },
-  });
-  const currentValues = form.watch();
-  const hasMeaningfulChanges =
-    JSON.stringify(normalizeFormValue(currentValues)) !==
-    JSON.stringify(normalizeFormValue(form.formState.defaultValues));
-  const isSaveDisabled = form.formState.isSubmitting || !hasMeaningfulChanges;
 
   const onSubmit = async (values: FormSchema) => {
     try {

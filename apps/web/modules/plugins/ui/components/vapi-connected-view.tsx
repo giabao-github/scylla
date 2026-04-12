@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -51,6 +51,10 @@ export const VapiConnectedView = ({ onDisconnect }: VapiConnectedViewProps) => {
     setActiveTab(tab);
     setVisitedTabs((prev) => new Set(prev).add(tab));
   };
+
+  useEffect(() => {
+    router.prefetch("/customization");
+  }, [router]);
 
   return (
     <div className="space-y-8">

@@ -233,8 +233,8 @@
 }
 
 .scrollbar-themed {
-  scrollbar-width: thin !important;
-  scrollbar-color: var(--scrollbar-thumb) transparent !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 .scrollbar-themed::-webkit-scrollbar {
   width: 6px;

@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import { AlertTriangleIcon } from "lucide-react";
 
 import { FormSchema } from "@/modules/customization/types";
 import {
@@ -27,12 +28,36 @@ interface VapiFormFieldsProps {
 }
 
 export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
-  const { data: assistants, isLoading: isLoadingAssistants } =
-    useVapiAssistants();
-  const { data: phoneNumbers, isLoading: isLoadingPhoneNumbers } =
-    useVapiPhoneNumbers();
+  const {
+    data: assistants,
+    isLoading: isLoadingAssistants,
+    error: assistantsError,
+  } = useVapiAssistants();
+  const {
+    data: phoneNumbers,
+    isLoading: isLoadingPhoneNumbers,
+    error: phoneNumbersError,
+  } = useVapiPhoneNumbers();
 
   const disabled = form.formState.isSubmitting;
+
+  if (assistantsError || phoneNumbersError) {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <h3 className="text-base font-semibold text-rose-400">
+            Vapi Data Fetching Error
+          </h3>
+          <div className="flex flex-row gap-x-2 items-center">
+            <AlertTriangleIcon className="text-rose-400 size-4" />
+            <span className="text-sm text-rose-400">
+              Failed to load Vapi data. Please try again later.
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -104,8 +129,12 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
               <SelectContent position="popper" align="start">
                 <SelectItem value="none">None</SelectItem>
                 {phoneNumbers?.map((phone) => (
-                  <SelectItem key={phone.id} value={phone.number || phone.id}>
-                    {phone.number || "Unknown"} - {phone.name || "Unnamed"}
+                  <SelectItem
+                    key={phone.id}
+                    value={phone.id}
+                    disabled={!phone.number}
+                  >
+                    {phone.number || "No number"} - {phone.name || "Unnamed"}
                   </SelectItem>
                 ))}
               </SelectContent>

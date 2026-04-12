@@ -10,8 +10,11 @@ export const widgetSettingsSchema = z.object({
   vapiSettings: z.object({
     assistantId: z.string().optional(),
     phoneNumber: z
-      .string()
-      .regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format")
+      .union([
+        z.literal(""),
+        z.literal("none"),
+        z.string().regex(/^\+?[1-9]\d{6,14}$/, "Invalid phone number format"),
+      ])
       .optional(),
   }),
 });
