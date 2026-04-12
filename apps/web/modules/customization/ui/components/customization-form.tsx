@@ -119,25 +119,15 @@ export const CustomizationForm = ({
 
   const onSubmit = async (values: FormSchema) => {
     try {
-      const vapiSettings: WidgetSettings["vapiSettings"] = {
-        assistantId:
-          values.vapiSettings.assistantId === "none"
-            ? ""
-            : values.vapiSettings.assistantId,
-        phoneNumber:
-          values.vapiSettings.phoneNumber === "none"
-            ? ""
-            : values.vapiSettings.phoneNumber,
-      };
       await upsertWidgetSettings({
         greetingMessage: values.greetingMessage,
         defaultSuggestions: values.defaultSuggestions,
-        vapiSettings,
+        vapiSettings: values.vapiSettings,
       });
       form.reset({
         greetingMessage: values.greetingMessage,
         defaultSuggestions: values.defaultSuggestions,
-        vapiSettings,
+        vapiSettings: values.vapiSettings,
       });
       toast.success("Widget settings saved successfully");
     } catch (error) {

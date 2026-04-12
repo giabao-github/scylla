@@ -71,8 +71,8 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
             </FormLabel>
             <Select
               disabled={isLoadingAssistants || disabled}
-              value={field.value || undefined}
-              onValueChange={field.onChange}
+              value={field.value || "none"}
+              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
             >
               <FormControl>
                 <SelectTrigger className="focus-visible:ring">
@@ -112,8 +112,8 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
             </FormLabel>
             <Select
               disabled={isLoadingPhoneNumbers || disabled}
-              value={field.value || undefined}
-              onValueChange={field.onChange}
+              value={field.value || "none"}
+              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
             >
               <FormControl>
                 <SelectTrigger className="focus-visible:ring">
@@ -128,15 +128,13 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
               </FormControl>
               <SelectContent position="popper" align="start">
                 <SelectItem value="none">None</SelectItem>
-                {phoneNumbers?.map((phone) => (
-                  <SelectItem
-                    key={phone.id}
-                    value={phone.number || ""}
-                    disabled={!phone.number}
-                  >
-                    {phone.number || "No number"} - {phone.name || "Unnamed"}
-                  </SelectItem>
-                ))}
+                {phoneNumbers?.map((phone) =>
+                  phone.number ? (
+                    <SelectItem key={phone.id} value={phone.number}>
+                      {phone.number} - {phone.name || "Unnamed"}
+                    </SelectItem>
+                  ) : null,
+                )}
               </SelectContent>
             </Select>
             <FormDescription>
