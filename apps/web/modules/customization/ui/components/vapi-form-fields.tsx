@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import { AlertTriangleIcon } from "lucide-react";
+import { toast } from "sonner";
 
 import { FormSchema } from "@/modules/customization/types";
 import {
@@ -57,6 +58,7 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
               Failed to load Vapi data. Please try again later.
             </span>
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => {

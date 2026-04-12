@@ -55,7 +55,10 @@ const useVapiData = <T>(
     };
   }, [fetchData, retryCount]);
 
-  const refetch = useCallback(() => setRetryCount((c) => c + 1), []);
+  const refetch = useCallback(() => {
+    if (isLoading) return;
+    setRetryCount((c) => c + 1);
+  }, [isLoading]);
 
   return { data, isLoading, error, refetch };
 };
