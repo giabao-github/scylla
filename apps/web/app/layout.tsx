@@ -32,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${fontSans.variable} ${fontMono.variable} font-sans font-medium antialiased overflow-hidden`}
+        className={`${fontSans.variable} ${fontMono.variable} font-sans font-medium antialiased`}
       >
         <ClerkProvider>
           <TooltipProvider>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -16,9 +16,15 @@ import {
   TabsList,
   TabsTrigger,
 } from "@workspace/ui/components/tabs";
-import { BotIcon, PhoneIcon, SettingsIcon, UnplugIcon } from "lucide-react";
+import {
+  BotIcon,
+  Loader2Icon,
+  PhoneIcon,
+  SettingsIcon,
+  UnplugIcon,
+} from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { VapiAssistantsTab } from "@/modules/plugins/ui/components/vapi-assistants-tab";
 import { VapiPhoneNumbersTab } from "@/modules/plugins/ui/components/vapi-phone-numbers-tab";
@@ -30,6 +36,9 @@ interface VapiConnectedViewProps {
 }
 
 export const VapiConnectedView = ({ onDisconnect }: VapiConnectedViewProps) => {
+  const router = useRouter();
+  const [isLoadingCustomization, startTransition] = useTransition();
+
   const [activeTab, setActiveTab] =
     useState<VapiConnectedViewTab>("phone-numbers");
   const [visitedTabs, setVisitedTabs] = useState<Set<VapiConnectedViewTab>>(
@@ -42,6 +51,10 @@ export const VapiConnectedView = ({ onDisconnect }: VapiConnectedViewProps) => {
     setActiveTab(tab);
     setVisitedTabs((prev) => new Set(prev).add(tab));
   };
+
+  useEffect(() => {
+    router.prefetch("/customization");
+  }, [router]);
 
   return (
     <div className="space-y-8">
@@ -99,13 +112,28 @@ export const VapiConnectedView = ({ onDisconnect }: VapiConnectedViewProps) => {
                   </CardDescription>
                 </div>
               </div>
-              <Button asChild>
-                <Link href="/customization">
-                  <div className="flex gap-2 items-center">
-                    <SettingsIcon />
-                    <span>Configure</span>
-                  </div>
-                </Link>
+              <Button
+                onClick={() =>
+                  startTransition(() => router.push("/customization"))
+                }
+                disabled={isLoadingCustomization}
+              >
+                <div className="flex gap-2 items-center">
+                  {isLoadingCustomization ? (
+                    <>
+                      <Loader2Icon
+                        className="animate-spin size-4"
+                        aria-hidden="true"
+                      />
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <SettingsIcon aria-hidden="true" />
+                      <span>Configure</span>
+                    </>
+                  )}
+                </div>
               </Button>
             </div>
           </CardHeader>

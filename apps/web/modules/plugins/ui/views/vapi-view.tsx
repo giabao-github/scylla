@@ -278,7 +278,7 @@ export const VapiView = () => {
       />
       <div className="flex flex-col p-8 min-h-screen bg-white">
         <div className="mx-auto w-full max-w-3xl">
-          <div className="space-y-2">
+          <div className="space-y-4">
             <h1 className="text-2xl md:text-4xl">Vapi Plugin</h1>
             <p className="text-muted-foreground">
               Connect your Vapi assistant to Scylla to enable AI-powered voice
@@ -286,7 +286,7 @@ export const VapiView = () => {
             </p>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-12">
             {vapiPlugin ? (
               <VapiConnectedView onDisconnect={() => setDisconnectOpen(true)} />
             ) : (

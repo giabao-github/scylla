@@ -1,27 +1,16 @@
-"use client";
+import { CustomizationErrorBoundary } from "@/modules/customization/ui/components/customization-error-boundary";
+import { CustomizationView } from "@/modules/customization/ui/views/customization-view";
 
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
+export const metadata = {
+  title: "Widget Customization - Scylla",
+  description:
+    "Customize your chat widget appearance and behavior for your customers.",
+};
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-y-4 justify-center items-center text-base min-h-svh">
-      <p>Customization</p>
-      <UserButton
-        appearance={{
-          elements: {
-            userButtonAvatarBox: "!size-12",
-          },
-        }}
-      />
-      <OrganizationSwitcher
-        hidePersonal
-        appearance={{
-          elements: {
-            organizationPreviewAvatarBox: "!size-7",
-            organizationPreviewMainIdentifier: "!font-semibold !text-[15px]",
-          },
-        }}
-      />
-    </div>
+    <CustomizationErrorBoundary>
+      <CustomizationView />
+    </CustomizationErrorBoundary>
   );
 }
