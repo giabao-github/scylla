@@ -11,10 +11,16 @@ const useVapiData = <T>(
   action: () => Promise<T>,
   errorMessage: string,
   initialData: T,
-): { data: T; isLoading: boolean; error: Error | null } => {
+): {
+  data: T;
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => void;
+} => {
   const [data, setData] = useState<T>(initialData);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const fetchData = useCallback(
     async (signal: { cancelled: boolean }) => {
@@ -39,25 +45,26 @@ const useVapiData = <T>(
   useEffect(() => {
     const signal = { cancelled: false };
     setIsLoading(true);
-
+    setError(null);
     const run = async () => {
       await fetchData(signal);
     };
-
     run();
-
     return () => {
       signal.cancelled = true;
     };
-  }, [fetchData]);
+  }, [fetchData, retryCount]);
 
-  return { data, isLoading, error };
+  const refetch = useCallback(() => setRetryCount((c) => c + 1), []);
+
+  return { data, isLoading, error, refetch };
 };
 
 export const useVapiPhoneNumbers = (): {
   data: PhoneNumbers;
   isLoading: boolean;
   error: Error | null;
+  refetch: () => void;
 } => {
   const getPhoneNumbers = useAction(api.private.vapi.getPhoneNumbers);
   return useVapiData(getPhoneNumbers, "Failed to fetch phone numbers", []);
@@ -67,6 +74,7 @@ export const useVapiAssistants = (): {
   data: Assistants;
   isLoading: boolean;
   error: Error | null;
+  refetch: () => void;
 } => {
   const getAssistants = useAction(api.private.vapi.getAssistants);
   return useVapiData(getAssistants, "Failed to fetch assistants", []);

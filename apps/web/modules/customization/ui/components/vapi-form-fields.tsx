@@ -1,5 +1,6 @@
 import { UseFormReturn } from "react-hook-form";
 
+import { Button } from "@workspace/ui/components/button";
 import {
   FormControl,
   FormDescription,
@@ -32,11 +33,13 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
     data: assistants,
     isLoading: isLoadingAssistants,
     error: assistantsError,
+    refetch: refetchAssistants,
   } = useVapiAssistants();
   const {
     data: phoneNumbers,
     isLoading: isLoadingPhoneNumbers,
     error: phoneNumbersError,
+    refetch: refetchPhoneNumbers,
   } = useVapiPhoneNumbers();
 
   const disabled = form.formState.isSubmitting;
@@ -53,6 +56,17 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
             <span className="text-sm text-rose-400">
               Failed to load Vapi data. Please try again later.
             </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (assistantsError) refetchAssistants();
+                if (phoneNumbersError) refetchPhoneNumbers();
+              }}
+              className="ml-2"
+            >
+              Retry
+            </Button>
           </div>
         </div>
       </div>
@@ -64,85 +78,101 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
       <FormField
         control={form.control}
         name="vapiSettings.assistantId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-base font-semibold">
-              Voice Assistant
-            </FormLabel>
-            <Select
-              disabled={isLoadingAssistants || disabled}
-              value={field.value || "none"}
-              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
-            >
-              <FormControl>
-                <SelectTrigger className="focus-visible:ring">
-                  {isLoadingAssistants ? (
-                    <span className="text-muted-foreground">
-                      Loading assistants...
-                    </span>
-                  ) : (
-                    <SelectValue placeholder="Select a voice assistant" />
-                  )}
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent position="popper" align="start">
-                <SelectItem value="none">None</SelectItem>
-                {assistants?.map((assistant) => (
-                  <SelectItem key={assistant.id} value={assistant.id}>
-                    {assistant.name || "Unnamed Assistant"} -{" "}
-                    {assistant.model?.model || "Unknown model"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormDescription>
-              The Vapi AI assistant for voice calls
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
+        render={({ field }) => {
+          const assistantValue =
+            field.value && assistants?.some((a) => a.id === field.value)
+              ? field.value
+              : "none";
+          return (
+            <FormItem>
+              <FormLabel className="text-base font-semibold">
+                Voice Assistant
+              </FormLabel>
+              <Select
+                disabled={isLoadingAssistants || disabled}
+                value={assistantValue}
+                onValueChange={(val) =>
+                  field.onChange(val === "none" ? "" : val)
+                }
+              >
+                <FormControl>
+                  <SelectTrigger className="focus-visible:ring">
+                    {isLoadingAssistants ? (
+                      <span className="text-muted-foreground">
+                        Loading assistants...
+                      </span>
+                    ) : (
+                      <SelectValue placeholder="Select a voice assistant" />
+                    )}
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent position="popper" align="start">
+                  <SelectItem value="none">None</SelectItem>
+                  {assistants?.map((assistant) => (
+                    <SelectItem key={assistant.id} value={assistant.id}>
+                      {assistant.name || "Unnamed Assistant"} -{" "}
+                      {assistant.model?.model || "Unknown model"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                The Vapi AI assistant for voice calls
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          );
+        }}
       />
       <FormField
         control={form.control}
         name="vapiSettings.phoneNumber"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-base font-semibold">
-              Display Phone Number
-            </FormLabel>
-            <Select
-              disabled={isLoadingPhoneNumbers || disabled}
-              value={field.value || "none"}
-              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
-            >
-              <FormControl>
-                <SelectTrigger className="focus-visible:ring">
-                  {isLoadingPhoneNumbers ? (
-                    <span className="text-muted-foreground">
-                      Loading phone numbers...
-                    </span>
-                  ) : (
-                    <SelectValue placeholder="Select a phone number" />
+        render={({ field }) => {
+          const phoneValue =
+            field.value && phoneNumbers?.some((p) => p.number === field.value)
+              ? field.value
+              : "none";
+          return (
+            <FormItem>
+              <FormLabel className="text-base font-semibold">
+                Display Phone Number
+              </FormLabel>
+              <Select
+                disabled={isLoadingPhoneNumbers || disabled}
+                value={phoneValue}
+                onValueChange={(val) =>
+                  field.onChange(val === "none" ? "" : val)
+                }
+              >
+                <FormControl>
+                  <SelectTrigger className="focus-visible:ring">
+                    {isLoadingPhoneNumbers ? (
+                      <span className="text-muted-foreground">
+                        Loading phone numbers...
+                      </span>
+                    ) : (
+                      <SelectValue placeholder="Select a phone number" />
+                    )}
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent position="popper" align="start">
+                  <SelectItem value="none">None</SelectItem>
+                  {phoneNumbers?.map((phone) =>
+                    phone.number ? (
+                      <SelectItem key={phone.id} value={phone.number}>
+                        {phone.number} - {phone.name || "Unnamed"}
+                      </SelectItem>
+                    ) : null,
                   )}
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent position="popper" align="start">
-                <SelectItem value="none">None</SelectItem>
-                {phoneNumbers?.map((phone) =>
-                  phone.number ? (
-                    <SelectItem key={phone.id} value={phone.number}>
-                      {phone.number} - {phone.name || "Unnamed"}
-                    </SelectItem>
-                  ) : null,
-                )}
-              </SelectContent>
-            </Select>
-            <FormDescription>
-              The Vapi phone number displaying in the widget
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                The Vapi phone number displaying in the widget
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          );
+        }}
       />
     </>
   );
