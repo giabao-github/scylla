@@ -131,7 +131,7 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
                 {phoneNumbers?.map((phone) => (
                   <SelectItem
                     key={phone.id}
-                    value={phone.id}
+                    value={phone.number || ""}
                     disabled={!phone.number}
                   >
                     {phone.number || "No number"} - {phone.name || "Unnamed"}

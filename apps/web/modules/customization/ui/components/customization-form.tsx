@@ -72,16 +72,16 @@ export const CustomizationForm = ({
     resolver: zodResolver(widgetSettingsSchema),
     defaultValues: {
       greetingMessage:
-        initialData?.greetingMessage || "Hello, how can I help you today?",
+        initialData?.greetingMessage ?? "Hello, how can I help you today?",
       defaultSuggestions: {
-        firstSuggestion: initialData?.defaultSuggestions?.firstSuggestion || "",
+        firstSuggestion: initialData?.defaultSuggestions?.firstSuggestion ?? "",
         secondSuggestion:
-          initialData?.defaultSuggestions?.secondSuggestion || "",
-        thirdSuggestion: initialData?.defaultSuggestions?.thirdSuggestion || "",
+          initialData?.defaultSuggestions?.secondSuggestion ?? "",
+        thirdSuggestion: initialData?.defaultSuggestions?.thirdSuggestion ?? "",
       },
       vapiSettings: {
-        assistantId: initialData?.vapiSettings?.assistantId || "",
-        phoneNumber: initialData?.vapiSettings?.phoneNumber || "",
+        assistantId: initialData?.vapiSettings?.assistantId ?? "",
+        phoneNumber: initialData?.vapiSettings?.phoneNumber ?? "",
       },
     },
   });
