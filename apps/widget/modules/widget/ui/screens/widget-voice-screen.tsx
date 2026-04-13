@@ -37,7 +37,6 @@ export const WidgetVoiceScreen = () => {
   const widgetSettings = useAtomValue(widgetSettingsAtom);
 
   const setScreen = useSetAtom(widgetScreenAtom);
-  const setErrorMessage = useSetAtom(errorMessageAtom);
   const setVapiSecrets = useSetAtom(vapiSecretsAtom);
 
   const getVapiSecrets = useAction(api.public.secrets.getVapiSecrets);
@@ -57,6 +56,7 @@ export const WidgetVoiceScreen = () => {
     contactSessionId ? { contactSessionId } : "skip",
   );
 
+  const isSessionValidating = !!contactSessionId && validation === undefined;
   const isValidSession = validation?.valid === true;
 
   const conversation = useQuery(
@@ -68,9 +68,8 @@ export const WidgetVoiceScreen = () => {
 
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
-  const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
-  const isEscalated = conversation?.status === CONVERSATION_STATUS.ESCALATED;
-  const isConversationLocked = isResolved || isEscalated;
+  const isSessionBlocked =
+    isNew || isExpired || isSessionValidating || !isValidSession;
   const assistantId = widgetSettings?.vapiSettings?.assistantId;
 
   const transcriptMessages = useMemo(
@@ -116,11 +115,8 @@ export const WidgetVoiceScreen = () => {
 
   const getTranscriptLabel = () => {
     if (transcriptMessages.length > 0)
-      return transcriptMessages[transcriptMessages.length - 1]!.text;
+      return transcriptMessages.at(-1)?.text ?? "";
     if (isLoadingSecrets) return "Preparing voice connection...";
-    if (isResolved) return "This conversation has already been resolved.";
-    if (isEscalated)
-      return "This conversation has been escalated to a human operator.";
     if (secretError) return secretError;
     return "Start a call and the transcript will appear here.";
   };
@@ -130,13 +126,11 @@ export const WidgetVoiceScreen = () => {
       return isSpeaking ? "Assistant is speaking..." : "Listening...";
     if (isConnecting) return "Connecting...";
     if (isLoadingSecrets) return "Preparing voice connection...";
-    if (isResolved) return "This conversation has been resolved.";
-    if (isEscalated) return "This conversation has been escalated.";
     return "Start a call to continue here.";
   };
 
   useEffect(() => {
-    if (isNew || isExpired) {
+    if (isSessionBlocked) {
       setVapiSecrets(null);
       setSecretError(null);
       setIsLoadingSecrets(false);
@@ -204,8 +198,7 @@ export const WidgetVoiceScreen = () => {
     cachedVapiSecrets,
     clerkOrganizationId,
     getVapiSecrets,
-    isExpired,
-    isNew,
+    isSessionBlocked,
     setVapiSecrets,
   ]);
 
@@ -276,9 +269,7 @@ export const WidgetVoiceScreen = () => {
                       ? "border-emerald-300/70 bg-emerald-50/85 text-emerald-700"
                       : isConnecting || isLoadingSecrets
                         ? "border-violet-300/70 bg-violet-50/85 text-violet-700"
-                        : isConversationLocked
-                          ? "border-slate-300/70 bg-slate-50/85 text-slate-600"
-                          : "border-white/70 bg-white/75 text-slate-600",
+                        : "border-white/70 bg-white/75 text-slate-600",
                   )}
                 >
                   <span
@@ -290,9 +281,7 @@ export const WidgetVoiceScreen = () => {
                           : "bg-emerald-500"
                         : isConnecting || isLoadingSecrets
                           ? "bg-violet-500 animate-pulse"
-                          : isConversationLocked
-                            ? "bg-slate-400"
-                            : "bg-slate-300",
+                          : "bg-slate-300",
                     )}
                   />
                   <span className="text-center">{statusLabel}</span>
@@ -313,10 +302,10 @@ export const WidgetVoiceScreen = () => {
                     <Button
                       size="lg"
                       disabled={
+                        isSessionBlocked ||
                         isConnecting ||
                         isLoadingSecrets ||
-                        !!secretError ||
-                        isConversationLocked
+                        !!secretError
                       }
                       onClick={startCall}
                       className="text-sm rounded-full shadow-lg min-w-32 shadow-violet-500/20 md:min-w-36"
@@ -331,7 +320,7 @@ export const WidgetVoiceScreen = () => {
                   )}
                 </div>
 
-                {!isConversationLocked && (secretError || error) && (
+                {(secretError || error) && (
                   <p className="max-w-sm text-[13px] text-center text-destructive md:text-sm">
                     {secretError ?? error}
                   </p>

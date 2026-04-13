@@ -32,6 +32,8 @@ export const useVapi = () => {
       setIsConnecting(false);
       setIsSpeaking(false);
       setTranscript([]);
+      setError(null);
+      setHasError(false);
       return;
     }
 
@@ -64,7 +66,9 @@ export const useVapi = () => {
       setIsConnecting(false);
       setIsConnected(false);
       setHasError(true);
-      setError(error.message || "An error occurred");
+      const errorMessage =
+        error instanceof Error ? error.message : "An error occurred";
+      setError(errorMessage);
     };
 
     const handleMessage = (message: any) => {

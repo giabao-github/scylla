@@ -273,9 +273,7 @@ export const WidgetView = ({ organizationId }: WidgetViewProps) => {
         onBack,
         onInbox,
         chatStatus:
-          screen === WIDGET_SCREENS.CHAT || screen === WIDGET_SCREENS.VOICE
-            ? conversation?.status
-            : undefined,
+          screen === WIDGET_SCREENS.CHAT ? conversation?.status : undefined,
       }),
     [screen, onBack, onInbox, conversation?.status],
   );

@@ -129,11 +129,13 @@ export const WidgetSelectionScreen = () => {
     }
 
     if (mode === "voice") {
+      setConversationId(null);
       setScreen(WIDGET_SCREENS.VOICE);
       return;
     }
 
     if (mode === "audio") {
+      setConversationId(null);
       setScreen(WIDGET_SCREENS.CONTACT);
       return;
     }

@@ -176,18 +176,32 @@ export const WidgetContactScreen = () => {
                 </div>
 
                 <div className="flex flex-row gap-x-2 items-center md:gap-x-6">
-                  <Button
-                    asChild
-                    size="lg"
-                    variant="success"
-                    disabled={!phoneNumber}
-                    className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
-                  >
-                    <Link href={phoneNumber ? `tel:${phoneNumber}` : "#"}>
+                  {phoneNumber ? (
+                    <Button
+                      asChild
+                      size="lg"
+                      variant="success"
+                      className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
+                    >
+                      <Link
+                        href={phoneNumber ? `tel:${phoneNumber}` : "#"}
+                        aria-label="Call phone number"
+                      >
+                        <PhoneIcon />
+                        Call now
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="lg"
+                      variant="success"
+                      disabled
+                      className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
+                    >
                       <PhoneIcon />
                       Call now
-                    </Link>
-                  </Button>
+                    </Button>
+                  )}
                   <Button
                     size="lg"
                     variant="warning"

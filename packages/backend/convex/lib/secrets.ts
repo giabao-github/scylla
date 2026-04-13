@@ -16,24 +16,21 @@ import z from "zod";
 let secretsManagerClient: SecretsManagerClient | null = null;
 
 const isMissingAwsCredentialsError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    error.name === "CredentialsProviderError" ||
-    error.message.includes("Credential is missing") ||
-    error.message.includes("Could not load credentials from any providers")
-  );
+  if (!(error instanceof Error)) return false;
+  return error.name === "CredentialsProviderError";
 };
 
-const handlePutSecretError = (secretName: string, error: unknown): never => {
+const throwIfMissingCredentials = (error: unknown): void => {
   if (isMissingAwsCredentialsError(error)) {
     throw new ConvexError({
       code: "MISSING_AWS_CREDENTIALS",
       message: "AWS credentials are not configured for Secrets Manager",
     });
   }
+};
+
+const handlePutSecretError = (secretName: string, error: unknown): never => {
+  throwIfMissingCredentials(error);
   if (error instanceof Error && error.name === "ResourceNotFoundException") {
     throw new ConvexError({
       code: "RESOURCE_NOT_FOUND",
@@ -79,10 +76,6 @@ const getAwsCredentialsFromEnv = () => {
 };
 
 export const createSecretsManagerClient = (): SecretsManagerClient => {
-  if (secretsManagerClient) {
-    return secretsManagerClient;
-  }
-
   const region = getEnv("AWS_REGION");
   if (!region) {
     throw new ConvexError({
@@ -93,10 +86,16 @@ export const createSecretsManagerClient = (): SecretsManagerClient => {
 
   const credentials = getAwsCredentialsFromEnv();
 
-  secretsManagerClient = new SecretsManagerClient({
-    region,
-    ...(credentials ? { credentials } : {}),
-  });
+  if (credentials) {
+    return new SecretsManagerClient({
+      region,
+      credentials,
+    });
+  }
+
+  if (!secretsManagerClient) {
+    secretsManagerClient = new SecretsManagerClient({ region });
+  }
 
   return secretsManagerClient;
 };
@@ -110,12 +109,7 @@ export const getSecretValue = async (
       new GetSecretValueCommand({ SecretId: secretName }),
     );
   } catch (error) {
-    if (isMissingAwsCredentialsError(error)) {
-      throw new ConvexError({
-        code: "MISSING_AWS_CREDENTIALS",
-        message: "AWS credentials are not configured for Secrets Manager",
-      });
-    }
+    throwIfMissingCredentials(error);
     if (error instanceof Error && error.name === "ResourceNotFoundException") {
       throw new ConvexError({
         code: "RESOURCE_NOT_FOUND",
@@ -184,12 +178,7 @@ export const deleteSecretValue = async (secretName: string): Promise<void> => {
       }),
     );
   } catch (error) {
-    if (isMissingAwsCredentialsError(error)) {
-      throw new ConvexError({
-        code: "MISSING_AWS_CREDENTIALS",
-        message: "AWS credentials are not configured for Secrets Manager",
-      });
-    }
+    throwIfMissingCredentials(error);
     if (error instanceof Error && error.name === "ResourceNotFoundException") {
       return;
     }

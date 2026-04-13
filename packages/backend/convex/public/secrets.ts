@@ -13,6 +13,12 @@ export const getVapiSecrets = action({
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      return null;
+    }
+
     const plugin = await ctx.runQuery(
       internal.system.plugins.getByOrgIdAndService,
       {
@@ -27,6 +33,11 @@ export const getVapiSecrets = action({
 
     try {
       const secretName = plugin.secretName;
+      if (!secretName) {
+        console.warn("[public:secrets] Plugin has no secretName configured");
+        return null;
+      }
+
       const secret = await getSecretValue(secretName);
       const secretData = parseSecretString(
         secret,

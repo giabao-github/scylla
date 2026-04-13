@@ -122,8 +122,11 @@ export const WidgetChatScreen = () => {
   );
 
   useEffect(() => {
+    const now = Date.now();
     const activePendingSlots = pendingSlots.filter(
-      (slot) => slot.status === "generating" || slot.status === "sent",
+      (slot) =>
+        (slot.status === "generating" || slot.status === "sent") &&
+        slot.submittedAt + STALE_PENDING_TIMEOUT_MS > now,
     );
 
     if (activePendingSlots.length === 0) {
@@ -137,7 +140,7 @@ export const WidgetChatScreen = () => {
     );
     const timeoutId = window.setTimeout(
       () => setStaleCheckTimestamp(Date.now()),
-      Math.max(nextTimeoutAt - Date.now(), 0) + 50,
+      nextTimeoutAt - now + 50,
     );
 
     return () => {
@@ -277,12 +280,8 @@ export const WidgetChatScreen = () => {
   const clearForm = () =>
     form.setValue("message", "", { shouldValidate: true });
 
-  const handlePromptSubmit = async (promptMessage: PromptInputMessage) => {
-    if (!sendPromptMessage(promptMessage)) {
-      throw new Error("Message could not be sent");
-    }
-
-    clearForm();
+  const handlePromptSubmit = (promptMessage: PromptInputMessage) => {
+    if (sendPromptMessage(promptMessage)) clearForm();
   };
 
   const handleSuggestionSubmit = (text: string) => {
