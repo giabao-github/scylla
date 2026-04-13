@@ -94,6 +94,9 @@ export const OrganizationSummaryCards = ({
 }: OrganizationSummaryCardsProps) => {
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canCopyOrganizationId =
+    Boolean(displayOrganizationId) &&
+    displayOrganizationId !== UNKNOWN_ORGANIZATION_ID;
 
   const scheduleCopyReset = () => {
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
@@ -104,11 +107,7 @@ export const OrganizationSummaryCards = ({
   };
 
   const handleCopyOrganizationId = async () => {
-    if (
-      !displayOrganizationId ||
-      displayOrganizationId === UNKNOWN_ORGANIZATION_ID
-    )
-      return;
+    if (!canCopyOrganizationId) return;
 
     if (!navigator.clipboard) {
       console.warn("Clipboard API not available");
@@ -163,6 +162,7 @@ export const OrganizationSummaryCards = ({
           <Button
             type="button"
             size="sm"
+            disabled={!canCopyOrganizationId}
             onClick={handleCopyOrganizationId}
             aria-label={ariaLabel}
             aria-live="polite"

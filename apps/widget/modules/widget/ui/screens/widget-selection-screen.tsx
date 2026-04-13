@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import {
@@ -13,7 +13,6 @@ import {
   widgetScreenAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
-import { Button } from "@workspace/ui/components/button";
 import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { DicebearAvatar } from "@workspace/ui/components/dicebear-avatar";
 import { GlassButton } from "@workspace/ui/components/glass/glass-button";
@@ -21,20 +20,18 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
-  CheckIcon,
   ChevronRightIcon,
-  CopyIcon,
-  MessageCircleHeartIcon,
   MessageCircleIcon,
   MicIcon,
   PhoneIcon,
-  ShieldCheckIcon,
   SparklesIcon,
 } from "lucide-react";
 
+import {
+  OrganizationSummaryCards,
+  UNKNOWN_ORGANIZATION_ID,
+} from "@/modules/widget/ui/components/organization-summary-card";
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
-
-import { OrganizationSummaryCards } from "../components/organization-summary-card";
 
 const buttonOptions = [
   {
@@ -71,8 +68,6 @@ export const WidgetSelectionScreen = () => {
   const organizationProfile = useAtomValue(organizationProfileAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
 
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const validation = useQuery(
     api.public.contactSessions.validate,
     contactSessionId ? { contactSessionId } : "skip",
@@ -83,12 +78,13 @@ export const WidgetSelectionScreen = () => {
 
   const createConversation = useMutation(api.public.conversations.create);
   const [isPending, setIsPending] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
+
   const displayName = organizationProfile?.name ?? "Selected organization";
   const displayOrganizationId =
     organizationProfile?.clerkOrganizationId ??
     clerkOrganizationId ??
-    "Unknown";
+    UNKNOWN_ORGANIZATION_ID;
+
   const createdAtLabel = useMemo(() => {
     if (!organizationProfile?.createdAt) {
       return "Creation time unavailable";
@@ -114,23 +110,6 @@ export const WidgetSelectionScreen = () => {
       return;
     }
     setScreen(WIDGET_SCREENS.AUTH);
-  };
-
-  const handleCopyOrganizationId = async () => {
-    if (!displayOrganizationId || displayOrganizationId === "Unknown") return;
-    if (!navigator.clipboard) {
-      console.warn("Clipboard API not available");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(displayOrganizationId);
-      setIsCopied(true);
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 1600);
-    } catch (error) {
-      console.error("Failed to copy organization ID:", error);
-    }
   };
 
   const handleNewConversation = async (mode: "chat" | "voice" | "audio") => {
@@ -162,12 +141,6 @@ export const WidgetSelectionScreen = () => {
       setIsPending(false);
     }
   };
-
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    };
-  }, []);
 
   return (
     <>

@@ -304,7 +304,7 @@ export const WidgetChatScreen = () => {
     }
   };
 
-  const trySubmitPromptMessage = (promptMessage: PromptInputMessage) => {
+  const submitPromptMessage = (promptMessage: PromptInputMessage) => {
     const text = promptMessage.text.trim();
     if (!isSessionReady || isResolved || submitLockRef.current || !text) {
       return false;
@@ -315,7 +315,7 @@ export const WidgetChatScreen = () => {
 
     submitLockRef.current = true;
     setIsSubmittingMessage(true);
-    form.setValue("message", "");
+    form.setValue("message", "", { shouldValidate: true });
     setPendingSlots((prev) => [
       ...prev,
       {
@@ -333,21 +333,23 @@ export const WidgetChatScreen = () => {
   };
 
   const handlePromptSubmit = (promptMessage: PromptInputMessage) => {
-    trySubmitPromptMessage(promptMessage);
+    submitPromptMessage(promptMessage);
   };
 
   const handleRetry = (localId: string) => {
     const slot = pendingSlots.find((s) => s.localId === localId);
-    if (!slot || isGenerating || !isSessionReady) return;
+    if (!slot || isGenerating || !isSessionReady || submitLockRef.current)
+      return;
 
     const freshSnapshotIds = new Set(visibleMessages.map((m) => m.id));
-
     const userMessageConfirmed = isUserMessageConfirmed(
       slot,
       visibleMessages,
       messageIdsByRequestId?.[slot.localId],
     );
 
+    submitLockRef.current = true;
+    setIsSubmittingMessage(true);
     setPendingSlots((prev) =>
       prev.map((s) =>
         s.localId === localId
@@ -523,45 +525,55 @@ export const WidgetChatScreen = () => {
           })}
         </div>
 
-        <Suggestions className="flex flex-row gap-x-4 justify-end items-center px-4 pt-6 pb-2 w-full">
-          {suggestions.map((suggestion) => (
-            <LiquidGlass
-              key={suggestion}
-              borderRadius={999}
-              blur={10}
-              distortion={12}
-              role="button"
-              tabIndex={suggestionsDisabled ? -1 : 0}
-              aria-label={suggestion}
-              aria-disabled={suggestionsDisabled}
-              interactive={!suggestionsDisabled}
-              tint="rgba(139, 92, 246, 0.18)"
-              tintOpacity={suggestionsDisabled ? 0.4 : 0.7}
-              hoverTintOpacity={0.9}
-              glow="rgba(139, 92, 246, 0.28)"
-              hoverGlow="rgba(139, 92, 246, 0.5)"
-              onClick={
-                suggestionsDisabled
-                  ? undefined
-                  : () =>
-                      trySubmitPromptMessage({
-                        text: suggestion,
-                        files: [],
-                        sources: [],
-                      })
-              }
-              onKeyDown={(e) => {
-                if (e.key === " ") e.preventDefault();
-              }}
-              className={cn(
-                "inline-flex items-center px-4 py-1.5 text-sm font-medium whitespace-nowrap select-none",
-                suggestionsDisabled && "opacity-50 cursor-default",
-              )}
-            >
-              {suggestion}
-            </LiquidGlass>
-          ))}
-        </Suggestions>
+        {suggestions.length > 0 && (
+          <Suggestions className="flex flex-row gap-x-4 justify-end items-center px-4 pt-6 pb-2 w-full">
+            {suggestions.map((suggestion) => (
+              <LiquidGlass
+                key={suggestion}
+                borderRadius={999}
+                blur={10}
+                distortion={12}
+                role="button"
+                tabIndex={suggestionsDisabled ? -1 : 0}
+                aria-label={suggestion}
+                aria-disabled={suggestionsDisabled}
+                interactive={!suggestionsDisabled}
+                tint="rgba(139, 92, 246, 0.18)"
+                tintOpacity={suggestionsDisabled ? 0.4 : 0.7}
+                hoverTintOpacity={0.9}
+                glow="rgba(139, 92, 246, 0.28)"
+                hoverGlow="rgba(139, 92, 246, 0.5)"
+                onClick={
+                  suggestionsDisabled
+                    ? undefined
+                    : () =>
+                        submitPromptMessage({
+                          text: suggestion,
+                          files: [],
+                          sources: [],
+                        })
+                }
+                onKeyDown={(e) => {
+                  if (suggestionsDisabled) return;
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitPromptMessage({
+                      text: suggestion,
+                      files: [],
+                      sources: [],
+                    });
+                  }
+                }}
+                className={cn(
+                  "inline-flex items-center px-4 py-1.5 text-sm font-medium whitespace-nowrap select-none",
+                  suggestionsDisabled && "opacity-50 cursor-default",
+                )}
+              >
+                {suggestion}
+              </LiquidGlass>
+            ))}
+          </Suggestions>
+        )}
 
         {!isResolved && (
           <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent shrink-0">
