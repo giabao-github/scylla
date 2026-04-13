@@ -19,6 +19,7 @@ export const getByOrganizationId = query({
     return {
       greetingMessage: widgetSettings.greetingMessage,
       defaultSuggestions: widgetSettings.defaultSuggestions,
+      vapiSettings: widgetSettings.vapiSettings,
     };
   },
 });

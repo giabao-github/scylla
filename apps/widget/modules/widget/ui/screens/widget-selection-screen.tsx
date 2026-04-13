@@ -11,6 +11,7 @@ import {
   organizationIdAtom,
   organizationProfileAtom,
   widgetScreenAtom,
+  widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { CTAModal } from "@workspace/ui/components/cta-modal";
@@ -30,7 +31,7 @@ import {
 import {
   OrganizationSummaryCards,
   UNKNOWN_ORGANIZATION_ID,
-} from "@/modules/widget/ui/components/organization-summary-card";
+} from "@/modules/widget/ui/components/organization-summary-cards";
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 
 const buttonOptions = [
@@ -59,31 +60,34 @@ const buttonOptions = [
 ];
 
 export const WidgetSelectionScreen = () => {
+  const [isPending, setIsPending] = useState(false);
+
   const setScreen = useSetAtom(widgetScreenAtom);
   const setErrorMessage = useSetAtom(errorMessageAtom);
   const setConversationId = useSetAtom(conversationIdAtom);
 
-  const clerkOrganizationId = useAtomValue(clerkOrganizationIdAtom);
-  const organizationId = useAtomValue(organizationIdAtom);
-  const organizationProfile = useAtomValue(organizationProfileAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
+  const organizationId = useAtomValue(organizationIdAtom);
+  const clerkOrganizationId = useAtomValue(clerkOrganizationIdAtom);
+  const organizationProfile = useAtomValue(organizationProfileAtom);
+  const widgetSettings = useAtomValue(widgetSettingsAtom);
 
   const validation = useQuery(
     api.public.contactSessions.validate,
     contactSessionId ? { contactSessionId } : "skip",
   );
-  const isValidating = !!contactSessionId && validation === undefined;
-  const isExpired = validation?.valid === false;
-  const isNew = !contactSessionId;
 
   const createConversation = useMutation(api.public.conversations.create);
-  const [isPending, setIsPending] = useState(false);
 
   const displayName = organizationProfile?.name ?? "Selected organization";
   const displayOrganizationId =
     organizationProfile?.clerkOrganizationId ??
     clerkOrganizationId ??
     UNKNOWN_ORGANIZATION_ID;
+
+  const isValidating = !!contactSessionId && validation === undefined;
+  const isExpired = validation?.valid === false;
+  const isNew = !contactSessionId;
 
   const createdAtLabel = useMemo(() => {
     if (organizationProfile?.createdAt == null) {
@@ -124,12 +128,22 @@ export const WidgetSelectionScreen = () => {
       return;
     }
 
+    if (mode === "voice") {
+      setConversationId(null);
+      setScreen(WIDGET_SCREENS.VOICE);
+      return;
+    }
+
+    if (mode === "audio") {
+      setConversationId(null);
+      setScreen(WIDGET_SCREENS.CONTACT);
+      return;
+    }
+
     setIsPending(true);
+
     try {
-      const conversationId = await createConversation({
-        contactSessionId,
-        // TODO: pass mode to backend when supported
-      });
+      const conversationId = await createConversation({ contactSessionId });
 
       setConversationId(conversationId);
       setScreen(WIDGET_SCREENS.CHAT);
@@ -141,6 +155,15 @@ export const WidgetSelectionScreen = () => {
       setIsPending(false);
     }
   };
+
+  const isVoiceEnabled = !!widgetSettings?.vapiSettings?.assistantId;
+  const isAudioEnabled = !!widgetSettings?.vapiSettings?.phoneNumber;
+
+  const visibleButtonOptions = buttonOptions.filter(({ mode }) => {
+    if (mode === "voice") return isVoiceEnabled;
+    if (mode === "audio") return isAudioEnabled;
+    return true;
+  });
 
   return (
     <>
@@ -162,7 +185,7 @@ export const WidgetSelectionScreen = () => {
           onAction={routeToAuthOrError}
         />
       )}
-      <div className="flex overflow-y-auto relative flex-col flex-1 gap-4 px-3 pt-3 pb-6 md:px-4 md:pt-4">
+      <div className="flex overflow-y-auto relative flex-col flex-1 min-h-0 gap-3 px-2.5 pt-2.5 pb-5 scrollbar-themed md:gap-4 md:px-4 md:pt-4 md:pb-6">
         <div
           aria-hidden
           className="absolute inset-x-0 top-0 h-64 opacity-70 pointer-events-none"
@@ -172,17 +195,19 @@ export const WidgetSelectionScreen = () => {
           <div className="absolute inset-x-8 top-24 h-px from-transparent to-transparent bg-linear-to-r via-white/60" />
         </div>
 
-        <section className="overflow-hidden relative rounded-[24px] border shadow-2xl border-white/40 bg-violet-100/55 shadow-violet-950/10 backdrop-blur-xl md:rounded-[28px]">
-          <div className="absolute inset-0 bg-violet-200/50" />
-          <div className="hidden absolute top-6 right-12 rounded-full size-3 bg-violet-400/70 shadow-[0_0_20px_rgba(167,139,250,0.8)] md:block" />
+        <section className="overflow-visible relative rounded-[24px] border shadow-2xl border-white/40 bg-violet-100/55 shadow-violet-950/10 backdrop-blur-xl md:overflow-hidden md:rounded-[28px]">
+          <div className="overflow-hidden absolute inset-0 rounded-[24px] md:rounded-[28px] pointer-events-none">
+            <div className="absolute inset-0 bg-violet-200/50" />
+            <div className="hidden absolute top-6 right-12 rounded-full size-3 bg-violet-400/70 shadow-[0_0_20px_rgba(167,139,250,0.8)] md:block" />
+          </div>
 
-          <div className="relative p-3 md:p-5">
-            <div className="flex gap-3 items-start md:gap-4">
+          <div className="relative p-2.5 pb-3.5 md:p-5">
+            <div className="flex gap-2.5 items-start md:gap-4">
               <div className="shrink-0">
-                <div className="flex justify-center items-center rounded-[22px] border shadow-lg size-15 border-white/60 bg-white/20 shadow-violet-950/10 md:rounded-[24px] md:size-18">
+                <div className="flex justify-center items-center rounded-[20px] border shadow-lg size-13 border-white/60 bg-white/20 shadow-violet-950/10 md:rounded-[24px] md:size-18">
                   <DicebearAvatar
                     seed={displayName}
-                    size={44}
+                    size={38}
                     imageUrl={organizationProfile?.imageUrl}
                     className="md:scale-115"
                   />
@@ -190,28 +215,28 @@ export const WidgetSelectionScreen = () => {
               </div>
 
               <div className="flex-1 w-full min-w-0">
-                <div className="inline-flex gap-2 items-center px-2.5 py-1 mb-2 text-[10px] font-semibold tracking-[0.15em] uppercase rounded-full border border-violet-200/70 bg-white/65 text-violet-700 md:mb-3 md:text-[11px]">
-                  <SparklesIcon className="size-3.5" />
+                <div className="inline-flex gap-1.5 items-center px-2 py-0.75 mb-1.5 text-[9px] font-semibold tracking-[0.14em] uppercase rounded-full border border-violet-200/70 bg-white/65 text-violet-700 md:gap-2 md:px-2.5 md:py-1 md:mb-3 md:text-[11px]">
+                  <SparklesIcon className="size-3 md:size-3.5" />
                   Organization Ready
                 </div>
 
                 <div className="flex flex-col gap-2 xl:flex-row xl:gap-6 xl:items-end xl:justify-between">
                   <div className="space-y-1 min-w-0">
-                    <h2 className="text-[18px] font-semibold leading-tight text-slate-950 md:text-[24px]">
+                    <h2 className="text-[16px] font-semibold leading-tight text-slate-950 md:text-[24px]">
                       {displayName}
                     </h2>
-                    <p className="text-[13px] leading-5 text-slate-600 md:text-sm md:leading-6">
+                    <p className="text-[12px] leading-5 text-slate-600 md:text-sm md:leading-6">
                       Pick how you want to connect. Your session stays scoped to
                       this workspace.
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-1 md:gap-3 xl:justify-end xl:max-w-[420px]">
+                  <div className="flex flex-wrap gap-1 xl:justify-end xl:max-w-[420px] md:gap-3">
                     {["Private session", "Fast responses", "Multi-channel"].map(
                       (item) => (
                         <div
                           key={item}
-                          className="inline-flex items-center px-2.5 py-1 rounded-full border border-white/70 bg-white/60 text-[10px] font-medium text-slate-700 md:text-[11px]"
+                          className="inline-flex items-center px-2 py-0.75 rounded-full border border-white/70 bg-white/60 text-[9px] font-medium text-slate-700 md:px-2.5 md:py-1 md:text-[11px]"
                         >
                           {item}
                         </div>
@@ -229,14 +254,13 @@ export const WidgetSelectionScreen = () => {
           </div>
         </section>
 
-        <div className="space-y-3">
-          {buttonOptions.map(
+        <div className="space-y-2.5 md:space-y-3">
+          {visibleButtonOptions.map(
             ({ icon: Icon, label, description, mode, accent }) => (
               <GlassButton
                 key={mode}
                 {...selectionButtonProps}
-                disabled={label !== "Start chat"}
-                className="px-3.5 py-3.5 h-auto rounded-2xl min-h-16 md:px-4 md:py-4 md:min-h-18 disabled:cursor-default"
+                className="px-3 py-3 h-auto rounded-2xl min-h-14 md:px-4 md:py-4 md:min-h-18 disabled:cursor-default"
                 onClick={() => handleNewConversation(mode)}
               >
                 <div
@@ -245,23 +269,23 @@ export const WidgetSelectionScreen = () => {
                     accent,
                   )}
                 />
-                <div className="flex relative flex-1 gap-3 items-center min-w-0">
-                  <div className="flex justify-center items-center rounded-2xl border shadow-sm size-10 border-white/55 bg-white/70 shadow-black/5 md:size-11">
+                <div className="flex relative flex-1 gap-2.5 items-center min-w-0 md:gap-3">
+                  <div className="flex justify-center items-center rounded-full border shadow-sm size-9 border-white/55 bg-white/70 shadow-black/5 md:size-11">
                     <Icon
-                      className="text-slate-900 size-4 md:size-4.5"
+                      className="text-slate-900 size-3.5 md:size-4.5"
                       strokeWidth={2.4}
                     />
                   </div>
                   <div className="min-w-0 text-left">
-                    <p className="text-[15px] font-semibold text-slate-950 md:text-base">
+                    <p className="text-[14px] font-semibold text-slate-950 md:text-base">
                       {label}
                     </p>
-                    <p className="text-[12px] leading-[1.15rem] text-slate-600 md:text-[13px] md:leading-5">
+                    <p className="text-[11px] leading-4 text-slate-600 md:text-[13px] md:leading-5">
                       {description}
                     </p>
                   </div>
                 </div>
-                <ChevronRightIcon className="relative text-slate-900 size-5 md:size-6" />
+                <ChevronRightIcon className="relative text-slate-900 size-4.5 md:size-6" />
               </GlassButton>
             ),
           )}

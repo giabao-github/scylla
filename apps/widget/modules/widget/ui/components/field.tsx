@@ -46,13 +46,13 @@ export const Field = ({
   const showError = hasError && !focused;
 
   return (
-    <div className={cn("flex w-full flex-col gap-1.5", className)}>
+    <div className={cn("flex w-full flex-col gap-1.25 md:gap-1.5", className)}>
       {/* Label row */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-1.5">
           <label
             className={cn(
-              "font-bold tracking-widest uppercase transition-colors duration-200 text-[11px]",
+              "font-bold tracking-widest uppercase transition-colors duration-200 text-[10px] md:text-[11px]",
               showError
                 ? "text-rose-400"
                 : showValid
@@ -89,7 +89,7 @@ export const Field = ({
                 onBlur={() => setTooltipOpen(false)}
                 className="rounded-sm transition-colors duration-200 cursor-help text-muted-foreground hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               >
-                <InfoIcon className="size-3" strokeWidth={2.5} />
+                <InfoIcon className="size-2.5 md:size-3" strokeWidth={2.5} />
               </button>
 
               {/* Tooltip */}
@@ -107,7 +107,7 @@ export const Field = ({
         {hint && (
           <span
             id={`${id}-hint`}
-            className="text-[11px] text-muted-foreground/80 cursor-default"
+            className="text-[10px] text-muted-foreground/80 cursor-default md:text-[11px]"
           >
             {hint}
           </span>
@@ -152,7 +152,7 @@ export const Field = ({
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setFocused(true)}
           className={cn(
-            "relative z-10 px-11 w-full h-12 text-sm font-normal rounded-sm border backdrop-blur-md transition-all duration-200 outline-none bg-white/10 text-foreground placeholder:text-muted-foreground/70",
+            "relative z-10 px-10.5 w-full h-11 text-[13px] font-normal rounded-sm border backdrop-blur-md transition-all duration-200 outline-none bg-white/10 text-foreground placeholder:text-muted-foreground/70 md:px-11 md:h-12 md:text-sm",
             showError
               ? "border-rose-400/50"
               : showValid
@@ -168,7 +168,7 @@ export const Field = ({
 
         <span
           className={cn(
-            "pointer-events-none absolute left-3.5 top-1/2 z-20 flex -translate-y-1/2 transition-colors duration-200",
+            "pointer-events-none absolute left-3 top-1/2 z-20 flex -translate-y-1/2 transition-colors duration-200 md:left-3.5",
             showError
               ? "text-rose-400"
               : showValid
@@ -178,17 +178,17 @@ export const Field = ({
                   : "text-muted-foreground/50",
           )}
         >
-          <Icon className="size-4" />
+          <Icon className="size-3.5 md:size-4" />
         </span>
 
         {showValid && (
-          <span className="animate-in zoom-in-50 absolute right-3.5 top-1/2 z-20 flex -translate-y-1/2 text-emerald-500 duration-150">
-            <CheckIcon className="size-4" strokeWidth={3} />
+          <span className="animate-in zoom-in-50 absolute right-3 top-1/2 z-20 flex -translate-y-1/2 text-emerald-500 duration-150 md:right-3.5">
+            <CheckIcon className="size-3.5 md:size-4" strokeWidth={3} />
           </span>
         )}
         {showError && (
-          <span className="animate-in zoom-in-50 absolute right-3.5 top-1/2 z-20 flex -translate-y-1/2 text-rose-400 duration-150">
-            <XIcon className="size-4" strokeWidth={3} />
+          <span className="animate-in zoom-in-50 absolute right-3 top-1/2 z-20 flex -translate-y-1/2 text-rose-400 duration-150 md:right-3.5">
+            <XIcon className="size-3.5 md:size-4" strokeWidth={3} />
           </span>
         )}
       </div>
@@ -199,7 +199,7 @@ export const Field = ({
         role="alert"
         aria-live="assertive"
         className={cn(
-          "min-h-4 pl-0.5 text-xs transition-colors duration-200",
+          "min-h-4 pl-0.5 text-[11px] transition-colors duration-200 md:text-xs",
           showError ? "text-rose-400" : "text-transparent",
         )}
       >

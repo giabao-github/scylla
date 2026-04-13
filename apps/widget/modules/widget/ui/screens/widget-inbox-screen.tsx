@@ -87,12 +87,12 @@ export const WidgetInboxScreen = () => {
         <div className="flex flex-col flex-1 min-h-0">
           {isLoading ? (
             <div className="flex flex-col flex-1 gap-y-6 justify-center items-center text-muted-foreground">
-              <div className="loader" />
-              <p>Loading conversations...</p>
+              <div className="loader [--loader-size:30px] md:[--loader-size:40px]" />
+              <p className="text-sm md:text-base">Loading conversations...</p>
             </div>
           ) : isEmpty ? (
             <div className="flex flex-1 justify-center items-center text-muted-foreground">
-              <p>No conversations</p>
+              <p className="text-sm md:text-base">No conversations</p>
             </div>
           ) : (
             <AnimatedList
@@ -122,9 +122,9 @@ export const WidgetInboxScreen = () => {
                       setConversationId(conversation._id);
                       setScreen(WIDGET_SCREENS.CHAT);
                     }}
-                    className="justify-between w-full h-16 rounded-sm shrink-0 md:h-[72px]"
+                    className="justify-between w-full h-14 rounded-sm shrink-0 md:h-[72px]"
                   >
-                    <div className="flex overflow-hidden flex-col gap-4 w-full text-start">
+                    <div className="flex overflow-hidden flex-col gap-2 w-full md:gap-4 text-start">
                       <div className="flex gap-x-2 justify-between items-center w-full">
                         <p className="text-xs text-muted-foreground">Chat</p>
                         <p className="text-xs text-muted-foreground">
@@ -135,11 +135,11 @@ export const WidgetInboxScreen = () => {
                       </div>
                       <div className="flex gap-x-2 justify-between items-center w-full">
                         {conversation.lastMessage?.text ? (
-                          <p className="text-sm truncate">
+                          <p className="text-xs truncate md:text-sm">
                             {conversation.lastMessage.text}
                           </p>
                         ) : (
-                          <p className="text-sm text-muted-foreground/80">
+                          <p className="text-xs md:text-sm text-muted-foreground/80">
                             Untitled
                           </p>
                         )}

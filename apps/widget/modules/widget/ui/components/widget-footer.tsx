@@ -66,10 +66,10 @@ export const WidgetFooter = () => {
 
             <Icon
               className={cn(
-                "transition-all duration-200",
+                "size-4 md:size-5 transition-all duration-200",
                 isActive
-                  ? "size-5 stroke-[2.3] text-primary"
-                  : "size-5 stroke-2 text-muted-foreground/80 group-hover:text-primary",
+                  ? "stroke-[2.3] text-primary"
+                  : "stroke-2 text-muted-foreground/80 group-hover:text-primary",
               )}
             />
 
