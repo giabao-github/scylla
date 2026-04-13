@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
+import type { Id } from "@workspace/backend/_generated/dataModel";
 import {
   clerkOrganizationIdAtom,
   contactSessionIdAtom,
@@ -17,7 +18,7 @@ import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { useAction, useConvex, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 
-type InitStep = "organization" | "session" | "settings" | "vapi" | "done";
+type InitStep = "organization" | "session" | "settings" | "done";
 
 export const WidgetLoadingScreen = ({
   organizationId,
@@ -28,8 +29,9 @@ export const WidgetLoadingScreen = ({
   const [sessionValid, setSessionValid] = useState(false);
 
   const loadingMessage = useAtomValue(loadingMessageAtom);
-  const setClerkOrganizationId = useSetAtom(clerkOrganizationIdAtom);
   const setOrganizationId = useSetAtom(organizationIdAtom);
+  const clerkOrganizationId = useAtomValue(clerkOrganizationIdAtom);
+  const setClerkOrganizationId = useSetAtom(clerkOrganizationIdAtom);
   const setOrganizationProfile = useSetAtom(organizationProfileAtom);
   const setWidgetSettings = useSetAtom(widgetSettingsAtom);
   const setLoadingMessage = useSetAtom(loadingMessageAtom);
@@ -56,8 +58,6 @@ export const WidgetLoadingScreen = ({
       return;
     }
 
-    setClerkOrganizationId(organizationId);
-
     setLoadingMessage("Verifying organization...");
 
     validateOrganization({ organizationId })
@@ -82,7 +82,8 @@ export const WidgetLoadingScreen = ({
 
           if (cancelled) return;
 
-          setOrganizationId(result.id ?? null);
+          setOrganizationId(result.id as Id<"organizations">);
+          setClerkOrganizationId(result.clerkOrganizationId);
           setOrganizationProfile({
             clerkOrganizationId: result.clerkOrganizationId,
             name: result.name,
@@ -108,6 +109,7 @@ export const WidgetLoadingScreen = ({
     };
   }, [
     step,
+    convex,
     organizationId,
     setClerkOrganizationId,
     setScreen,
@@ -116,7 +118,6 @@ export const WidgetLoadingScreen = ({
     setStep,
     setLoadingMessage,
     setErrorMessage,
-    convex,
     validateOrganization,
   ]);
 
@@ -165,16 +166,10 @@ export const WidgetLoadingScreen = ({
   // Step 3: Get widget settings
   const widgetSettings = useQuery(
     api.public.widgetSettings.getByOrganizationId,
-    organizationId ? { organizationId } : "skip",
+    step === "settings" && clerkOrganizationId
+      ? { organizationId: clerkOrganizationId }
+      : "skip",
   );
-
-  useEffect(() => {
-    if (step !== "done") {
-      return;
-    }
-    const hasValidSession = sessionValid && contactSessionId;
-    setScreen(hasValidSession ? WIDGET_SCREENS.SELECTION : WIDGET_SCREENS.AUTH);
-  }, [step, contactSessionId, sessionValid, setScreen]);
 
   useEffect(() => {
     if (step !== "settings") {
@@ -187,10 +182,18 @@ export const WidgetLoadingScreen = ({
     }
   }, [step, widgetSettings, setStep, setWidgetSettings, setLoadingMessage]);
 
+  useEffect(() => {
+    if (step !== "done") {
+      return;
+    }
+    const hasValidSession = sessionValid && contactSessionId;
+    setScreen(hasValidSession ? WIDGET_SCREENS.SELECTION : WIDGET_SCREENS.AUTH);
+  }, [step, contactSessionId, sessionValid, setScreen]);
+
   return (
     <div className="flex flex-col flex-1 gap-y-6 justify-center items-center p-4 text-muted-foreground">
-      <div className="loader" />
-      <p>{loadingMessage || "Loading..."}</p>
+      <div className="loader [--loader-size:30px] md:[--loader-size:40px]" />
+      <p className="text-sm md:text-base">{loadingMessage || "Loading..."}</p>
     </div>
   );
 };

@@ -31,11 +31,15 @@ export interface PublicWidgetSettings {
     secondSuggestion?: string;
     thirdSuggestion?: string;
   };
+  vapiSettings: {
+    assistantId?: string;
+    phoneNumber?: string;
+  };
 }
 
-// Widget state atoms
+// Widget atoms
 export const widgetScreenAtom = atom<WidgetScreen>("loading");
-export const organizationIdAtom = atom<string | null>(null);
+export const organizationIdAtom = atom<Id<"organizations"> | null>(null);
 export const clerkOrganizationIdAtom = atom<string | null>(null);
 
 export const organizationProfileAtom = atom<WidgetOrganizationProfile | null>(
@@ -89,3 +93,7 @@ export const statusFilterAtom = atomWithStorage<ConversationStatus | "all">(
   STATUS_FILTER_KEY,
   "all",
 );
+
+// Vapi atoms
+export const vapiSecretsAtom = atom<{ publicApiKey: string } | null>(null);
+export const hasVapiSecretsAtom = atom((get) => get(vapiSecretsAtom) !== null);

@@ -68,8 +68,8 @@ export const WidgetFooter = () => {
               className={cn(
                 "transition-all duration-200",
                 isActive
-                  ? "size-5 stroke-[2.3] text-primary"
-                  : "size-5 stroke-2 text-muted-foreground/80 group-hover:text-primary",
+                  ? "size-4 md:size-5 stroke-[2.3] text-primary"
+                  : "size-4 md:size-5 stroke-2 text-muted-foreground/80 group-hover:text-primary",
               )}
             />
 

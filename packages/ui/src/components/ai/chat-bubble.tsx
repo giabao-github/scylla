@@ -64,7 +64,7 @@ export const ChatBubble = ({
       >
         <MessageContent
           className={cn(
-            "relative px-4 py-2.5 text-sm leading-relaxed rounded-xl transform-gpu transition-all",
+            "relative px-3 py-2 md:px-4 md:py-2.5 text-xs leading-relaxed rounded-xl transform-gpu transition-all md:text-sm",
             isFailed && !isUser
               ? "bg-destructive/10 border border-destructive/30 shadow-none"
               : "",

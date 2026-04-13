@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
+
 import Vapi from "@vapi-ai/web";
+import {
+  vapiSecretsAtom,
+  widgetSettingsAtom,
+} from "@workspace/shared/atoms/atoms";
+import { useAtomValue } from "jotai";
+import { toast } from "sonner";
 
 interface TranscriptMessage {
   role: "user" | "assistant";
   content: string;
 }
-
-const apiKey = process.env.NEXT_PUBLIC_VAPI_API_KEY;
-const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
 
 export const useVapi = () => {
   const [vapi, setVapi] = useState<Vapi | null>(null);
@@ -18,13 +22,20 @@ export const useVapi = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasError, setHasError] = useState<boolean>(false);
 
+  const vapiSecrets = useAtomValue(vapiSecretsAtom);
+  const widgetSettings = useAtomValue(widgetSettingsAtom);
+
   useEffect(() => {
-    if (!apiKey) {
-      console.error("Vapi API key is not configured");
+    if (!vapiSecrets?.publicApiKey) {
+      setVapi(null);
+      setIsConnected(false);
+      setIsConnecting(false);
+      setIsSpeaking(false);
+      setTranscript([]);
       return;
     }
 
-    const vapiInstance = new Vapi(apiKey);
+    const vapiInstance = new Vapi(vapiSecrets.publicApiKey);
     setVapi(vapiInstance);
 
     const handleCallStart = () => {
@@ -98,11 +109,13 @@ export const useVapi = () => {
       vapiInstance.off("message", handleMessage);
       vapiInstance.stop();
     };
-  }, []);
+  }, [vapiSecrets?.publicApiKey]);
 
   const startCall = async () => {
     if (!vapi) {
-      console.error("Vapi instance not initialized");
+      setHasError(true);
+      setError("Voice is not configured");
+      toast.error("Voice is not configured");
       return;
     }
 
@@ -110,22 +123,27 @@ export const useVapi = () => {
     setHasError(false);
     setError(null);
 
+    const assistantId = widgetSettings?.vapiSettings?.assistantId;
+
     if (!assistantId) {
-      console.error("Vapi Assistant ID is not configured");
       setIsConnecting(false);
       setIsConnected(false);
       setHasError(true);
       setError("Vapi Assistant ID is not configured");
+      toast.error("Vapi Assistant ID is not configured");
       return;
     }
 
     try {
       await vapi.start(assistantId);
-    } catch (error: any) {
+    } catch (error) {
       setIsConnecting(false);
       setIsConnected(false);
       setHasError(true);
-      setError(error.message || "An error occurred");
+      const errorMessage =
+        error instanceof Error ? error.message : "An error occurred";
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 

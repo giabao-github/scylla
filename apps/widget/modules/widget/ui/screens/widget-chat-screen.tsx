@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,6 +46,9 @@ import {
 } from "@/modules/widget/hooks/use-chat-submit";
 
 const AI_PLACEHOLDER_OFFSET_MS = 2000;
+const STALE_PENDING_TIMEOUT_MS = 35_000;
+const STALE_PENDING_ERROR =
+  "Assistant took too long to respond. You can send another message.";
 
 const formSchema = z.object({
   message: z.string().trim().min(1, "Please type a message"),
@@ -54,6 +57,10 @@ const formSchema = z.object({
 type FormSchema = z.infer<typeof formSchema>;
 
 export const WidgetChatScreen = () => {
+  const [staleCheckTimestamp, setStaleCheckTimestamp] = useState(() =>
+    Date.now(),
+  );
+
   const conversationId = useAtomValue(conversationIdAtom);
   const widgetSettings = useAtomValue(widgetSettingsAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
@@ -96,22 +103,17 @@ export const WidgetChatScreen = () => {
     isLoadingMore,
   } = useChatMessages(conversation?.threadId, contactSessionId, isValidSession);
 
-  const {
-    pendingSlots,
-    isGenerating,
-    isSubmittingMessage,
-    sendPromptMessage,
-    handleRetry,
-  } = useChatSubmit({
-    conversation,
-    contactSessionId,
-    selectedModel,
-    visibleMessages,
-    isSessionReady,
-    isResolved,
-    isEscalated,
-    conversationId,
-  });
+  const { pendingSlots, isSubmittingMessage, sendPromptMessage, handleRetry } =
+    useChatSubmit({
+      conversation,
+      contactSessionId,
+      selectedModel,
+      visibleMessages,
+      isSessionReady,
+      isResolved,
+      isEscalated,
+      conversationId,
+    });
 
   const { scrollRef, handleScroll } = useChatScroll(
     lastVisibleId,
@@ -119,10 +121,61 @@ export const WidgetChatScreen = () => {
     conversationId,
   );
 
-  const isSubmitting = isGenerating || isSubmittingMessage;
+  useEffect(() => {
+    const activePendingSlots = pendingSlots.filter(
+      (slot) => slot.status === "generating" || slot.status === "sent",
+    );
+
+    if (activePendingSlots.length === 0) {
+      return;
+    }
+
+    const nextTimeoutAt = Math.min(
+      ...activePendingSlots.map(
+        (slot) => slot.submittedAt + STALE_PENDING_TIMEOUT_MS,
+      ),
+    );
+    const timeoutId = window.setTimeout(
+      () => setStaleCheckTimestamp(Date.now()),
+      Math.max(nextTimeoutAt - Date.now(), 0) + 50,
+    );
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [pendingSlots, staleCheckTimestamp]);
+
+  const timedOutPendingIds = useMemo(
+    () =>
+      new Set(
+        pendingSlots
+          .filter(
+            (slot) =>
+              (slot.status === "generating" || slot.status === "sent") &&
+              staleCheckTimestamp - slot.submittedAt >=
+                STALE_PENDING_TIMEOUT_MS,
+          )
+          .map((slot) => slot.localId),
+      ),
+    [pendingSlots, staleCheckTimestamp],
+  );
+
+  const hasActivePendingSlots = pendingSlots.some(
+    (slot) =>
+      (slot.status === "generating" || slot.status === "sent") &&
+      !timedOutPendingIds.has(slot.localId),
+  );
+
+  const isSubmitting = isSubmittingMessage || hasActivePendingSlots;
   const isBlocked = !conversation || isResolved || isSubmitting;
   const submitDisabled = isBlocked || !form.formState.isValid;
   const suggestionsDisabled = !isSessionReady || isResolved || isSubmitting;
+  const submitStatus =
+    hasActivePendingSlots && !isEscalated
+      ? "streaming"
+      : isSubmitting
+        ? "submitted"
+        : "ready";
 
   const suggestions = useMemo(
     () =>
@@ -147,26 +200,50 @@ export const WidgetChatScreen = () => {
           const items: {
             type: "pending-user" | "pending-ai";
             submittedAt: number;
-            data: PendingSlot;
+            data: PendingSlot & {
+              displayStatus: PendingSlot["status"];
+              displayError?: string;
+              canRetry: boolean;
+            };
           }[] = [];
+          const hasTimedOut = timedOutPendingIds.has(s.localId);
+          const displayStatus = hasTimedOut ? "failed" : s.status;
+          const displayError =
+            hasTimedOut && s.status !== "failed"
+              ? STALE_PENDING_ERROR
+              : s.status === "failed"
+                ? s.error
+                : undefined;
+          const canRetry = s.status === "failed";
+
           if (!s.isRetry) {
             items.push({
               type: "pending-user" as const,
               submittedAt: s.submittedAt,
-              data: s,
+              data: {
+                ...s,
+                canRetry,
+                displayError,
+                displayStatus,
+              },
             });
           }
-          if (!isEscalated && s.status !== "sent") {
+          if (!isEscalated && displayStatus !== "sent") {
             items.push({
               type: "pending-ai" as const,
               submittedAt: s.submittedAt + AI_PLACEHOLDER_OFFSET_MS,
-              data: s,
+              data: {
+                ...s,
+                canRetry,
+                displayError,
+                displayStatus,
+              },
             });
           }
           return items;
         }),
       ].sort((a, b) => a.submittedAt - b.submittedAt),
-    [visibleMessages, pendingSlots, isEscalated],
+    [visibleMessages, pendingSlots, isEscalated, timedOutPendingIds],
   );
 
   const modalConfig = useMemo(() => {
@@ -200,8 +277,12 @@ export const WidgetChatScreen = () => {
   const clearForm = () =>
     form.setValue("message", "", { shouldValidate: true });
 
-  const handlePromptSubmit = (promptMessage: PromptInputMessage) => {
-    if (sendPromptMessage(promptMessage)) clearForm();
+  const handlePromptSubmit = async (promptMessage: PromptInputMessage) => {
+    if (!sendPromptMessage(promptMessage)) {
+      throw new Error("Message could not be sent");
+    }
+
+    clearForm();
   };
 
   const handleSuggestionSubmit = (text: string) => {
@@ -215,7 +296,7 @@ export const WidgetChatScreen = () => {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex overflow-y-auto flex-col flex-1 gap-5 px-4 py-6 scrollbar-themed"
+          className="flex overflow-y-auto flex-col flex-1 gap-4 px-3 py-4 scrollbar-themed md:gap-5 md:px-4 md:py-6"
         >
           <div>
             {isLoadingMore && (
@@ -244,7 +325,7 @@ export const WidgetChatScreen = () => {
                 <Message
                   from={isUser ? "user" : "assistant"}
                   key={msg.id}
-                  className="max-w-1/2"
+                  className="max-w-[88%] md:max-w-[70%]"
                 >
                   <ChatBubble
                     text={msg.text}
@@ -260,7 +341,7 @@ export const WidgetChatScreen = () => {
                 <Message
                   key={`pending-user-${slot.localId}`}
                   from="user"
-                  className="max-w-1/2"
+                  className="max-w-[88%] md:max-w-[70%]"
                 >
                   <ChatBubble text={slot.userText} variant="user" />
                 </Message>
@@ -272,17 +353,15 @@ export const WidgetChatScreen = () => {
               <Message
                 key={`pending-ai-${slot.localId}`}
                 from="assistant"
-                className="max-w-1/2"
+                className="max-w-[88%] md:max-w-[70%]"
               >
                 <ChatBubble
                   text=""
                   variant="agent"
-                  status={slot.status}
-                  error={slot.status === "failed" ? slot.error : undefined}
+                  status={slot.displayStatus}
+                  error={slot.displayError}
                   onRetry={
-                    slot.status === "failed"
-                      ? () => handleRetry(slot.localId)
-                      : undefined
+                    slot.canRetry ? () => handleRetry(slot.localId) : undefined
                   }
                 />
               </Message>
@@ -290,8 +369,8 @@ export const WidgetChatScreen = () => {
           })}
         </div>
 
-        {suggestions.length > 0 && (
-          <Suggestions className="flex flex-row gap-x-4 justify-end items-center px-4 pt-6 pb-2 w-full">
+        {suggestions.length > 0 && !isResolved && (
+          <Suggestions className="flex flex-row gap-x-2 justify-end items-center px-3 pt-4 pb-2 w-full md:gap-x-4 md:px-4 md:pt-6">
             {suggestions.map(({ id, text }) => (
               <LiquidGlass
                 key={id}
@@ -321,7 +400,7 @@ export const WidgetChatScreen = () => {
                   }
                 }}
                 className={cn(
-                  "inline-flex items-center px-4 py-1.5 text-sm font-medium whitespace-nowrap select-none",
+                  "inline-flex items-center px-3 py-1.25 text-[13px] font-medium whitespace-nowrap select-none md:px-4 md:py-1.5 md:text-sm",
                   suggestionsDisabled && "opacity-50 cursor-default",
                 )}
               >
@@ -332,7 +411,7 @@ export const WidgetChatScreen = () => {
         )}
 
         {!isResolved && (
-          <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent shrink-0">
+          <div className="relative z-10 px-3 pt-2 pb-3 w-full bg-transparent shrink-0 md:px-4 md:pb-4">
             <div className="mx-auto max-w-4xl">
               <Form {...form}>
                 <PromptBox
@@ -353,7 +432,7 @@ export const WidgetChatScreen = () => {
                       render={({ field }) => (
                         <PromptInputTextarea
                           placeholder="Ask anything..."
-                          className="mt-2 text-sm placeholder:text-muted-foreground/50 disabled:cursor-default"
+                          className="mt-1.5 text-[13px] placeholder:text-muted-foreground/50 disabled:cursor-default md:mt-2 md:text-sm"
                           onChange={field.onChange}
                           value={field.value}
                         />
@@ -364,12 +443,7 @@ export const WidgetChatScreen = () => {
                     <PromptBoxDefaultTools />
                     <PromptInputSubmit
                       disabled={submitDisabled}
-                      status={
-                        isGenerating &&
-                        conversation?.status === CONVERSATION_STATUS.UNRESOLVED
-                          ? "streaming"
-                          : "ready"
-                      }
+                      status={submitStatus}
                       type="submit"
                     />
                   </PromptInputFooter>
@@ -380,8 +454,8 @@ export const WidgetChatScreen = () => {
         )}
 
         {isResolved && (
-          <div className="flex justify-center items-center mb-28 cursor-default shrink-0">
-            <p className="text-sm text-muted-foreground/80">
+          <div className="flex justify-center items-center px-3 pt-3 pb-8 cursor-default shrink-0 md:px-4 md:pt-4 md:pb-10">
+            <p className="text-[13px] text-muted-foreground/80 md:text-sm">
               This conversation has been resolved
             </p>
           </div>

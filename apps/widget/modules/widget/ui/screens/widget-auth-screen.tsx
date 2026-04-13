@@ -223,7 +223,7 @@ export const WidgetAuthScreen = () => {
     <>
       <Form {...form}>
         <form
-          className="flex flex-col flex-1 gap-y-4 items-center p-4 mt-12 md:p-6"
+          className="flex flex-col flex-1 gap-y-2 items-center p-8 mt-4 md:gap-y-4 md:p-6 md:mt-12"
           onSubmit={form.handleSubmit(onSubmit)}
         >
           <FormField
@@ -329,9 +329,9 @@ export const WidgetAuthScreen = () => {
             aria-busy={form.formState.isSubmitting}
             type="submit"
             className={cn(
-              "w-full h-12 text-base md:w-1/2 group",
+              "w-full h-11 text-sm md:w-1/2 md:h-12 md:text-base group",
               "relative bg-transparent border-none hover:bg-transparent focus:bg-transparent",
-              "mt-2 mb-2",
+              "mt-1 mb-2 md:mt-2",
             )}
           >
             {/* Back panel — offset down-right, shifts more on hover */}
@@ -345,7 +345,7 @@ export const WidgetAuthScreen = () => {
 
             {/* Front glass panel — frosted, sits perfectly in original position */}
             <span
-              className="absolute inset-0 rounded-[1.25em] backdrop-blur-md bg-white/10 flex items-center justify-center gap-2 text-white font-semibold tracking-wide transition-all duration-300 group-hover:bg-white/20"
+              className="absolute inset-0 rounded-[1.25em] backdrop-blur-md bg-white/10 flex items-center justify-center gap-1.5 text-[13px] text-white font-semibold tracking-wide transition-all duration-300 group-hover:bg-white/20 md:gap-2 md:text-base"
               style={{
                 boxShadow:
                   "0 0 0 1.5px hsla(0, 0%, 100%, 0.35) inset, 0 8px 32px rgba(0,0,0,0.2)",
@@ -360,7 +360,7 @@ export const WidgetAuthScreen = () => {
                 <>
                   Continue
                   <ArrowBigRightIcon
-                    className="transition-transform size-4 group-hover:translate-x-1"
+                    className="transition-transform size-3.5 group-hover:translate-x-1 md:size-4"
                     strokeWidth={2.5}
                   />
                 </>

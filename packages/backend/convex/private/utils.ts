@@ -12,11 +12,13 @@ import {
   MutationCtx,
   QueryCtx,
 } from "@workspace/backend/_generated/server";
+import {
+  getSecretValue,
+  parseSecretString,
+} from "@workspace/backend/lib/secrets";
 import rag from "@workspace/backend/system/ai/rag";
 
 import { isNotFoundError } from "@workspace/shared/lib/file-utils";
-
-import { getSecretValue, parseSecretString } from "../lib/secrets";
 
 type EntryMetadata = {
   contentHash?: string;
@@ -271,6 +273,7 @@ export const getVapiClient = async (ctx: ActionCtx): Promise<VapiClient> => {
   }
 
   const secretValue = await getSecretValue(plugin.secretName);
+
   const parsedSecret = parseSecretString(
     secretValue,
     z.object({

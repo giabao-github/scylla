@@ -25,14 +25,25 @@ import { ArrowLeftIcon, InboxIcon } from "lucide-react";
 import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
 import { WidgetAuthScreen } from "@/modules/widget/ui/screens/widget-auth-screen";
 import { WidgetChatScreen } from "@/modules/widget/ui/screens/widget-chat-screen";
+import { WidgetContactScreen } from "@/modules/widget/ui/screens/widget-contact-screen";
 import { WidgetErrorScreen } from "@/modules/widget/ui/screens/widget-error-screen";
 import { WidgetInboxScreen } from "@/modules/widget/ui/screens/widget-inbox-screen";
 import { WidgetLoadingScreen } from "@/modules/widget/ui/screens/widget-loading-screen";
 import { WidgetSelectionScreen } from "@/modules/widget/ui/screens/widget-selection-screen";
+import { WidgetVoiceScreen } from "@/modules/widget/ui/screens/widget-voice-screen";
 
 interface WidgetViewProps {
   organizationId: string;
 }
+
+type NavigationHeaderProps = {
+  title: string;
+  onBack: () => void;
+  children?: React.ReactNode;
+} & (
+  | { showInbox: false; onInbox?: never }
+  | { showInbox?: true; onInbox: () => void }
+);
 
 const chatStatusMeta: Record<
   ConversationStatus,
@@ -66,14 +77,14 @@ const getHeaderProps = (screen: WidgetScreen) => {
       };
     case "inbox":
     case "chat":
+    case "voice":
+    case "contact":
       return {
         timeSpeed: 0.4,
         color1: "#5B21B6",
         color2: "#6D28D9",
         color3: "#7C3AED",
       };
-    case "voice":
-    case "contact":
     case "library":
       return null;
     default: {
@@ -106,59 +117,44 @@ const getHeaderContent = ({
         </div>
       );
     case "inbox":
+      return (
+        <NavigationHeader title="Inbox" onBack={onBack} showInbox={false} />
+      );
     case "chat":
       return (
-        <div className="flex justify-between items-start p-2 md:p-1">
-          <div className="flex gap-x-6 items-start min-w-0">
-            <FrostLens blur={0} distortion={0} radius={50}>
-              <Button
-                variant="transparent"
-                aria-label="Back to selection screen"
-                className="size-10 hover:bg-primary/40"
-                onClick={onBack}
-              >
-                <ArrowLeftIcon strokeWidth={3} />
-              </Button>
-            </FrostLens>
-            <div className="flex flex-wrap gap-x-4 items-center min-w-0 pt-0.5">
-              <p className="text-2xl font-semibold shrink-0">
-                {screen === "inbox" ? "Inbox" : "Scylla AI"}
-              </p>
-              {screen === "chat" && chatStatus && (
-                <div
-                  className={cn(
-                    "inline-flex gap-2 items-center px-2.5 py-1 text-[11px] font-medium rounded-full ring-1 backdrop-blur-sm shrink-0 cursor-default",
-                    chatStatusMeta[chatStatus].className,
-                  )}
-                >
-                  <ConversationStatusIcon
-                    status={chatStatus}
-                    className="size-4 shrink-0"
-                  />
-                  {chatStatusMeta[chatStatus].label}
-                </div>
+        <NavigationHeader title="Scylla AI" onBack={onBack} onInbox={onInbox}>
+          {chatStatus && (
+            <div
+              className={cn(
+                "inline-flex gap-2 items-center px-2.5 py-1 text-[11px] font-medium rounded-full ring-1 backdrop-blur-sm shrink-0 cursor-default",
+                chatStatusMeta[chatStatus].className,
               )}
+            >
+              <ConversationStatusIcon
+                status={chatStatus}
+                className="size-4 shrink-0"
+              />
+              {chatStatusMeta[chatStatus].label}
             </div>
-          </div>
-          {screen === "chat" && (
-            <FrostLens blur={0} distortion={0} radius={50}>
-              <Button
-                variant="transparent"
-                aria-label="Open inbox"
-                className="gap-2 px-3 h-10 hover:bg-primary/40"
-                onClick={onInbox}
-              >
-                <InboxIcon strokeWidth={2.6} />
-                <span className="hidden text-sm font-medium sm:inline">
-                  Inbox
-                </span>
-              </Button>
-            </FrostLens>
           )}
-        </div>
+        </NavigationHeader>
       );
     case "voice":
+      return (
+        <NavigationHeader
+          title="Voice Chat"
+          onBack={onBack}
+          onInbox={onInbox}
+        />
+      );
     case "contact":
+      return (
+        <NavigationHeader
+          title="Contact Us"
+          onBack={onBack}
+          onInbox={onInbox}
+        />
+      );
     case "library":
       return null;
     default: {
@@ -177,7 +173,7 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
     case "loading":
       return <WidgetLoadingScreen organizationId={organizationId} />;
     case "voice":
-      return <p>TODO: Voice</p>;
+      return <WidgetVoiceScreen />;
     case "inbox":
       return <WidgetInboxScreen />;
     case "selection":
@@ -185,7 +181,7 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
     case "chat":
       return <WidgetChatScreen />;
     case "contact":
-      return <p>TODO: Contact</p>;
+      return <WidgetContactScreen />;
     case "library":
       return <p>TODO: Library</p>;
     default: {
@@ -194,6 +190,49 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
     }
   }
 };
+
+const NavigationHeader = ({
+  title,
+  showInbox = true,
+  onBack,
+  onInbox,
+  children,
+}: NavigationHeaderProps) => (
+  <div className="flex justify-between items-start p-2 md:p-1">
+    <div className="flex gap-x-6 items-start min-w-0">
+      <FrostLens blur={0} distortion={0} radius={50}>
+        <Button
+          variant="transparent"
+          title="Go back to selection screen"
+          aria-label="Go back to selection screen"
+          className="size-10 hover:bg-primary/40"
+          onClick={onBack}
+        >
+          <ArrowLeftIcon strokeWidth={3} />
+        </Button>
+      </FrostLens>
+      <div className="flex flex-wrap gap-x-4 items-center min-w-0 pt-0.5">
+        <p className="font-semibold text-[22px] md:text-2xl shrink-0">
+          {title}
+        </p>
+        {children}
+      </div>
+    </div>
+    {showInbox && (
+      <FrostLens blur={0} distortion={0} radius={50}>
+        <Button
+          variant="transparent"
+          aria-label="Open inbox"
+          className="gap-2 px-3 h-10 hover:bg-primary/40"
+          onClick={onInbox}
+        >
+          <InboxIcon strokeWidth={2.6} />
+          <span className="hidden text-sm font-medium md:inline">Inbox</span>
+        </Button>
+      </FrostLens>
+    )}
+  </div>
+);
 
 export const WidgetView = ({ organizationId }: WidgetViewProps) => {
   const screen = useAtomValue(widgetScreenAtom);
@@ -208,7 +247,7 @@ export const WidgetView = ({ organizationId }: WidgetViewProps) => {
   const isValidSession = validation?.valid === true;
   const conversation = useQuery(
     api.public.conversations.getOne,
-    screen === WIDGET_SCREENS.CHAT &&
+    (screen === WIDGET_SCREENS.CHAT || screen === WIDGET_SCREENS.VOICE) &&
       conversationId &&
       contactSessionId &&
       isValidSession
@@ -234,13 +273,15 @@ export const WidgetView = ({ organizationId }: WidgetViewProps) => {
         onBack,
         onInbox,
         chatStatus:
-          screen === WIDGET_SCREENS.CHAT ? conversation?.status : undefined,
+          screen === WIDGET_SCREENS.CHAT || screen === WIDGET_SCREENS.VOICE
+            ? conversation?.status
+            : undefined,
       }),
     [screen, onBack, onInbox, conversation?.status],
   );
 
   return (
-    <main className="flex relative flex-col w-full rounded-none border h-dvh md:rounded-sm bg-muted">
+    <main className="flex overflow-hidden relative flex-col w-full rounded-none border h-svh md:h-dvh md:rounded-sm bg-muted">
       {headerProps && (
         <WidgetHeader {...headerProps} className="relative z-50 shrink-0">
           {headerContent}

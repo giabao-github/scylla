@@ -13,7 +13,27 @@ import {
 import { ConvexError } from "convex/values";
 import z from "zod";
 
+let secretsManagerClient: SecretsManagerClient | null = null;
+
+const isMissingAwsCredentialsError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.name === "CredentialsProviderError" ||
+    error.message.includes("Credential is missing") ||
+    error.message.includes("Could not load credentials from any providers")
+  );
+};
+
 const handlePutSecretError = (secretName: string, error: unknown): never => {
+  if (isMissingAwsCredentialsError(error)) {
+    throw new ConvexError({
+      code: "MISSING_AWS_CREDENTIALS",
+      message: "AWS credentials are not configured for Secrets Manager",
+    });
+  }
   if (error instanceof Error && error.name === "ResourceNotFoundException") {
     throw new ConvexError({
       code: "RESOURCE_NOT_FOUND",
@@ -29,15 +49,56 @@ const handlePutSecretError = (secretName: string, error: unknown): never => {
   throw error;
 };
 
+const getEnv = (name: string): string | null => {
+  const value = process.env[name]?.trim();
+  return value ? value : null;
+};
+
+const getAwsCredentialsFromEnv = () => {
+  const accessKeyId = getEnv("AWS_ACCESS_KEY_ID");
+  const secretAccessKey = getEnv("AWS_SECRET_ACCESS_KEY");
+  const sessionToken = getEnv("AWS_SESSION_TOKEN");
+
+  if (!accessKeyId && !secretAccessKey && !sessionToken) {
+    return null;
+  }
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new ConvexError({
+      code: "MISSING_AWS_CREDENTIALS",
+      message:
+        "Missing required AWS environment variables: AWS_ACCESS_KEY_ID and/or AWS_SECRET_ACCESS_KEY",
+    });
+  }
+
+  return {
+    accessKeyId,
+    secretAccessKey,
+    ...(sessionToken ? { sessionToken } : {}),
+  };
+};
+
 export const createSecretsManagerClient = (): SecretsManagerClient => {
-  const region = process.env.AWS_REGION;
+  if (secretsManagerClient) {
+    return secretsManagerClient;
+  }
+
+  const region = getEnv("AWS_REGION");
   if (!region) {
     throw new ConvexError({
       code: "MISSING_AWS_REGION",
       message: "Missing required AWS environment variable: AWS_REGION",
     });
   }
-  return new SecretsManagerClient({ region });
+
+  const credentials = getAwsCredentialsFromEnv();
+
+  secretsManagerClient = new SecretsManagerClient({
+    region,
+    ...(credentials ? { credentials } : {}),
+  });
+
+  return secretsManagerClient;
 };
 
 export const getSecretValue = async (
@@ -49,6 +110,12 @@ export const getSecretValue = async (
       new GetSecretValueCommand({ SecretId: secretName }),
     );
   } catch (error) {
+    if (isMissingAwsCredentialsError(error)) {
+      throw new ConvexError({
+        code: "MISSING_AWS_CREDENTIALS",
+        message: "AWS credentials are not configured for Secrets Manager",
+      });
+    }
     if (error instanceof Error && error.name === "ResourceNotFoundException") {
       throw new ConvexError({
         code: "RESOURCE_NOT_FOUND",
@@ -117,6 +184,12 @@ export const deleteSecretValue = async (secretName: string): Promise<void> => {
       }),
     );
   } catch (error) {
+    if (isMissingAwsCredentialsError(error)) {
+      throw new ConvexError({
+        code: "MISSING_AWS_CREDENTIALS",
+        message: "AWS credentials are not configured for Secrets Manager",
+      });
+    }
     if (error instanceof Error && error.name === "ResourceNotFoundException") {
       return;
     }

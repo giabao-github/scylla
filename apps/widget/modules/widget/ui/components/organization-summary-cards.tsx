@@ -6,7 +6,7 @@ import { Button } from "@workspace/ui/components/button";
 import {
   AlertCircleIcon,
   CheckIcon,
-  CopyIcon,
+  CopyIcon as CopyIdleIcon,
   MessageCircleHeartIcon,
   ShieldCheckIcon,
 } from "lucide-react";
@@ -61,7 +61,7 @@ const COPY_RESET_MS = 1600;
 
 const COPY_STATE_CONFIG = {
   idle: {
-    icon: CopyIcon,
+    icon: CopyIdleIcon,
     label: "Copy",
     iconClassName: "",
     ariaLabel: "Copy organization ID",
@@ -106,7 +106,7 @@ export const OrganizationSummaryCards = ({
     );
   };
 
-  const handleCopyOrganizationId = async () => {
+  const handleCopy = async () => {
     if (!canCopyOrganizationId) return;
 
     if (!navigator.clipboard) {
@@ -134,7 +134,7 @@ export const OrganizationSummaryCards = ({
   }, []);
 
   const {
-    icon: CopyIcon_,
+    icon: StateIcon,
     label: copyLabel,
     iconClassName,
     ariaLabel,
@@ -152,10 +152,10 @@ export const OrganizationSummaryCards = ({
       <div className="rounded-2xl border border-slate-200/70 bg-white/50 px-3 py-2.5 md:px-3.5 md:py-3">
         <div className="flex gap-3 justify-between items-start">
           <div className="min-w-0">
-            <p className="mb-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-500">
+            <p className="mb-1 text-[10px] font-semibold tracking-[0.16em] uppercase text-slate-500 md:text-[11px] md:tracking-[0.18em]">
               Organization ID
             </p>
-            <p className="font-mono text-[12px] leading-5 break-all text-slate-800">
+            <p className="font-mono text-[11px] leading-4.5 break-all text-slate-800 md:text-[12px] md:leading-5">
               {displayOrganizationId}
             </p>
           </div>
@@ -163,12 +163,12 @@ export const OrganizationSummaryCards = ({
             type="button"
             size="sm"
             disabled={!canCopyOrganizationId}
-            onClick={handleCopyOrganizationId}
+            onClick={handleCopy}
             aria-label={ariaLabel}
             aria-live="polite"
-            className="inline-flex gap-1.5 items-center px-2.5 py-1.5 text-[11px] font-medium rounded-full border border-slate-200 bg-white/80 text-slate-700 transition-colors hover:bg-white"
+            className="inline-flex gap-1.5 items-center px-2.5 py-1.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white/80 text-slate-700 transition-colors hover:bg-white md:text-[11px]"
           >
-            <CopyIcon_ className={`size-3.5 ${iconClassName}`} />
+            <StateIcon className={`size-3.5 ${iconClassName}`} />
             {copyLabel}
           </Button>
         </div>
@@ -176,10 +176,12 @@ export const OrganizationSummaryCards = ({
 
       {/* Created */}
       <div className="rounded-2xl border border-slate-200/70 bg-white/50 px-3 py-2.5 md:px-3.5 md:py-3">
-        <p className="mb-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-500">
+        <p className="mb-1 text-[10px] font-semibold tracking-[0.16em] uppercase text-slate-500 md:text-[11px] md:tracking-[0.18em]">
           Created
         </p>
-        <p className="text-sm font-medium text-slate-800">{createdAtLabel}</p>
+        <p className="text-[13px] font-medium text-slate-800 md:text-sm">
+          {createdAtLabel}
+        </p>
       </div>
 
       {/* Status badges */}

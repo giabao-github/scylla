@@ -7,7 +7,7 @@ import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 
-const MESSAGE_PAGE_SIZE = 10;
+const MESSAGE_PAGE_SIZE = 20;
 const MIN_VISIBLE_MESSAGES = 5;
 
 const isVisibleMessage = (m: { role: string; text?: string }) =>

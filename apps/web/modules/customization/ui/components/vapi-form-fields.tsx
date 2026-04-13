@@ -17,7 +17,6 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import { AlertTriangleIcon } from "lucide-react";
-import { toast } from "sonner";
 
 import { FormSchema } from "@/modules/customization/types";
 import {
@@ -61,13 +60,16 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
               type="button"
               variant="outline"
               size="sm"
+              disabled={isLoadingAssistants || isLoadingPhoneNumbers}
               onClick={() => {
                 if (assistantsError) refetchAssistants();
                 if (phoneNumbersError) refetchPhoneNumbers();
               }}
               className="ml-2"
             >
-              Retry
+              {isLoadingAssistants || isLoadingPhoneNumbers
+                ? "Retrying..."
+                : "Retry"}
             </Button>
           </div>
         </div>
@@ -81,8 +83,9 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
         control={form.control}
         name="vapiSettings.assistantId"
         render={({ field }) => {
-          const assistantValue =
-            field.value && assistants?.some((a) => a.id === field.value)
+          const assistantValue = isLoadingAssistants
+            ? field.value || "none"
+            : field.value && assistants?.some((a) => a.id === field.value)
               ? field.value
               : "none";
           return (
@@ -130,8 +133,9 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
         control={form.control}
         name="vapiSettings.phoneNumber"
         render={({ field }) => {
-          const phoneValue =
-            field.value && phoneNumbers?.some((p) => p.number === field.value)
+          const phoneValue = isLoadingPhoneNumbers
+            ? field.value || "none"
+            : field.value && phoneNumbers?.some((p) => p.number === field.value)
               ? field.value
               : "none";
           return (
@@ -159,13 +163,16 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
                 </FormControl>
                 <SelectContent position="popper" align="start">
                   <SelectItem value="none">None</SelectItem>
-                  {phoneNumbers?.map((phone) =>
-                    phone.number ? (
+                  {phoneNumbers
+                    ?.filter(
+                      (phone): phone is typeof phone & { number: string } =>
+                        !!phone.number,
+                    )
+                    .map((phone) => (
                       <SelectItem key={phone.id} value={phone.number}>
                         {phone.number} - {phone.name || "Unnamed"}
                       </SelectItem>
-                    ) : null,
-                  )}
+                    ))}
                 </SelectContent>
               </Select>
               <FormDescription>
