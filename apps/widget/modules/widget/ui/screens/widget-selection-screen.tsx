@@ -34,6 +34,8 @@ import {
 
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 
+import { OrganizationSummaryCards } from "../components/organization-summary-card";
+
 const buttonOptions = [
   {
     icon: MessageCircleIcon,
@@ -187,7 +189,7 @@ export const WidgetSelectionScreen = () => {
           onAction={routeToAuthOrError}
         />
       )}
-      <div className="flex overflow-y-auto relative flex-col flex-1 gap-4 px-3 pt-3 pb-6 sm:px-4 sm:pt-4">
+      <div className="flex overflow-y-auto relative flex-col flex-1 gap-4 px-3 pt-3 pb-6 md:px-4 md:pt-4">
         <div
           aria-hidden
           className="absolute inset-x-0 top-0 h-64 opacity-70 pointer-events-none"
@@ -199,10 +201,10 @@ export const WidgetSelectionScreen = () => {
 
         <section className="overflow-hidden relative rounded-[24px] border shadow-2xl border-white/40 bg-violet-100/55 shadow-violet-950/10 backdrop-blur-xl md:rounded-[28px]">
           <div className="absolute inset-0 bg-violet-200/50" />
-          <div className="hidden absolute top-6 right-12 rounded-full size-3 bg-violet-400/70 shadow-[0_0_20px_rgba(167,139,250,0.8)] sm:block" />
+          <div className="hidden absolute top-6 right-12 rounded-full size-3 bg-violet-400/70 shadow-[0_0_20px_rgba(167,139,250,0.8)] md:block" />
 
-          <div className="relative p-3 sm:p-5">
-            <div className="flex gap-3 items-start sm:gap-4">
+          <div className="relative p-3 md:p-5">
+            <div className="flex gap-3 items-start md:gap-4">
               <div className="shrink-0">
                 <div className="flex justify-center items-center rounded-[22px] border shadow-lg size-15 border-white/60 bg-white/20 shadow-violet-950/10 md:rounded-[24px] md:size-18">
                   <DicebearAvatar
@@ -215,17 +217,17 @@ export const WidgetSelectionScreen = () => {
               </div>
 
               <div className="flex-1 w-full min-w-0">
-                <div className="inline-flex gap-2 items-center px-2.5 py-1 mb-2 text-[10px] font-semibold tracking-[0.15em] uppercase rounded-full border border-violet-200/70 bg-white/65 text-violet-700 sm:mb-3 sm:text-[11px]">
+                <div className="inline-flex gap-2 items-center px-2.5 py-1 mb-2 text-[10px] font-semibold tracking-[0.15em] uppercase rounded-full border border-violet-200/70 bg-white/65 text-violet-700 md:mb-3 md:text-[11px]">
                   <SparklesIcon className="size-3.5" />
                   Organization Ready
                 </div>
 
                 <div className="flex flex-col gap-2 xl:flex-row xl:gap-6 xl:items-end xl:justify-between">
                   <div className="space-y-1 min-w-0">
-                    <h2 className="text-[18px] font-semibold leading-tight text-slate-950 sm:text-[24px]">
+                    <h2 className="text-[18px] font-semibold leading-tight text-slate-950 md:text-[24px]">
                       {displayName}
                     </h2>
-                    <p className="text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
+                    <p className="text-[13px] leading-5 text-slate-600 md:text-sm md:leading-6">
                       Pick how you want to connect. Your session stays scoped to
                       this workspace.
                     </p>
@@ -236,7 +238,7 @@ export const WidgetSelectionScreen = () => {
                       (item) => (
                         <div
                           key={item}
-                          className="inline-flex items-center px-2.5 py-1 rounded-full border border-white/70 bg-white/60 text-[10px] font-medium text-slate-700 sm:text-[11px]"
+                          className="inline-flex items-center px-2.5 py-1 rounded-full border border-white/70 bg-white/60 text-[10px] font-medium text-slate-700 md:text-[11px]"
                         >
                           {item}
                         </div>
@@ -247,148 +249,10 @@ export const WidgetSelectionScreen = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 mt-3.5 sm:hidden">
-              <div className="rounded-2xl border border-slate-200/70 bg-white/30 px-3 py-2.5">
-                <div className="flex gap-3 justify-between items-start">
-                  <div className="min-w-0">
-                    <p className="mb-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-500">
-                      Organization ID
-                    </p>
-                    <p className="font-mono text-[12px] leading-5 break-all text-slate-800">
-                      {displayOrganizationId}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCopyOrganizationId}
-                    aria-label={
-                      isCopied
-                        ? "Organization ID copied"
-                        : "Copy organization ID"
-                    }
-                    className="inline-flex gap-1.5 items-center px-2.5 py-1.5 text-[11px] font-medium rounded-full border border-slate-200 bg-white/80 text-slate-700 transition-colors hover:bg-white"
-                  >
-                    {isCopied ? (
-                      <>
-                        <CheckIcon className="size-3.5 text-emerald-600" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <CopyIcon className="size-3.5" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200/70 bg-white/42 px-3 py-2.5">
-                <p className="mb-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-500">
-                  Created
-                </p>
-                <p className="text-sm font-medium text-slate-800">
-                  {createdAtLabel}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex gap-2.5 items-start px-3 py-2.5 rounded-2xl border border-emerald-200/70 bg-emerald-50/80">
-                  <ShieldCheckIcon className="mt-0.5 text-emerald-700 size-3.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-emerald-900">
-                      Verified
-                    </p>
-                    <p className="text-[10px] leading-4 text-emerald-700">
-                      Live workspace
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2.5 items-start px-3 py-2.5 rounded-2xl border border-sky-200/70 bg-sky-50/80">
-                  <MessageCircleHeartIcon className="mt-0.5 text-sky-700 size-3.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-sky-900">
-                      Support
-                    </p>
-                    <p className="text-[10px] leading-4 text-sky-700">
-                      Human + AI ready
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="hidden sm:grid sm:grid-cols-2 sm:items-start sm:gap-3 sm:mt-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.8fr)_minmax(280px,1fr)]">
-              <div className="rounded-2xl border border-slate-200/70 bg-white/30 px-3.5 py-3">
-                <div className="flex gap-3 justify-between items-start">
-                  <div className="min-w-0">
-                    <p className="mb-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-500">
-                      Organization ID
-                    </p>
-                    <p className="font-mono text-[12px] leading-5 break-all text-slate-800">
-                      {displayOrganizationId}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCopyOrganizationId}
-                    aria-label={
-                      isCopied
-                        ? "Organization ID copied"
-                        : "Copy organization ID"
-                    }
-                    className="inline-flex gap-1.5 items-center px-2.5 py-1.5 text-[11px] font-medium rounded-full border border-slate-200 bg-white/80 text-slate-700 transition-colors hover:bg-white"
-                  >
-                    {isCopied ? (
-                      <>
-                        <CheckIcon className="size-3.5 text-emerald-600" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <CopyIcon className="size-3.5" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200/70 bg-white/42 px-3.5 py-3">
-                <p className="mb-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-500">
-                  Created
-                </p>
-                <p className="text-sm font-medium text-slate-800">
-                  {createdAtLabel}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-2 xl:col-span-1 xl:grid-cols-1">
-                <div className="flex gap-3 items-start px-3 py-2.5 rounded-2xl border border-emerald-200/70 bg-emerald-50/80">
-                  <ShieldCheckIcon className="mt-0.5 text-emerald-700 size-4 shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-emerald-900">
-                      Verified
-                    </p>
-                    <p className="text-[11px] text-emerald-700">
-                      Live workspace
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3 items-start px-3 py-2.5 rounded-2xl border border-sky-200/70 bg-sky-50/80">
-                  <MessageCircleHeartIcon className="mt-0.5 text-sky-700 size-4 shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-sky-900">
-                      Support
-                    </p>
-                    <p className="text-[11px] text-sky-700">Human + AI ready</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <OrganizationSummaryCards
+              displayOrganizationId={displayOrganizationId}
+              createdAtLabel={createdAtLabel}
+            />
           </div>
         </section>
 
@@ -398,7 +262,7 @@ export const WidgetSelectionScreen = () => {
               <GlassButton
                 key={mode}
                 {...selectionButtonProps}
-                className="px-3.5 py-3.5 h-auto rounded-2xl min-h-16 sm:px-4 sm:py-4 sm:min-h-18"
+                className="px-3.5 py-3.5 h-auto rounded-2xl min-h-16 md:px-4 md:py-4 md:min-h-18"
                 onClick={() => handleNewConversation(mode)}
               >
                 <div
@@ -408,9 +272,9 @@ export const WidgetSelectionScreen = () => {
                   )}
                 />
                 <div className="flex relative flex-1 gap-3 items-center min-w-0">
-                  <div className="flex justify-center items-center rounded-2xl border shadow-sm size-10 border-white/55 bg-white/70 shadow-black/5 sm:size-11">
+                  <div className="flex justify-center items-center rounded-2xl border shadow-sm size-10 border-white/55 bg-white/70 shadow-black/5 md:size-11">
                     <Icon
-                      className="text-slate-900 size-4 sm:size-4.5"
+                      className="text-slate-900 size-4 md:size-4.5"
                       strokeWidth={2.4}
                     />
                   </div>

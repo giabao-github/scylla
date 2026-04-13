@@ -145,8 +145,8 @@ export const LiquidGlass = React.forwardRef<HTMLDivElement, LiquidGlassProps>(
     const hasDistortion = effectiveDistortion > 0;
 
     const isClickable = interactive || !!onClick;
-    const resolvedRole: React.AriaRole =
-      role ?? (isClickable ? "button" : "region");
+    const resolvedRole: React.AriaRole | undefined =
+      role ?? (isClickable ? "button" : undefined);
     const resolvedTabIndex = tabIndex ?? (isClickable ? 0 : undefined);
 
     const br = `${borderRadius}px`;
@@ -187,11 +187,12 @@ export const LiquidGlass = React.forwardRef<HTMLDivElement, LiquidGlassProps>(
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLDivElement>) => {
+        onKeyDown?.(e);
+        if (e.defaultPrevented) return;
         if (isClickable && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
           e.currentTarget.click();
         }
-        onKeyDown?.(e);
       },
       [isClickable, onKeyDown],
     );

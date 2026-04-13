@@ -550,6 +550,9 @@ export const WidgetChatScreen = () => {
                         sources: [],
                       })
               }
+              onKeyDown={(e) => {
+                if (e.key === " ") e.preventDefault();
+              }}
               className={cn(
                 "inline-flex items-center px-4 py-1.5 text-sm font-medium whitespace-nowrap select-none",
                 suggestionsDisabled && "opacity-50 cursor-default",
