@@ -86,7 +86,7 @@ export const WidgetSelectionScreen = () => {
     UNKNOWN_ORGANIZATION_ID;
 
   const createdAtLabel = useMemo(() => {
-    if (!organizationProfile?.createdAt) {
+    if (organizationProfile?.createdAt == null) {
       return "Creation time unavailable";
     }
 
@@ -235,7 +235,8 @@ export const WidgetSelectionScreen = () => {
               <GlassButton
                 key={mode}
                 {...selectionButtonProps}
-                className="px-3.5 py-3.5 h-auto rounded-2xl min-h-16 md:px-4 md:py-4 md:min-h-18"
+                disabled={label !== "Start chat"}
+                className="px-3.5 py-3.5 h-auto rounded-2xl min-h-16 md:px-4 md:py-4 md:min-h-18 disabled:cursor-default"
                 onClick={() => handleNewConversation(mode)}
               >
                 <div

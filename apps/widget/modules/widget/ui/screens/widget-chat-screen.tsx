@@ -1,13 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 
-import {
-  UIMessage,
-  toUIMessages,
-  useThreadMessages,
-} from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import {
@@ -19,7 +14,6 @@ import {
 } from "@workspace/shared/atoms/atoms";
 import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
-import { parseErrorMessage } from "@workspace/shared/lib/utils";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import {
@@ -38,26 +32,20 @@ import { Suggestions } from "@workspace/ui/components/ai/suggestion";
 import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { LiquidGlass } from "@workspace/ui/components/glass/liquid-glass";
-import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
-import { useAction, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Loader2Icon } from "lucide-react";
-import { nanoid } from "nanoid";
 import z from "zod";
 
-type PendingSlot = {
-  localId: string;
-  userText: string;
-  prompt: PromptInputMessage;
-  submittedAt: number;
-  snapshotIds: Set<string>;
-  isRetry?: boolean;
-} & (
-  | { status: "generating" }
-  | { status: "sent" }
-  | { status: "failed"; error: string }
-);
+import { useChatMessages } from "@/modules/widget/hooks/use-chat-messages";
+import { useChatScroll } from "@/modules/widget/hooks/use-chat-scroll";
+import {
+  PendingSlot,
+  useChatSubmit,
+} from "@/modules/widget/hooks/use-chat-submit";
+
+const AI_PLACEHOLDER_OFFSET_MS = 2000;
 
 const formSchema = z.object({
   message: z.string().trim().min(1, "Please type a message"),
@@ -65,44 +53,7 @@ const formSchema = z.object({
 
 type FormSchema = z.infer<typeof formSchema>;
 
-const MESSAGE_PAGE_SIZE = 10;
-const AI_PLACEHOLDER_OFFSET_MS = 2000;
-
-const isVisibleMessage = (m: { role: string; text?: string }) =>
-  m.role === "user" || !!m.text;
-
-const isUserMessageConfirmed = (
-  slot: PendingSlot,
-  messages: UIMessage[],
-  confirmedId?: string,
-): boolean => {
-  if (confirmedId) {
-    return messages.some(
-      (m) =>
-        !slot.snapshotIds.has(m.id) &&
-        m.role === "user" &&
-        m.id === confirmedId,
-    );
-  }
-  return messages.some(
-    (m) =>
-      m.role === "user" &&
-      m.text === slot.userText &&
-      m._creationTime >= slot.submittedAt &&
-      !slot.snapshotIds.has(m.id),
-  );
-};
-
 export const WidgetChatScreen = () => {
-  const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
-  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const prevLastMessageIdRef = useRef<string | undefined>(undefined);
-  const prevPendingSlotsLenRef = useRef(0);
-  const isAtBottomRef = useRef(true);
-  const submitLockRef = useRef(false);
-
   const conversationId = useAtomValue(conversationIdAtom);
   const widgetSettings = useAtomValue(widgetSettingsAtom);
   const contactSessionId = useAtomValue(contactSessionIdAtom);
@@ -129,65 +80,60 @@ export const WidgetChatScreen = () => {
       : "skip",
   );
 
-  const suggestions = useMemo(() => {
-    if (!widgetSettings) return [];
-    return Object.values(widgetSettings.defaultSuggestions).filter(
-      Boolean,
-    ) as string[];
-  }, [widgetSettings]);
-
-  const pendingRequestIds = useMemo(
-    () => pendingSlots.map((s) => s.localId),
-    [pendingSlots],
-  );
-
-  const messageIdsByRequestId = useQuery(
-    api.public.messages.getMessageIdsByRequestIds,
-    pendingRequestIds.length > 0 && contactSessionId
-      ? { requestIds: pendingRequestIds, contactSessionId }
-      : "skip",
-  );
-
-  const messages = useThreadMessages(
-    api.public.messages.getMany,
-    conversation?.threadId && contactSessionId && isValidSession
-      ? { threadId: conversation.threadId, contactSessionId }
-      : "skip",
-    { initialNumItems: MESSAGE_PAGE_SIZE },
-  );
-
-  const { topElementRef, handleLoadMore, canLoadMore, isLoadingMore } =
-    useInfiniteScroll({
-      status: messages.status,
-      loadMore: messages.loadMore,
-      loadSize: MESSAGE_PAGE_SIZE,
-    });
-
-  const createMessage = useAction(api.public.messages.create);
-
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
   const isInvalidConversation = !conversationId || conversation === null;
   const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
   const isEscalated = conversation?.status === CONVERSATION_STATUS.ESCALATED;
   const isSessionReady = !!conversation && !!contactSessionId;
-  const isGenerating = pendingSlots.some((s) => s.status === "generating");
+
+  const {
+    visibleMessages,
+    lastVisibleId,
+    topElementRef,
+    handleLoadMore,
+    canLoadMore,
+    isLoadingMore,
+  } = useChatMessages(conversation?.threadId, contactSessionId, isValidSession);
+
+  const {
+    pendingSlots,
+    isGenerating,
+    isSubmittingMessage,
+    sendPromptMessage,
+    handleRetry,
+  } = useChatSubmit({
+    conversation,
+    contactSessionId,
+    selectedModel,
+    visibleMessages,
+    isSessionReady,
+    isResolved,
+    isEscalated,
+    conversationId,
+  });
+
+  const { scrollRef, handleScroll } = useChatScroll(
+    lastVisibleId,
+    pendingSlots.length,
+    conversationId,
+  );
+
   const isSubmitting = isGenerating || isSubmittingMessage;
   const isBlocked = !conversation || isResolved || isSubmitting;
   const submitDisabled = isBlocked || !form.formState.isValid;
   const suggestionsDisabled = !isSessionReady || isResolved || isSubmitting;
 
-  const uiMessages = useMemo(
-    () => toUIMessages(messages.results ?? []),
-    [messages.results],
+  const suggestions = useMemo(
+    () =>
+      Object.entries(widgetSettings?.defaultSuggestions ?? {}).flatMap(
+        ([id, text]) =>
+          typeof text === "string" && text.trim()
+            ? [{ id, text: text.trim() }]
+            : [],
+      ),
+    [widgetSettings],
   );
-
-  const visibleMessages = useMemo(
-    () => uiMessages.filter(isVisibleMessage),
-    [uiMessages],
-  );
-
-  const lastVisibleId = visibleMessages.at(-1)?.id;
 
   const timeline = useMemo(
     () =>
@@ -198,7 +144,11 @@ export const WidgetChatScreen = () => {
           data: m,
         })),
         ...pendingSlots.flatMap((s) => {
-          const items = [];
+          const items: {
+            type: "pending-user" | "pending-ai";
+            submittedAt: number;
+            data: PendingSlot;
+          }[] = [];
           if (!s.isRetry) {
             items.push({
               type: "pending-user" as const,
@@ -247,201 +197,16 @@ export const WidgetChatScreen = () => {
     return null;
   }, [isNew, isExpired, isInvalidConversation, setScreen]);
 
-  const scrollToBottom = useCallback(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const el = scrollRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
-      });
-    });
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    isAtBottomRef.current =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-  }, []);
-
-  const sendMessage = async (localId: string, promptText: string) => {
-    if (!isSessionReady) {
-      setPendingSlots((prev) =>
-        prev.map((s) =>
-          s.localId === localId
-            ? { ...s, status: "failed" as const, error: "Session unavailable." }
-            : s,
-        ),
-      );
-      submitLockRef.current = false;
-      setIsSubmittingMessage(false);
-      return;
-    }
-
-    try {
-      await createMessage({
-        threadId: conversation.threadId,
-        contactSessionId,
-        prompt: promptText,
-        modelId: selectedModel,
-        requestId: localId,
-      });
-      setPendingSlots((prev) =>
-        prev.map((s) =>
-          s.localId === localId ? { ...s, status: "sent" as const } : s,
-        ),
-      );
-    } catch (err) {
-      setPendingSlots((prev) =>
-        prev.map((s) =>
-          s.localId === localId
-            ? { ...s, status: "failed" as const, error: parseErrorMessage(err) }
-            : s,
-        ),
-      );
-    } finally {
-      submitLockRef.current = false;
-      setIsSubmittingMessage(false);
-    }
-  };
-
-  const submitPromptMessage = (promptMessage: PromptInputMessage) => {
-    const text = promptMessage.text.trim();
-    if (!isSessionReady || isResolved || submitLockRef.current || !text) {
-      return false;
-    }
-
-    const localId = nanoid();
-    const snapshotIds = new Set(visibleMessages.map((m) => m.id));
-
-    submitLockRef.current = true;
-    setIsSubmittingMessage(true);
+  const clearForm = () =>
     form.setValue("message", "", { shouldValidate: true });
-    setPendingSlots((prev) => [
-      ...prev,
-      {
-        localId,
-        userText: text,
-        prompt: promptMessage,
-        submittedAt: Date.now(),
-        snapshotIds,
-        status: "generating",
-      },
-    ]);
-
-    sendMessage(localId, text);
-    return true;
-  };
 
   const handlePromptSubmit = (promptMessage: PromptInputMessage) => {
-    submitPromptMessage(promptMessage);
+    if (sendPromptMessage(promptMessage)) clearForm();
   };
 
-  const handleRetry = (localId: string) => {
-    const slot = pendingSlots.find((s) => s.localId === localId);
-    if (!slot || isGenerating || !isSessionReady || submitLockRef.current)
-      return;
-
-    const freshSnapshotIds = new Set(visibleMessages.map((m) => m.id));
-    const userMessageConfirmed = isUserMessageConfirmed(
-      slot,
-      visibleMessages,
-      messageIdsByRequestId?.[slot.localId],
-    );
-
-    submitLockRef.current = true;
-    setIsSubmittingMessage(true);
-    setPendingSlots((prev) =>
-      prev.map((s) =>
-        s.localId === localId
-          ? {
-              ...s,
-              submittedAt: Date.now(),
-              snapshotIds: freshSnapshotIds,
-              isRetry: s.isRetry || userMessageConfirmed,
-              status: "generating" as const,
-            }
-          : s,
-      ),
-    );
-
-    sendMessage(localId, slot.prompt.text.trim());
+  const handleSuggestionSubmit = (text: string) => {
+    if (sendPromptMessage({ text, files: [], sources: [] })) clearForm();
   };
-
-  useEffect(() => {
-    const slotsIncreased = pendingSlots.length > prevPendingSlotsLenRef.current;
-    const isNewMessage = lastVisibleId !== prevLastMessageIdRef.current;
-
-    if (slotsIncreased) {
-      scrollToBottom();
-      isAtBottomRef.current = true;
-    } else if (isNewMessage && isAtBottomRef.current) {
-      scrollToBottom();
-    }
-
-    prevLastMessageIdRef.current = lastVisibleId;
-    prevPendingSlotsLenRef.current = pendingSlots.length;
-  }, [lastVisibleId, pendingSlots.length, scrollToBottom]);
-
-  useEffect(() => {
-    submitLockRef.current = false;
-    setIsSubmittingMessage(false);
-    setPendingSlots([]);
-    prevLastMessageIdRef.current = undefined;
-    prevPendingSlotsLenRef.current = 0;
-    isAtBottomRef.current = true;
-  }, [conversationId]);
-
-  useEffect(() => {
-    if (canLoadMore && !isLoadingMore && visibleMessages.length < 5) {
-      handleLoadMore();
-    }
-  }, [canLoadMore, isLoadingMore, visibleMessages.length, handleLoadMore]);
-
-  useEffect(() => {
-    setPendingSlots((prev) =>
-      prev
-        .map((slot) => {
-          const userConfirmed = isUserMessageConfirmed(
-            slot,
-            visibleMessages,
-            messageIdsByRequestId?.[slot.localId],
-          );
-          return userConfirmed && !slot.isRetry
-            ? { ...slot, isRetry: true }
-            : slot;
-        })
-        .filter((slot, index) => {
-          const isOldestActive = index === 0;
-          const aiConfirmed =
-            isOldestActive &&
-            visibleMessages.some(
-              (m) =>
-                !slot.snapshotIds.has(m.id) &&
-                m.role === "assistant" &&
-                m._creationTime >= slot.submittedAt,
-            );
-
-          if (
-            (slot.status === "generating" || slot.status === "sent") &&
-            aiConfirmed
-          ) {
-            return false;
-          }
-
-          if (slot.status === "sent" && isEscalated) {
-            const userConfirmed = isUserMessageConfirmed(
-              slot,
-              visibleMessages,
-              messageIdsByRequestId?.[slot.localId],
-            );
-            if (userConfirmed) return false;
-          }
-
-          return true;
-        }),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastVisibleId, messageIdsByRequestId, isEscalated]);
 
   return (
     <>
@@ -527,15 +292,15 @@ export const WidgetChatScreen = () => {
 
         {suggestions.length > 0 && (
           <Suggestions className="flex flex-row gap-x-4 justify-end items-center px-4 pt-6 pb-2 w-full">
-            {suggestions.map((suggestion) => (
+            {suggestions.map(({ id, text }) => (
               <LiquidGlass
-                key={suggestion}
+                key={id}
                 borderRadius={999}
                 blur={10}
                 distortion={12}
                 role="button"
                 tabIndex={suggestionsDisabled ? -1 : 0}
-                aria-label={suggestion}
+                aria-label={text}
                 aria-disabled={suggestionsDisabled}
                 interactive={!suggestionsDisabled}
                 tint="rgba(139, 92, 246, 0.18)"
@@ -546,22 +311,13 @@ export const WidgetChatScreen = () => {
                 onClick={
                   suggestionsDisabled
                     ? undefined
-                    : () =>
-                        submitPromptMessage({
-                          text: suggestion,
-                          files: [],
-                          sources: [],
-                        })
+                    : () => handleSuggestionSubmit(text)
                 }
                 onKeyDown={(e) => {
                   if (suggestionsDisabled) return;
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    submitPromptMessage({
-                      text: suggestion,
-                      files: [],
-                      sources: [],
-                    });
+                    handleSuggestionSubmit(text);
                   }
                 }}
                 className={cn(
@@ -569,7 +325,7 @@ export const WidgetChatScreen = () => {
                   suggestionsDisabled && "opacity-50 cursor-default",
                 )}
               >
-                {suggestion}
+                {text}
               </LiquidGlass>
             ))}
           </Suggestions>
