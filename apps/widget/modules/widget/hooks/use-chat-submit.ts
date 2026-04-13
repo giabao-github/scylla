@@ -88,7 +88,9 @@ export const useChatSubmit = ({
       : "skip",
   );
 
-  const isGenerating = pendingSlots.some((s) => s.status === "generating");
+  const isGenerating = pendingSlots.some(
+    (s) => s.status === "generating" || s.status === "sent",
+  );
   const lastVisibleId = visibleMessages.at(-1)?.id;
 
   const sendMessage = async (
@@ -113,6 +115,18 @@ export const useChatSubmit = ({
 
     try {
       if (!conversation || !contactSessionId) {
+        setPendingSlots((prev) =>
+          prev.map((s) =>
+            s.localId === localId
+              ? {
+                  ...s,
+                  status: "failed" as const,
+                  error:
+                    "The current session or this conversation is no longer available.",
+                }
+              : s,
+          ),
+        );
         toast.error("Failed to send message.", {
           description:
             "The current session or this conversation is no longer available. Please refresh the page and try again.",
@@ -237,20 +251,27 @@ export const useChatSubmit = ({
 
   // Reconcile pending slots against confirmed server messages
   useEffect(() => {
-    setPendingSlots((prev) =>
-      prev
-        .map((slot) => {
+    setPendingSlots((prev) => {
+      const mapped = prev.map(
+        (slot): PendingSlot & { _userConfirmed: boolean } => {
           const userConfirmed = isUserMessageConfirmed(
             slot,
             visibleMessages,
             messageIdsByRequestId?.[slot.localId],
           );
-          return userConfirmed && !slot.isRetry
-            ? { ...slot, isRetry: true }
-            : slot;
-        })
+          const updatedSlot =
+            userConfirmed && !slot.isRetry ? { ...slot, isRetry: true } : slot;
+          return { ...updatedSlot, _userConfirmed: userConfirmed };
+        },
+      );
+
+      const oldestActiveIndex = mapped.findIndex(
+        (s) => s.status === "generating" || s.status === "sent",
+      );
+
+      return mapped
         .filter((slot, index) => {
-          const isOldestActive = index === 0;
+          const isOldestActive = index === oldestActiveIndex;
           const aiConfirmed =
             isOldestActive &&
             visibleMessages.some(
@@ -268,17 +289,13 @@ export const useChatSubmit = ({
           }
 
           if (slot.status === "sent" && isEscalated) {
-            const userConfirmed = isUserMessageConfirmed(
-              slot,
-              visibleMessages,
-              messageIdsByRequestId?.[slot.localId],
-            );
-            if (userConfirmed) return false;
+            if (slot._userConfirmed) return false;
           }
 
           return true;
-        }),
-    );
+        })
+        .map(({ _userConfirmed, ...rest }) => rest);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastVisibleId, messageIdsByRequestId, isEscalated]);
 

@@ -315,7 +315,7 @@ export const WidgetChatScreen = () => {
                 }
                 onKeyDown={(e) => {
                   if (suggestionsDisabled) return;
-                  if (e.key === "Enter") {
+                  if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     handleSuggestionSubmit(text);
                   }
