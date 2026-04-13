@@ -16,10 +16,7 @@ import {
 } from "@workspace/shared/constants/model-catalog";
 import { WidgetScreen } from "@workspace/shared/constants/screens";
 
-// Widget state atoms
-export const widgetScreenAtom = atom<WidgetScreen>("loading");
-export const organizationIdAtom = atom<string | null>(null);
-export const clerkOrganizationIdAtom = atom<string | null>(null);
+// Interfaces
 export interface WidgetOrganizationProfile {
   clerkOrganizationId: string;
   name: string;
@@ -27,14 +24,25 @@ export interface WidgetOrganizationProfile {
   createdAt?: number;
 }
 
+export interface PublicWidgetSettings {
+  greetingMessage: string;
+  defaultSuggestions: {
+    firstSuggestion?: string;
+    secondSuggestion?: string;
+    thirdSuggestion?: string;
+  };
+}
+
+// Widget state atoms
+export const widgetScreenAtom = atom<WidgetScreen>("loading");
+export const organizationIdAtom = atom<string | null>(null);
+export const clerkOrganizationIdAtom = atom<string | null>(null);
+
 export const organizationProfileAtom = atom<WidgetOrganizationProfile | null>(
   null,
 );
 export const conversationIdAtom = atom<Id<"conversations"> | null>(null);
-export const widgetSettingsAtom = atom<Omit<
-  Doc<"widgetSettings">,
-  "organizationId"
-> | null>(null);
+export const widgetSettingsAtom = atom<PublicWidgetSettings | null>(null);
 
 // Message atoms
 export const errorMessageAtom = atom<string | null>(null);

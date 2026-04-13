@@ -27,7 +27,7 @@ export const GlassFilter = memo(
       aria-hidden="true"
     >
       <defs>
-        <filter id={id} x="0%" y="0%" width="100%" height="100%">
+        <filter id={id} x="-10%" y="-10%" width="120%" height="120%">
           <feTurbulence
             type="fractalNoise"
             baseFrequency={`${frequency} ${frequency}`}

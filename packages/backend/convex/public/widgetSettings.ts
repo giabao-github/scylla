@@ -14,6 +14,11 @@ export const getByOrganizationId = query({
       )
       .unique();
 
-    return widgetSettings;
+    if (!widgetSettings) return null;
+
+    return {
+      greetingMessage: widgetSettings.greetingMessage,
+      defaultSuggestions: widgetSettings.defaultSuggestions,
+    };
   },
 });

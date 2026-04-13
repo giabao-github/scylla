@@ -165,7 +165,7 @@ export const LiquidGlass = React.forwardRef<HTMLDivElement, LiquidGlassProps>(
     );
 
     const mergedStyle = useMemo<CSSProperties>(
-      () => ({ borderRadius: br, ...cssVars, ...style }),
+      () => ({ ...style, ...cssVars, borderRadius: br }),
       [br, cssVars, style],
     );
 

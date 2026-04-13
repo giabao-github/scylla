@@ -37,7 +37,8 @@ export const create = mutation({
     });
 
     const initialMessage =
-      widgetSettings?.greetingMessage || "Hello, how can I help you today?";
+      widgetSettings?.greetingMessage ?? "Hello, how can I help you today?";
+
     const now = Date.now();
 
     try {
