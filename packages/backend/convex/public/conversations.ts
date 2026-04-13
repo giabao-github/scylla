@@ -25,11 +25,20 @@ export const create = mutation({
       });
     }
 
+    const widgetSettings = await ctx.db
+      .query("widgetSettings")
+      .withIndex("by_org_id", (q) =>
+        q.eq("organizationId", organization.organizationId),
+      )
+      .unique();
+
     const { threadId } = await supportAgent.createThread(ctx, {
       userId: organizationId,
     });
 
-    const initialMessage = "Hello, how can I help you today?";
+    const initialMessage =
+      widgetSettings?.greetingMessage ?? "Hello, how can I help you today?";
+
     const now = Date.now();
 
     try {

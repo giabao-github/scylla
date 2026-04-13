@@ -77,6 +77,7 @@ export const ConversationIdView = ({
   conversationId: string;
 }) => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
+  const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
 
@@ -85,6 +86,7 @@ export const ConversationIdView = ({
   const prevPendingSlotsLenRef = useRef(0);
   const isAtBottomRef = useRef(true);
   const enhanceRequestIdRef = useRef(0);
+  const sendLockRef = useRef(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -116,7 +118,7 @@ export const ConversationIdView = ({
 
   const lastMessageId = messages.results?.at(-1)?._id;
   const sendingSlot = pendingSlots.find((s) => s.status === "sending");
-  const isSending = !!sendingSlot;
+  const isSending = !!sendingSlot || isDispatchingMessage;
   const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
   const isBlocked = !conversation || isResolved || isSending || isEnhancing;
   const submitDisabled =
@@ -234,17 +236,22 @@ export const ConversationIdView = ({
             : s,
         ),
       );
+    } finally {
+      sendLockRef.current = false;
+      setIsDispatchingMessage(false);
     }
   };
 
   const handleSubmit = (promptMessage: PromptInputMessage) => {
     const text = promptMessage.text.trim();
-    if (isBlocked || !text) return;
+    if (sendLockRef.current || isBlocked || !text) return;
 
     const localId = nanoid();
     const requestId = nanoid();
     const cutoffId = visibleMessages.at(-1)?.id;
 
+    sendLockRef.current = true;
+    setIsDispatchingMessage(true);
     form.setValue("message", "");
     setPendingSlots((prev) => [
       ...prev,
@@ -264,10 +271,15 @@ export const ConversationIdView = ({
   const handleRetry = (localId: string) => {
     const slot = pendingSlots.find((s) => s.localId === localId);
     const isRetryBlocked =
-      isBlocked || !slot || (slot.status === "failed" && !slot.retryable);
+      sendLockRef.current ||
+      isBlocked ||
+      !slot ||
+      (slot.status === "failed" && !slot.retryable);
 
     if (isRetryBlocked) return;
 
+    sendLockRef.current = true;
+    setIsDispatchingMessage(true);
     setPendingSlots((prev) =>
       prev.map((s) =>
         s.localId === localId ? { ...s, status: "sending" as const } : s,
@@ -299,6 +311,8 @@ export const ConversationIdView = ({
     prevLastMessageIdRef.current = undefined;
     prevPendingSlotsLenRef.current = 0;
     isAtBottomRef.current = true;
+    sendLockRef.current = false;
+    setIsDispatchingMessage(false);
     setPendingSlots([]);
   }, [conversationId, form]);
 
@@ -431,7 +445,7 @@ export const ConversationIdView = ({
                     control={form.control}
                     render={({ field }) => (
                       <PromptInputTextarea
-                        disabled={isSending || isEnhancing}
+                        disabled={isEnhancing}
                         placeholder="Response to your client..."
                         className="mt-2 text-sm placeholder:text-muted-foreground/50 disabled:cursor-default"
                         onChange={field.onChange}

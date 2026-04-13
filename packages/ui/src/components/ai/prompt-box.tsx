@@ -274,7 +274,7 @@ export const PromptBoxModelSelector = () => {
       </ModelSelectorTrigger>
       <ModelSelectorContent>
         <ModelSelectorInput placeholder="Search models..." />
-        <ModelSelectorList>
+        <ModelSelectorList className="scrollbar-themed">
           <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
           {uniqueChefs.map((chef) => (
             <ModelSelectorGroup heading={chef} key={chef}>

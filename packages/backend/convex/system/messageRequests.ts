@@ -13,6 +13,7 @@ const MAX_REQUEST_IDS = 100;
 type ClaimResult =
   | { status: "already_done"; userMessageId: string | null }
   | { status: "in_progress" }
+  | { status: "conversation_busy" }
   | { status: "new" }
   | {
       status: "retry";
@@ -173,6 +174,24 @@ export const claimAndSaveUserMessage = internalMutation({
         lastMessageSynced: existing.lastMessageSynced ?? false,
         userMessageAt: existing.userMessageAt ?? existing.createdAt,
       };
+    }
+
+    const inFlightRequest = await ctx.db
+      .query("messageRequests")
+      .withIndex("by_contact_session_id", (q) =>
+        q.eq("contactSessionId", contactSessionId),
+      )
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("requestId"), requestId),
+          q.eq(q.field("status"), "processing"),
+          q.gte(q.field("updatedAt"), now - STALE_TIMEOUT),
+        ),
+      )
+      .first();
+
+    if (inFlightRequest) {
+      return { status: "conversation_busy" };
     }
 
     await ctx.db.insert("messageRequests", {
