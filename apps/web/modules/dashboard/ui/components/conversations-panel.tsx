@@ -112,7 +112,7 @@ export const ConversationsPanel = () => {
 
   return (
     <div
-      className="flex flex-col w-full h-full bg-slate-950 bg-center bg-cover bg-no-repeat text-sidebar-foreground isolate"
+      className="flex isolate flex-col w-full h-full bg-center bg-no-repeat bg-cover text-sidebar-foreground"
       style={{
         backgroundImage: "url(/panel-background.jpg)",
       }}
@@ -169,7 +169,7 @@ export const ConversationsPanel = () => {
           showGradients
           enableArrowNavigation
           displayScrollbar
-          scrollContainerClassName="max-h-[calc(100vh-53px)]"
+          scrollContainerClassName="max-h-[calc(100svh-53px)]"
           infiniteScroll={{
             triggerElementRef,
             handleLoadMore,

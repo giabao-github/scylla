@@ -44,6 +44,7 @@ import {
   PendingSlot,
   useChatSubmit,
 } from "@/modules/widget/hooks/use-chat-submit";
+import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
 const AI_PLACEHOLDER_OFFSET_MS = 2000;
 const STALE_PENDING_TIMEOUT_MS = 35_000;
@@ -79,6 +80,7 @@ export const WidgetChatScreen = () => {
   );
 
   const isValidSession = validation?.valid === true;
+  const isSessionValidating = !!contactSessionId && validation === undefined;
 
   const conversation = useQuery(
     api.public.conversations.getOne,
@@ -250,22 +252,6 @@ export const WidgetChatScreen = () => {
   );
 
   const modalConfig = useMemo(() => {
-    if (isNew)
-      return {
-        title: "Authentication Required",
-        description:
-          "Please provide your information to view your conversations.",
-        buttonText: "Sign in",
-        onAction: () => setScreen(WIDGET_SCREENS.AUTH),
-      };
-    if (isExpired)
-      return {
-        title: "Session Expired",
-        description:
-          "Your session has expired. Please sign in again to continue.",
-        buttonText: "Sign in",
-        onAction: () => setScreen(WIDGET_SCREENS.AUTH),
-      };
     if (isInvalidConversation)
       return {
         title: "Invalid Conversation",
@@ -275,7 +261,7 @@ export const WidgetChatScreen = () => {
         onAction: () => setScreen(WIDGET_SCREENS.SELECTION),
       };
     return null;
-  }, [isNew, isExpired, isInvalidConversation, setScreen]);
+  }, [isInvalidConversation, setScreen]);
 
   const clearForm = () =>
     form.setValue("message", "", { shouldValidate: true });
@@ -290,176 +276,187 @@ export const WidgetChatScreen = () => {
 
   return (
     <>
-      {modalConfig && <CTAModal open {...modalConfig} />}
-      <div className="flex flex-col flex-1 min-h-0">
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="flex overflow-y-auto flex-col flex-1 gap-4 px-3 py-4 scrollbar-themed md:gap-5 md:px-4 md:py-6"
-        >
-          <div>
-            {isLoadingMore && (
-              <div className="flex justify-center py-2">
-                <Loader2Icon className="animate-spin size-4 text-muted-foreground" />
-              </div>
-            )}
-            {canLoadMore && !isLoadingMore && (
-              <button
-                type="button"
-                onClick={handleLoadMore}
-                className="w-full text-xs text-center transition-colors text-muted-foreground hover:text-foreground"
-              >
-                Load earlier messages
-              </button>
-            )}
-          </div>
-
-          <div ref={topElementRef} className="h-px" />
-
-          {timeline.map((entry) => {
-            if (entry.type === "confirmed") {
-              const msg = entry.data;
-              const isUser = msg.role === "user";
-              return (
-                <Message
-                  from={isUser ? "user" : "assistant"}
-                  key={msg.id}
-                  className="max-w-[88%] md:max-w-[70%]"
+      {modalConfig && !isNew && !isExpired && !isSessionValidating && (
+        <CTAModal open {...modalConfig} />
+      )}
+      <WidgetSessionGuard
+        isExpired={isExpired}
+        isNew={isNew}
+        isValidating={isSessionValidating}
+        onAuthenticate={() => setScreen(WIDGET_SCREENS.AUTH)}
+      >
+        <div className="flex flex-col flex-1 min-h-0">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex overflow-y-auto flex-col flex-1 gap-4 px-3 py-4 scrollbar-themed md:gap-5 md:px-4 md:py-6"
+          >
+            <div>
+              {isLoadingMore && (
+                <div className="flex justify-center py-2">
+                  <Loader2Icon className="animate-spin size-4 text-muted-foreground" />
+                </div>
+              )}
+              {canLoadMore && !isLoadingMore && (
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  className="w-full text-xs text-center transition-colors text-muted-foreground hover:text-foreground"
                 >
-                  <ChatBubble
-                    text={msg.text}
-                    variant={isUser ? "user" : "agent"}
-                  />
-                </Message>
-              );
-            }
+                  Load earlier messages
+                </button>
+              )}
+            </div>
 
-            if (entry.type === "pending-user") {
+            <div ref={topElementRef} className="h-px" />
+
+            {timeline.map((entry) => {
+              if (entry.type === "confirmed") {
+                const msg = entry.data;
+                const isUser = msg.role === "user";
+                return (
+                  <Message
+                    from={isUser ? "user" : "assistant"}
+                    key={msg.id}
+                    className="max-w-[88%] md:max-w-[70%]"
+                  >
+                    <ChatBubble
+                      text={msg.text}
+                      variant={isUser ? "user" : "agent"}
+                    />
+                  </Message>
+                );
+              }
+
+              if (entry.type === "pending-user") {
+                const slot = entry.data;
+                return (
+                  <Message
+                    key={`pending-user-${slot.localId}`}
+                    from="user"
+                    className="max-w-[88%] md:max-w-[70%]"
+                  >
+                    <ChatBubble text={slot.userText} variant="user" />
+                  </Message>
+                );
+              }
+
               const slot = entry.data;
               return (
                 <Message
-                  key={`pending-user-${slot.localId}`}
-                  from="user"
+                  key={`pending-ai-${slot.localId}`}
+                  from="assistant"
                   className="max-w-[88%] md:max-w-[70%]"
                 >
-                  <ChatBubble text={slot.userText} variant="user" />
+                  <ChatBubble
+                    text=""
+                    variant="agent"
+                    status={slot.displayStatus}
+                    error={slot.displayError}
+                    onRetry={
+                      slot.canRetry
+                        ? () => handleRetry(slot.localId)
+                        : undefined
+                    }
+                  />
                 </Message>
               );
-            }
+            })}
+          </div>
 
-            const slot = entry.data;
-            return (
-              <Message
-                key={`pending-ai-${slot.localId}`}
-                from="assistant"
-                className="max-w-[88%] md:max-w-[70%]"
-              >
-                <ChatBubble
-                  text=""
-                  variant="agent"
-                  status={slot.displayStatus}
-                  error={slot.displayError}
-                  onRetry={
-                    slot.canRetry ? () => handleRetry(slot.localId) : undefined
+          {suggestions.length > 0 && !isResolved && (
+            <Suggestions className="flex flex-row gap-x-2 justify-end items-center px-3 pt-4 pb-2 w-full md:gap-x-4 md:px-4 md:pt-6">
+              {suggestions.map(({ id, text }) => (
+                <LiquidGlass
+                  key={id}
+                  borderRadius={999}
+                  blur={10}
+                  distortion={12}
+                  role="button"
+                  tabIndex={suggestionsDisabled ? -1 : 0}
+                  aria-label={text}
+                  aria-disabled={suggestionsDisabled}
+                  interactive={!suggestionsDisabled}
+                  tint="rgba(139, 92, 246, 0.18)"
+                  tintOpacity={suggestionsDisabled ? 0.4 : 0.7}
+                  hoverTintOpacity={0.9}
+                  glow="rgba(139, 92, 246, 0.28)"
+                  hoverGlow="rgba(139, 92, 246, 0.5)"
+                  onClick={
+                    suggestionsDisabled
+                      ? undefined
+                      : () => handleSuggestionSubmit(text)
                   }
-                />
-              </Message>
-            );
-          })}
-        </div>
-
-        {suggestions.length > 0 && !isResolved && (
-          <Suggestions className="flex flex-row gap-x-2 justify-end items-center px-3 pt-4 pb-2 w-full md:gap-x-4 md:px-4 md:pt-6">
-            {suggestions.map(({ id, text }) => (
-              <LiquidGlass
-                key={id}
-                borderRadius={999}
-                blur={10}
-                distortion={12}
-                role="button"
-                tabIndex={suggestionsDisabled ? -1 : 0}
-                aria-label={text}
-                aria-disabled={suggestionsDisabled}
-                interactive={!suggestionsDisabled}
-                tint="rgba(139, 92, 246, 0.18)"
-                tintOpacity={suggestionsDisabled ? 0.4 : 0.7}
-                hoverTintOpacity={0.9}
-                glow="rgba(139, 92, 246, 0.28)"
-                hoverGlow="rgba(139, 92, 246, 0.5)"
-                onClick={
-                  suggestionsDisabled
-                    ? undefined
-                    : () => handleSuggestionSubmit(text)
-                }
-                onKeyDown={(e) => {
-                  if (suggestionsDisabled) return;
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleSuggestionSubmit(text);
-                  }
-                }}
-                className={cn(
-                  "inline-flex items-center px-3 py-1.25 text-[13px] font-medium whitespace-nowrap select-none md:px-4 md:py-1.5 md:text-sm",
-                  suggestionsDisabled && "opacity-50 cursor-default",
-                )}
-              >
-                {text}
-              </LiquidGlass>
-            ))}
-          </Suggestions>
-        )}
-
-        {!isResolved && (
-          <div className="relative z-10 px-3 pt-2 pb-3 w-full bg-transparent shrink-0 md:px-4 md:pb-4">
-            <div className="mx-auto max-w-4xl">
-              <Form {...form}>
-                <PromptBox
-                  onSubmit={handlePromptSubmit}
+                  onKeyDown={(e) => {
+                    if (suggestionsDisabled) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleSuggestionSubmit(text);
+                    }
+                  }}
                   className={cn(
-                    "rounded-xl border shadow-lg border-border/60 shadow-black/6",
-                    "bg-transparent backdrop-blur-sm",
-                    "focus-within:shadow-xl focus-within:shadow-black/10 focus-within:border-border",
-                    "transition-all duration-200",
+                    "inline-flex items-center px-3 py-1.25 text-[13px] font-medium whitespace-nowrap select-none md:px-4 md:py-1.5 md:text-sm",
+                    suggestionsDisabled && "opacity-50 cursor-default",
                   )}
                 >
-                  {/** TODO: implement file sending */}
-                  <PromptInputAttachmentsDisplay />
-                  <PromptInputBody>
-                    <FormField
-                      name="message"
-                      control={form.control}
-                      render={({ field }) => (
-                        <PromptInputTextarea
-                          placeholder="Ask anything..."
-                          className="mt-1.5 text-[13px] placeholder:text-muted-foreground/50 disabled:cursor-default md:mt-2 md:text-sm"
-                          onChange={field.onChange}
-                          value={field.value}
-                        />
-                      )}
-                    />
-                  </PromptInputBody>
-                  <PromptInputFooter>
-                    <PromptBoxDefaultTools />
-                    <PromptInputSubmit
-                      disabled={submitDisabled}
-                      status={submitStatus}
-                      type="submit"
-                    />
-                  </PromptInputFooter>
-                </PromptBox>
-              </Form>
-            </div>
-          </div>
-        )}
+                  {text}
+                </LiquidGlass>
+              ))}
+            </Suggestions>
+          )}
 
-        {isResolved && (
-          <div className="flex justify-center items-center px-3 pt-3 pb-8 cursor-default shrink-0 md:px-4 md:pt-4 md:pb-10">
-            <p className="text-[13px] text-muted-foreground/80 md:text-sm">
-              This conversation has been resolved
-            </p>
-          </div>
-        )}
-      </div>
+          {!isResolved && (
+            <div className="relative z-10 px-3 pt-2 pb-3 w-full bg-transparent shrink-0 md:px-4 md:pb-4">
+              <div className="mx-auto max-w-4xl">
+                <Form {...form}>
+                  <PromptBox
+                    onSubmit={handlePromptSubmit}
+                    className={cn(
+                      "rounded-xl border shadow-lg border-border/60 shadow-black/6",
+                      "bg-transparent backdrop-blur-sm",
+                      "focus-within:shadow-xl focus-within:shadow-black/10 focus-within:border-border",
+                      "transition-all duration-200",
+                    )}
+                  >
+                    {/** TODO: implement file sending */}
+                    <PromptInputAttachmentsDisplay />
+                    <PromptInputBody>
+                      <FormField
+                        name="message"
+                        control={form.control}
+                        render={({ field }) => (
+                          <PromptInputTextarea
+                            placeholder="Ask anything..."
+                            className="mt-1.5 text-[13px] placeholder:text-muted-foreground/50 disabled:cursor-default md:mt-2 md:text-sm"
+                            onChange={field.onChange}
+                            value={field.value}
+                          />
+                        )}
+                      />
+                    </PromptInputBody>
+                    <PromptInputFooter>
+                      <PromptBoxDefaultTools />
+                      <PromptInputSubmit
+                        disabled={submitDisabled}
+                        status={submitStatus}
+                        type="submit"
+                      />
+                    </PromptInputFooter>
+                  </PromptBox>
+                </Form>
+              </div>
+            </div>
+          )}
+
+          {isResolved && (
+            <div className="flex justify-center items-center px-3 pt-3 pb-8 cursor-default shrink-0 md:px-4 md:pt-4 md:pb-10">
+              <p className="text-[13px] text-muted-foreground/80 md:text-sm">
+                This conversation has been resolved
+              </p>
+            </div>
+          )}
+        </div>
+      </WidgetSessionGuard>
     </>
   );
 };

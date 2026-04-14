@@ -9,12 +9,14 @@ import { ArrowUpIcon, CheckIcon, ClockIcon } from "lucide-react";
 interface ConversationStatusButtonProps {
   status: ConversationStatus;
   disabled?: boolean;
+  iconOnly?: boolean;
   onClick: () => void;
 }
 
 export const ConversationStatusButton = ({
   status,
   disabled,
+  iconOnly = false,
   onClick,
 }: ConversationStatusButtonProps) => {
   switch (status) {
@@ -24,11 +26,12 @@ export const ConversationStatusButton = ({
           <Button
             disabled={disabled}
             variant="success"
-            size="sm"
+            size={iconOnly ? "icon-sm" : "sm"}
+            aria-label={iconOnly ? "Mark as unresolved" : undefined}
             onClick={onClick}
           >
             <CheckIcon />
-            Resolved
+            {!iconOnly && "Resolved"}
           </Button>
         </Hint>
       );
@@ -38,11 +41,12 @@ export const ConversationStatusButton = ({
           <Button
             disabled={disabled}
             variant="warning"
-            size="sm"
+            size={iconOnly ? "icon-sm" : "sm"}
+            aria-label={iconOnly ? "Mark as resolved" : undefined}
             onClick={onClick}
           >
             <ArrowUpIcon />
-            Escalated
+            {!iconOnly && "Escalated"}
           </Button>
         </Hint>
       );
@@ -52,11 +56,12 @@ export const ConversationStatusButton = ({
           <Button
             disabled={disabled}
             variant="danger"
-            size="sm"
+            size={iconOnly ? "icon-sm" : "sm"}
+            aria-label={iconOnly ? "Mark as escalated" : undefined}
             onClick={onClick}
           >
             <ClockIcon />
-            Unresolved
+            {!iconOnly && "Unresolved"}
           </Button>
         </Hint>
       );

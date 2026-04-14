@@ -223,7 +223,7 @@ export const WidgetAuthScreen = () => {
     <>
       <Form {...form}>
         <form
-          className="flex flex-col flex-1 gap-y-2 items-center p-8 mt-4 md:gap-y-4 md:p-6 md:mt-12"
+          className="flex flex-col flex-1 gap-y-2 items-center p-8 mt-12 md:p-6 md:gap-y-4"
           onSubmit={form.handleSubmit(onSubmit)}
         >
           <FormField

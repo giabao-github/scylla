@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import z from "zod";
 
-import { internal } from "@workspace/backend/_generated/api";
+import { api, internal } from "@workspace/backend/_generated/api";
 import { action } from "@workspace/backend/_generated/server";
 import {
   getSecretValue,
@@ -11,12 +11,46 @@ import {
 export const getVapiSecrets = action({
   args: {
     organizationId: v.string(),
+    contactSessionId: v.optional(v.id("contactSessions")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
 
     if (!identity) {
-      return null;
+      if (!args.contactSessionId) {
+        return null;
+      }
+
+      const sessionValidation = await ctx.runQuery(
+        api.public.contactSessions.validate,
+        {
+          contactSessionId: args.contactSessionId,
+        },
+      );
+
+      if (!sessionValidation.valid) {
+        return null;
+      }
+
+      const contactSession = sessionValidation.contactSession;
+
+      if (!contactSession) {
+        return null;
+      }
+
+      const organization = await ctx.runQuery(
+        api.public.organizations.getByClerkId,
+        {
+          clerkOrgId: args.organizationId,
+        },
+      );
+
+      if (!organization || organization._id !== contactSession.organizationId) {
+        return null;
+      }
+      console.info(
+        `[public:secrets] Unauthenticated access via contact session ${args.contactSessionId} for organization ${args.organizationId}`,
+      );
     }
 
     const plugin = await ctx.runQuery(
