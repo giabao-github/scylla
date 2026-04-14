@@ -27,17 +27,26 @@ import {
 } from "@workspace/ui/components/ai/prompt-input";
 import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@workspace/ui/components/sheet";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
+import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
-import { Loader2Icon, MoreHorizontalIcon } from "lucide-react";
+import { ChevronLeftIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import Link from "next/link";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { ContactPanel } from "@/modules/dashboard/ui/components/contact-panel";
 import { ConversationStatusButton } from "@/modules/dashboard/ui/components/conversation-status-button";
 
 type PendingSlot = {
@@ -97,6 +106,12 @@ export const ConversationIdView = ({
   const conversation = useQuery(api.private.conversations.getOne, {
     conversationId: conversationId as Id<"conversations">,
   });
+
+  const contactSession = useQuery(
+    api.private.contactSessions.getOneByConversationId,
+    { conversationId: conversationId as Id<"conversations"> },
+  );
+  const isMobile = useIsMobile();
 
   const messages = useThreadMessages(
     api.private.messages.getMany,
@@ -347,7 +362,42 @@ export const ConversationIdView = ({
 
   return (
     <div className="flex flex-col h-full max-h-screen bg-muted">
-      <header className="flex items-center justify-between border-b bg-background p-2.5 shrink-0">
+      {/* Mobile view*/}
+      <header className="md:hidden flex items-center gap-2 border-b bg-transparent px-2 py-1.5 shrink-0">
+        <Button variant="ghost" size="icon" asChild className="size-8 shrink-0">
+          <Link href="/conversations">
+            <ChevronLeftIcon className="size-5" strokeWidth={2} />
+          </Link>
+        </Button>
+        <Sheet>
+          <SheetTrigger asChild>
+            <button
+              type="button"
+              className="flex-1 px-1 min-w-0 font-semibold text-center truncate transition-opacity hover:opacity-70"
+            >
+              {contactSession?.name ?? "Anonymous User"}
+            </button>
+          </SheetTrigger>
+          <SheetContent side="right" className="flex flex-col p-0 w-80">
+            <SheetHeader className="px-4 py-3 border-b shrink-0">
+              <SheetTitle className="font-semibold">
+                Contact Information
+              </SheetTitle>
+            </SheetHeader>
+            <div className="overflow-y-auto flex-1 min-h-0">
+              <ContactPanel />
+            </div>
+          </SheetContent>
+        </Sheet>
+        <ConversationStatusButton
+          disabled={updatingStatus}
+          status={conversation.status}
+          onClick={handleToggleStatus}
+          iconOnly
+        />
+      </header>
+      {/* Desktop view */}
+      <header className="hidden md:flex relative items-center justify-between border-b bg-background p-2.5 shrink-0">
         <Button
           size="sm"
           variant="ghost"
@@ -355,6 +405,9 @@ export const ConversationIdView = ({
         >
           <MoreHorizontalIcon />
         </Button>
+        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 px-1 min-w-0 max-w-[60%] font-semibold text-center truncate">
+          {contactSession?.name ?? "Anonymous User"}
+        </div>
         <ConversationStatusButton
           disabled={updatingStatus}
           status={conversation.status}
@@ -365,7 +418,7 @@ export const ConversationIdView = ({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-y-auto flex-col gap-5 px-4 pt-6 pb-16 h-full scrollbar-themed"
+        className="flex overflow-y-auto flex-col gap-4 px-4 pt-4 pb-4 h-full scrollbar-themed md:gap-5 md:pb-8 md:pt-6"
         style={{ maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT }}
       >
         <div>
@@ -383,9 +436,9 @@ export const ConversationIdView = ({
               Load earlier messages
             </button>
           )}
-        </div>
 
-        <div ref={topElementRef} className="h-px" />
+          <div ref={topElementRef} className="h-px" />
+        </div>
 
         {baseMessages.map((msg) => {
           const isFromClient = msg.role === "user";
@@ -393,7 +446,7 @@ export const ConversationIdView = ({
             <Message
               from={isFromClient ? "assistant" : "user"}
               key={msg.id}
-              className="max-w-1/2"
+              className="max-w-4/5 md:max-w-1/2"
             >
               <ChatBubble
                 text={msg.text ?? ""}
@@ -406,7 +459,11 @@ export const ConversationIdView = ({
           );
         })}
         {pendingSlots.map((slot) => (
-          <Message from="user" key={slot.localId} className="max-w-1/2">
+          <Message
+            from="user"
+            key={slot.localId}
+            className="max-w-4/5 md:max-w-1/2"
+          >
             <ChatBubble
               text={slot.text}
               variant="user"
@@ -423,7 +480,7 @@ export const ConversationIdView = ({
       </div>
 
       {!isResolved && (
-        <div className="relative z-10 px-16 pt-2 pb-4 w-full bg-transparent shrink-0">
+        <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent md:px-16 shrink-0">
           <div className="mx-auto max-w-full">
             <Form {...form}>
               <PromptBox
@@ -489,8 +546,18 @@ export const ConversationIdView = ({
 export const ConversationIdViewSkeleton = () => {
   return (
     <div className="flex flex-col h-full bg-muted">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b bg-background p-2.5 shrink-0">
+      {/* Mobile skeleton header */}
+      <header className="md:hidden flex items-center gap-2 border-b bg-background px-2 py-1.5 shrink-0">
+        <Button variant="ghost" size="icon" asChild className="size-8 shrink-0">
+          <Link href="/conversations">
+            <ChevronLeftIcon className="size-5" />
+          </Link>
+        </Button>
+        <Skeleton className="flex-1 mx-auto h-4 max-w-32 bg-slate-300" />
+        <Skeleton className="rounded-full size-8 bg-slate-300 shrink-0" />
+      </header>
+      {/* Desktop skeleton header */}
+      <header className="hidden md:flex items-center justify-between border-b bg-background p-2.5 shrink-0">
         <Button size="sm" variant="ghost" disabled aria-hidden>
           <MoreHorizontalIcon />
         </Button>
@@ -519,7 +586,7 @@ export const ConversationIdViewSkeleton = () => {
       </div>
 
       {/* Prompt box */}
-      <div className="relative z-10 px-16 pt-2 pb-4 w-full bg-transparent shrink-0">
+      <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent md:px-16 shrink-0">
         <div className="mx-auto max-w-full">
           <PromptBox
             onSubmit={() => {}}

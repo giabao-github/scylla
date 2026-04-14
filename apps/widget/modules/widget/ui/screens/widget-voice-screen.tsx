@@ -7,17 +7,14 @@ import {
   clerkOrganizationIdAtom,
   contactSessionIdAtom,
   conversationIdAtom,
-  errorMessageAtom,
   vapiSecretsAtom,
   widgetScreenAtom,
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
-import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import { Button } from "@workspace/ui/components/button";
-import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAction, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -25,6 +22,7 @@ import { Loader2Icon, MicIcon, MicOffIcon } from "lucide-react";
 
 import { useChatScroll } from "@/modules/widget/hooks/use-chat-scroll";
 import { useVapi } from "@/modules/widget/hooks/use-vapi";
+import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
 export const WidgetVoiceScreen = () => {
   const [isLoadingSecrets, setIsLoadingSecrets] = useState(false);
@@ -59,13 +57,6 @@ export const WidgetVoiceScreen = () => {
   const isSessionValidating = !!contactSessionId && validation === undefined;
   const isValidSession = validation?.valid === true;
 
-  const conversation = useQuery(
-    api.public.conversations.getOne,
-    conversationId && contactSessionId && isValidSession
-      ? { conversationId, contactSessionId }
-      : "skip",
-  );
-
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
   const isSessionBlocked =
@@ -88,30 +79,6 @@ export const WidgetVoiceScreen = () => {
     transcriptMessages.length,
     conversationId,
   );
-
-  const modalConfig = useMemo(() => {
-    if (isNew) {
-      return {
-        title: "Authentication Required",
-        description:
-          "Please provide your information to view your conversations.",
-        buttonText: "Sign in",
-        onAction: () => setScreen(WIDGET_SCREENS.AUTH),
-      };
-    }
-
-    if (isExpired) {
-      return {
-        title: "Session Expired",
-        description:
-          "Your session has expired. Please sign in again to continue.",
-        buttonText: "Sign in",
-        onAction: () => setScreen(WIDGET_SCREENS.AUTH),
-      };
-    }
-
-    return null;
-  }, [isExpired, isNew, setScreen]);
 
   const getTranscriptLabel = () => {
     if (transcriptMessages.length > 0)
@@ -158,7 +125,10 @@ export const WidgetVoiceScreen = () => {
     setIsLoadingSecrets(true);
     setSecretError(null);
 
-    getVapiSecrets({ organizationId: clerkOrganizationId })
+    getVapiSecrets({
+      organizationId: clerkOrganizationId,
+      contactSessionId,
+    })
       .then((secrets) => {
         if (cancelled) {
           return;
@@ -197,6 +167,7 @@ export const WidgetVoiceScreen = () => {
     assistantId,
     cachedVapiSecrets,
     clerkOrganizationId,
+    contactSessionId,
     getVapiSecrets,
     isSessionBlocked,
     setVapiSecrets,
@@ -206,17 +177,12 @@ export const WidgetVoiceScreen = () => {
   const statusLabel = getStatusLabel();
 
   return (
-    <>
-      {modalConfig && (
-        <CTAModal
-          open
-          title={modalConfig.title}
-          description={modalConfig.description}
-          buttonText={modalConfig.buttonText}
-          onAction={modalConfig.onAction}
-        />
-      )}
-
+    <WidgetSessionGuard
+      isExpired={isExpired}
+      isNew={isNew}
+      isValidating={isSessionValidating}
+      onAuthenticate={() => setScreen(WIDGET_SCREENS.AUTH)}
+    >
       <div className="flex flex-col flex-1 min-h-0">
         <div
           ref={scrollRef}
@@ -330,6 +296,6 @@ export const WidgetVoiceScreen = () => {
           </div>
         </div>
       </div>
-    </>
+    </WidgetSessionGuard>
   );
 };

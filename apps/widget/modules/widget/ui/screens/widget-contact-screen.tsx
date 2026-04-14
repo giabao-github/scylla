@@ -5,18 +5,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@workspace/backend/_generated/api";
 import {
   contactSessionIdAtom,
-  conversationIdAtom,
   widgetScreenAtom,
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { Button } from "@workspace/ui/components/button";
-import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { cn } from "@workspace/ui/lib/utils";
 import { useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { AlertCircleIcon, CheckIcon, CopyIcon, PhoneIcon } from "lucide-react";
 import Link from "next/link";
+
+import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
 type CopyState = "idle" | "copied" | "error";
 
@@ -65,30 +65,6 @@ export const WidgetContactScreen = () => {
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
 
-  const modalConfig = useMemo(() => {
-    if (isNew) {
-      return {
-        title: "Authentication Required",
-        description:
-          "Please provide your information to view your conversations.",
-        buttonText: "Sign in",
-        onAction: () => setScreen(WIDGET_SCREENS.AUTH),
-      };
-    }
-
-    if (isExpired) {
-      return {
-        title: "Session Expired",
-        description:
-          "Your session has expired. Please sign in again to continue.",
-        buttonText: "Sign in",
-        onAction: () => setScreen(WIDGET_SCREENS.AUTH),
-      };
-    }
-
-    return null;
-  }, [isExpired, isNew, setScreen]);
-
   const scheduleCopyReset = () => {
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     copyTimeoutRef.current = setTimeout(
@@ -131,17 +107,12 @@ export const WidgetContactScreen = () => {
   } = COPY_STATE_CONFIG[copyState];
 
   return (
-    <>
-      {modalConfig && (
-        <CTAModal
-          open
-          title={modalConfig.title}
-          description={modalConfig.description}
-          buttonText={modalConfig.buttonText}
-          onAction={modalConfig.onAction}
-        />
-      )}
-
+    <WidgetSessionGuard
+      isExpired={isExpired}
+      isNew={isNew}
+      isValidating={!!contactSessionId && validation === undefined}
+      onAuthenticate={() => setScreen(WIDGET_SCREENS.AUTH)}
+    >
       <div className="flex flex-col flex-1 min-h-0">
         <div className="flex flex-1 justify-center items-center">
           <div className="flex flex-col gap-y-4 justify-center items-center px-6 py-8 w-full max-w-xs md:max-w-md rounded-[28px] border shadow-xl border-white/55 bg-white/55 shadow-violet-950/8 backdrop-blur-xl">
@@ -220,6 +191,6 @@ export const WidgetContactScreen = () => {
           </div>
         </div>
       </div>
-    </>
+    </WidgetSessionGuard>
   );
 };

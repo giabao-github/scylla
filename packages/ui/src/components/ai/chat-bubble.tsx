@@ -104,6 +104,7 @@ export const ChatBubble = ({
             ) : (
               <MessageResponse
                 className={cn(
+                  "w-auto",
                   isFailed &&
                     !isUser &&
                     "text-rose-300 italic font-light text-xs",

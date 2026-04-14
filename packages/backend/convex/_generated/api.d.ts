@@ -18,6 +18,7 @@ import type * as lib_secrets from "../lib/secrets.js";
 import type * as orphanCleanup from "../orphanCleanup.js";
 import type * as pendingDeletions from "../pendingDeletions.js";
 import type * as playground from "../playground.js";
+import type * as private_contactSessions from "../private/contactSessions.js";
 import type * as private_contentHashIndex from "../private/contentHashIndex.js";
 import type * as private_conversations from "../private/conversations.js";
 import type * as private_fileActions from "../private/fileActions.js";
@@ -69,6 +70,7 @@ declare const fullApi: ApiFromModules<{
   orphanCleanup: typeof orphanCleanup;
   pendingDeletions: typeof pendingDeletions;
   playground: typeof playground;
+  "private/contactSessions": typeof private_contactSessions;
   "private/contentHashIndex": typeof private_contentHashIndex;
   "private/conversations": typeof private_conversations;
   "private/fileActions": typeof private_fileActions;

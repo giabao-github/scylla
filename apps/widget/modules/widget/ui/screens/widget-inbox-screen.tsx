@@ -9,7 +9,6 @@ import {
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { AnimatedList } from "@workspace/ui/components/animated-list";
 import { ConversationStatusIcon } from "@workspace/ui/components/conversation-status-icon";
-import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { GlassButton } from "@workspace/ui/components/glass/glass-button";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { usePaginatedQuery, useQuery } from "convex/react";
@@ -17,6 +16,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useAtomValue, useSetAtom } from "jotai";
 
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
+import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
 const chatButtonProps = {
   idleAlpha: 0.06,
@@ -56,7 +56,7 @@ export const WidgetInboxScreen = () => {
 
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
-  const isValidationLoading = contactSessionId && validation === undefined;
+  const isValidationLoading = !!contactSessionId && validation === undefined;
   const isSkipped = isNew || isExpired;
   const isLoading =
     conversations.status === "LoadingFirstPage" || isValidationLoading;
@@ -65,25 +65,12 @@ export const WidgetInboxScreen = () => {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {isNew && (
-        <CTAModal
-          open
-          title="Authentication Required"
-          description="Please provide your information to view your conversations."
-          buttonText="Sign in"
-          onAction={() => setScreen(WIDGET_SCREENS.AUTH)}
-        />
-      )}
-      {isExpired && (
-        <CTAModal
-          open
-          title="Session Expired"
-          description="Your session has expired. Please sign in again to continue."
-          buttonText="Sign in"
-          onAction={() => setScreen(WIDGET_SCREENS.AUTH)}
-        />
-      )}
-      {!isSkipped ? (
+      <WidgetSessionGuard
+        isExpired={isExpired}
+        isNew={isNew}
+        isValidating={isValidationLoading}
+        onAuthenticate={() => setScreen(WIDGET_SCREENS.AUTH)}
+      >
         <div className="flex flex-col flex-1 min-h-0">
           {isLoading ? (
             <div className="flex flex-col flex-1 gap-y-6 justify-center items-center text-muted-foreground">
@@ -155,9 +142,7 @@ export const WidgetInboxScreen = () => {
             />
           )}
         </div>
-      ) : (
-        <div className="flex-1 min-h-0" />
-      )}
+      </WidgetSessionGuard>
       <WidgetFooter />
     </div>
   );
