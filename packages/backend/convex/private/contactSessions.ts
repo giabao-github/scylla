@@ -17,6 +17,9 @@ export const getOneByConversationId = query({
     }
 
     if (conversation.organizationId !== organizationId) {
+      console.warn(
+        `Conversation org mismatch for conversation [${args.conversationId}] expected [${organizationId}] got [${conversation.organizationId}]`,
+      );
       return null;
     }
 
@@ -24,12 +27,15 @@ export const getOneByConversationId = query({
 
     if (!contactSession) {
       console.warn(
-        `Contact session not found for conversation [${args.conversationId}]`,
+        `Contact session [${conversation.contactSessionId}] not found for conversation [${args.conversationId}]`,
       );
       return null;
     }
 
     if (contactSession.organizationId !== organizationId) {
+      console.warn(
+        `Contact session org mismatch for conversation [${args.conversationId}] session [${contactSession._id}] expected [${organizationId}] got [${contactSession.organizationId}]`,
+      );
       return null;
     }
 

@@ -159,7 +159,7 @@ export const WidgetContactScreen = () => {
                       className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
                     >
                       <a
-                        href={phoneNumber ? `tel:${phoneNumber}` : "#"}
+                        href={`tel:${phoneNumber}`}
                         aria-label="Call phone number"
                       >
                         <PhoneIcon />
