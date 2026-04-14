@@ -36,7 +36,6 @@ import {
 } from "@workspace/ui/components/sheet";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
-import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
@@ -111,7 +110,6 @@ export const ConversationIdView = ({
     api.private.contactSessions.getOneByConversationId,
     { conversationId: conversationId as Id<"conversations"> },
   );
-  const isMobile = useIsMobile();
 
   const messages = useThreadMessages(
     api.private.messages.getMany,
@@ -331,6 +329,13 @@ export const ConversationIdView = ({
     setPendingSlots([]);
   }, [conversationId, form]);
 
+  const contactName = useMemo(() => {
+    if (!contactSession) return "";
+    if (contactSession.name) return contactSession.name;
+    if (contactSession.email) return contactSession.email;
+    return "Anonymous User";
+  }, [contactSession]);
+
   if (conversation === undefined || messages.status === "LoadingFirstPage") {
     return <ConversationIdViewSkeleton />;
   }
@@ -365,7 +370,7 @@ export const ConversationIdView = ({
       {/* Mobile view*/}
       <header className="md:hidden flex items-center gap-2 border-b bg-transparent px-2 py-1.5 shrink-0">
         <Button variant="ghost" size="icon" asChild className="size-8 shrink-0">
-          <Link href="/conversations">
+          <Link href="/conversations" aria-label="Back to conversations">
             <ChevronLeftIcon className="size-5" strokeWidth={2} />
           </Link>
         </Button>
@@ -375,7 +380,7 @@ export const ConversationIdView = ({
               type="button"
               className="flex-1 px-1 min-w-0 font-semibold text-center truncate transition-opacity hover:opacity-70"
             >
-              {contactSession?.name ?? "Anonymous User"}
+              {contactName}
             </button>
           </SheetTrigger>
           <SheetContent side="right" className="flex flex-col p-0 w-80">
@@ -406,7 +411,7 @@ export const ConversationIdView = ({
           <MoreHorizontalIcon />
         </Button>
         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 px-1 min-w-0 max-w-[60%] font-semibold text-center truncate">
-          {contactSession?.name ?? "Anonymous User"}
+          {contactName}
         </div>
         <ConversationStatusButton
           disabled={updatingStatus}
@@ -547,9 +552,9 @@ export const ConversationIdViewSkeleton = () => {
   return (
     <div className="flex flex-col h-full bg-muted">
       {/* Mobile skeleton header */}
-      <header className="md:hidden flex items-center gap-2 border-b bg-background px-2 py-1.5 shrink-0">
+      <header className="md:hidden flex items-center gap-2 border-b bg-transparent px-2 py-1.5 shrink-0">
         <Button variant="ghost" size="icon" asChild className="size-8 shrink-0">
-          <Link href="/conversations">
+          <Link href="/conversations" aria-label="Back to conversations">
             <ChevronLeftIcon className="size-5" />
           </Link>
         </Button>

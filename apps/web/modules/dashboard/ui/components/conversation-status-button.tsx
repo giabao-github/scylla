@@ -27,7 +27,7 @@ export const ConversationStatusButton = ({
             disabled={disabled}
             variant="success"
             size={iconOnly ? "icon-sm" : "sm"}
-            aria-label={iconOnly ? "Resolved" : undefined}
+            aria-label={iconOnly ? "Mark as unresolved" : undefined}
             onClick={onClick}
           >
             <CheckIcon />
@@ -42,7 +42,7 @@ export const ConversationStatusButton = ({
             disabled={disabled}
             variant="warning"
             size={iconOnly ? "icon-sm" : "sm"}
-            aria-label={iconOnly ? "Escalated" : undefined}
+            aria-label={iconOnly ? "Mark as resolved" : undefined}
             onClick={onClick}
           >
             <ArrowUpIcon />
@@ -57,7 +57,7 @@ export const ConversationStatusButton = ({
             disabled={disabled}
             variant="danger"
             size={iconOnly ? "icon-sm" : "sm"}
-            aria-label={iconOnly ? "Unresolved" : undefined}
+            aria-label={iconOnly ? "Mark as escalated" : undefined}
             onClick={onClick}
           >
             <ClockIcon />

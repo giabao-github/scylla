@@ -38,16 +38,19 @@ export const getVapiSecrets = action({
         return null;
       }
 
-      const organization = await ctx.runQuery(api.public.organizations.getByClerkId, {
-        clerkOrgId: args.organizationId,
-      });
+      const organization = await ctx.runQuery(
+        api.public.organizations.getByClerkId,
+        {
+          clerkOrgId: args.organizationId,
+        },
+      );
 
-      if (
-        !organization ||
-        organization._id !== contactSession.organizationId
-      ) {
+      if (!organization || organization._id !== contactSession.organizationId) {
         return null;
       }
+      console.info(
+        `[public:secrets] Unauthenticated access via contact session ${args.contactSessionId} for organization ${args.organizationId}`,
+      );
     }
 
     const plugin = await ctx.runQuery(

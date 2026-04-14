@@ -20,7 +20,6 @@ import Bowser from "bowser";
 import { useQuery } from "convex/react";
 import { ClockIcon, GlobeIcon, MailIcon, MonitorIcon } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { getBrowserIcon, getOsIcon } from "@/modules/dashboard/icons";
@@ -140,7 +139,7 @@ export const ContactPanel = () => {
     : undefined;
 
   const accordionSections = useMemo<InfoSection[]>(() => {
-    if (!metadata) return [];
+    if (!metadata || !contactSession) return [];
 
     const BrowserIcon = getBrowserIcon(userAgentInfo.browser);
     const OsIcon = getOsIcon(userAgentInfo.os);
@@ -196,7 +195,12 @@ export const ContactPanel = () => {
           },
           {
             label: "Cookies",
-            value: metadata.cookieEnabled ? "Enabled" : "Disabled",
+            value:
+              metadata.cookieEnabled === true
+                ? "Enabled"
+                : metadata.cookieEnabled === false
+                  ? "Disabled"
+                  : "—",
           },
         ],
       },
@@ -229,7 +233,7 @@ export const ContactPanel = () => {
           },
           {
             label: "Timezone",
-            value: metadata.timezone,
+            value: metadata.timezone ?? "—",
           },
           {
             label: "UTC Offset",
@@ -244,12 +248,21 @@ export const ContactPanel = () => {
         items: [
           {
             label: "Session Started",
-            value: new Date(contactSession._creationTime).toLocaleString(),
+            value: new Date(contactSession._creationTime).toLocaleString(
+              undefined,
+              {
+                dateStyle: "medium",
+                timeStyle: "short",
+              },
+            ),
           },
           {
             label: "Session Expires",
             value: contactSession.expiresAt
-              ? new Date(contactSession.expiresAt).toLocaleString()
+              ? new Date(contactSession.expiresAt).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
               : "—",
           },
         ],
@@ -297,10 +310,10 @@ export const ContactPanel = () => {
           </div>
         </div>
         <Button asChild size="lg" className="mx-6">
-          <Link href={`mailto:${contactSession.email}`}>
+          <a href={`mailto:${contactSession.email}`}>
             <MailIcon />
             <span className="select-none">Send email</span>
-          </Link>
+          </a>
         </Button>
       </div>
 

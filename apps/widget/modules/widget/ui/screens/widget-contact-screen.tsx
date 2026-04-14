@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import {
@@ -94,6 +94,10 @@ export const WidgetContactScreen = () => {
     }
   };
 
+  const handleAuthenticate = useCallback(() => {
+    setScreen(WIDGET_SCREENS.AUTH);
+  }, [setScreen]);
+
   useEffect(() => {
     return () => {
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
@@ -111,7 +115,7 @@ export const WidgetContactScreen = () => {
       isExpired={isExpired}
       isNew={isNew}
       isValidating={!!contactSessionId && validation === undefined}
-      onAuthenticate={() => setScreen(WIDGET_SCREENS.AUTH)}
+      onAuthenticate={handleAuthenticate}
     >
       <div className="flex flex-col flex-1 min-h-0">
         <div className="flex flex-1 justify-center items-center">
@@ -154,13 +158,13 @@ export const WidgetContactScreen = () => {
                       variant="success"
                       className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
                     >
-                      <Link
+                      <a
                         href={phoneNumber ? `tel:${phoneNumber}` : "#"}
                         aria-label="Call phone number"
                       >
                         <PhoneIcon />
                         Call now
-                      </Link>
+                      </a>
                     </Button>
                   ) : (
                     <Button

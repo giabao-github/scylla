@@ -276,7 +276,9 @@ export const WidgetChatScreen = () => {
 
   return (
     <>
-      {modalConfig && <CTAModal open {...modalConfig} />}
+      {modalConfig && !isNew && !isExpired && !isSessionValidating && (
+        <CTAModal open {...modalConfig} />
+      )}
       <WidgetSessionGuard
         isExpired={isExpired}
         isNew={isNew}

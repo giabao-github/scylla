@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 
 import { query } from "@workspace/backend/_generated/server";
 import { getAuthenticatedOrg } from "@workspace/backend/convex/private/utils";
@@ -26,6 +26,10 @@ export const getOneByConversationId = query({
       console.warn(
         `Contact session not found for conversation [${args.conversationId}]`,
       );
+      return null;
+    }
+
+    if (contactSession.organizationId !== organizationId) {
       return null;
     }
 
