@@ -11,6 +11,7 @@ import {
   CONVERSATION_STATUS,
   ConversationStatus,
 } from "@workspace/shared/constants/conversation";
+import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import {
@@ -45,6 +46,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
 import { ContactPanel } from "@/modules/dashboard/ui/components/contact-panel";
 import { ConversationStatusButton } from "@/modules/dashboard/ui/components/conversation-status-button";
 
@@ -81,8 +83,10 @@ const MESSAGE_CONTAINER_MAX_HEIGHT = "calc(100vh - 190px)";
 
 export const ConversationIdView = ({
   conversationId,
+  subscriptionStatus,
 }: {
   conversationId: string;
+  subscriptionStatus: SubscriptionStatus;
 }) => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
   const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
@@ -111,6 +115,8 @@ export const ConversationIdView = ({
     { conversationId: conversationId as Id<"conversations"> },
   );
 
+  const { status } = useSubscription(subscriptionStatus);
+
   const messages = useThreadMessages(
     api.private.messages.getMany,
     conversation?.threadId ? { threadId: conversation.threadId } : "skip",
@@ -136,6 +142,7 @@ export const ConversationIdView = ({
   const isBlocked = !conversation || isResolved || isSending || isEnhancing;
   const submitDisabled =
     isBlocked || !form.formState.isValid || form.formState.isSubmitting;
+  const hasSubscription = status === "active" || status === "canceled";
 
   const uiMessages = useMemo(
     () => toUIMessages(messages.results ?? []),
@@ -520,9 +527,18 @@ export const ConversationIdView = ({
                   <PromptBoxDefaultTools
                     tools={{ enhance: true, modelSelector: false }}
                     enhanceDisabled={
-                      isSending || isEnhancing || !form.formState.isValid
+                      isSending ||
+                      isEnhancing ||
+                      !form.formState.isValid ||
+                      !hasSubscription
                     }
-                    enhanceText={isEnhancing ? "Enhancing..." : "Enhance"}
+                    enhanceText={
+                      !hasSubscription
+                        ? "Text enhance available on Pro plan"
+                        : isEnhancing
+                          ? "Enhancing..."
+                          : "Enhance"
+                    }
                     onEnhance={handleEnhanceResponse}
                   />
                   <PromptInputSubmit

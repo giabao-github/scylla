@@ -13,6 +13,7 @@ import {
 import {
   cleanupFileIndices,
   getAuthenticatedOrgId,
+  requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 import rag from "@workspace/backend/system/ai/rag";
 
@@ -65,7 +66,9 @@ const decodeFilteredCursor = (s: string): FilteredCursor | null => {
       (typeof parsed.rawCursor === "string" || parsed.rawCursor === null) &&
       (parsed.bufferedEntryIds === undefined ||
         (Array.isArray(parsed.bufferedEntryIds) &&
-          parsed.bufferedEntryIds.every((id: unknown) => typeof id === "string")))
+          parsed.bufferedEntryIds.every(
+            (id: unknown) => typeof id === "string",
+          )))
     ) {
       return parsed as FilteredCursor;
     }
@@ -158,7 +161,7 @@ export const getFileUrl = query({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx): Promise<string> => {
-    await getAuthenticatedOrgId(ctx);
+    await requireSubscriptionFeatureAccess(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -188,7 +191,7 @@ export const checkForDuplicate = query({
     filename: v.string(),
   },
   handler: async (ctx, { contentHash, filename }) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { organizationId } = await requireSubscriptionFeatureAccess(ctx);
 
     const [hashMatch, nameMatch] = await Promise.all([
       ctx.db
@@ -217,7 +220,7 @@ export const deleteFile = mutation({
     entryId: vEntryId,
   },
   handler: async (ctx, { entryId }) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { organizationId } = await requireSubscriptionFeatureAccess(ctx);
     const entry = await rag.getEntry(ctx, { entryId });
 
     if (!entry || entry.metadata?.uploadedBy !== organizationId) {
@@ -267,7 +270,7 @@ export const deleteFiles = mutation({
       });
     }
 
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { organizationId } = await requireSubscriptionFeatureAccess(ctx);
 
     const entries = await Promise.all(
       entryIds.map((entryId) => rag.getEntry(ctx, { entryId })),
@@ -368,7 +371,9 @@ export const list = query({
         );
         const bufferedPendingChecks = await Promise.all(
           bufferedEntries.map((entry) =>
-            entry ? isPendingDeletion(ctx, entry.entryId) : Promise.resolve(false),
+            entry
+              ? isPendingDeletion(ctx, entry.entryId)
+              : Promise.resolve(false),
           ),
         );
 
@@ -452,13 +457,14 @@ export const list = query({
         );
       }
 
-      const nextCursor = isDone && bufferedEntryIds.length === 0
-        ? ""
-        : encodeFilteredCursor({
-            __type: "filtered",
-            rawCursor: cursor,
-            bufferedEntryIds,
-          });
+      const nextCursor =
+        isDone && bufferedEntryIds.length === 0
+          ? ""
+          : encodeFilteredCursor({
+              __type: "filtered",
+              rawCursor: cursor,
+              bufferedEntryIds,
+            });
 
       const files = await Promise.all(
         matched.map((entry) => convertEntryToPublicFile(ctx, entry)),

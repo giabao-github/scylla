@@ -2,19 +2,17 @@ import { EntryId } from "@convex-dev/rag";
 
 import { internal } from "@workspace/backend/_generated/api";
 import { internalAction } from "@workspace/backend/_generated/server";
+import { DELETION_BATCH_SIZE, MAX_RETRIES } from "@workspace/backend/constants";
 import rag from "@workspace/backend/system/ai/rag";
 
 import { isNotFoundError } from "@workspace/shared/lib/file-utils";
-
-const BATCH_SIZE = 20;
-const MAX_RETRIES = 3;
 
 export const processPendingDeletions = internalAction({
   args: {},
   handler: async (ctx) => {
     const pending = await ctx.runQuery(
       internal.private.files.listPendingDeletions,
-      { limit: BATCH_SIZE },
+      { limit: DELETION_BATCH_SIZE },
     );
 
     if (pending.length === 0) return;
@@ -59,7 +57,7 @@ export const processPendingDeletions = internalAction({
       }
     }
 
-    if (pending.length === BATCH_SIZE) {
+    if (pending.length === DELETION_BATCH_SIZE) {
       await ctx.scheduler.runAfter(
         100,
         internal.pendingDeletions.processPendingDeletions,

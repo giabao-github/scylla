@@ -178,4 +178,15 @@ export default defineSchema({
       phoneNumber: v.optional(v.string()),
     }),
   }).index("by_org_id", ["organizationId"]),
+  subscriptions: defineTable({
+    organizationId: v.string(),
+    status: v.union(
+      v.literal("active"),
+      v.literal("canceled"),
+      v.literal("free"),
+    ),
+    periodEnd: v.union(v.number(), v.null()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_org_id", ["organizationId"]),
 });

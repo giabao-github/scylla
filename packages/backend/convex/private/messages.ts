@@ -8,7 +8,7 @@ import { components, internal } from "@workspace/backend/_generated/api";
 import { action, mutation, query } from "@workspace/backend/_generated/server";
 import {
   getAuthenticatedOrg,
-  getAuthenticatedOrgId,
+  requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import { OPERATOR_MESSAGE_ENHANCEMENT_PROMPT } from "@workspace/backend/system/ai/prompts";
@@ -71,8 +71,6 @@ export const create = mutation({
     );
 
     if (duplicate) return;
-
-    // TODO: implement subscription check
 
     let savedMessage;
     try {
@@ -153,7 +151,7 @@ export const enhanceResponse = action({
     prompt: v.string(),
   },
   handler: async (ctx, { prompt }) => {
-    await getAuthenticatedOrgId(ctx);
+    await requireSubscriptionFeatureAccess(ctx);
 
     if (!prompt.trim()) {
       throw new ConvexError({

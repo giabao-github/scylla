@@ -1,27 +1,15 @@
-"use client";
+import { auth } from "@clerk/nextjs/server";
+import { Metadata } from "next";
 
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
+import { BillingView } from "@/modules/billing/ui/views/billing-view";
 
-export default function Page() {
-  return (
-    <div className="flex flex-col gap-y-4 justify-center items-center text-base min-h-svh">
-      <p>Billing</p>
-      <UserButton
-        appearance={{
-          elements: {
-            userButtonAvatarBox: "!size-12",
-          },
-        }}
-      />
-      <OrganizationSwitcher
-        hidePersonal
-        appearance={{
-          elements: {
-            organizationPreviewAvatarBox: "!size-7",
-            organizationPreviewMainIdentifier: "!font-semibold !text-[15px]",
-          },
-        }}
-      />
-    </div>
-  );
+export const metadata: Metadata = {
+  title: "Billing & Plans - Scylla",
+};
+
+export default async function Page() {
+  const { has } = await auth();
+  const isPro = has?.({ plan: "pro" }) ?? false;
+
+  return <BillingView initialStatus={isPro ? "active" : "free"} />;
 }

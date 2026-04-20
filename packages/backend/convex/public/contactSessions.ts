@@ -1,14 +1,13 @@
 import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "@workspace/backend/_generated/server";
+import { SESSION_DURATION_MS } from "@workspace/backend/constants";
 
 import {
   getCountryFromCode,
   normalizeCountryCode,
 } from "@workspace/shared/lib/country-utils";
 import { sanitizeInput, validateInput } from "@workspace/shared/lib/utils";
-
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
 export const create = mutation({
   args: {

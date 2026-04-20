@@ -4,12 +4,11 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "@workspace/backend/_generated/api";
 import { internalAction } from "@workspace/backend/_generated/server";
+import { ORG_ID_PATTERN } from "@workspace/backend/constants";
 import {
   deleteSecretValue,
   upsertSecretValue,
 } from "@workspace/backend/lib/secrets";
-
-const ORG_ID_PATTERN = /^org_[a-zA-Z0-9]+$/;
 
 export const upsert = internalAction({
   args: {

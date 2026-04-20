@@ -9,6 +9,7 @@ import {
 import {
   getAuthenticatedOrgId,
   getPluginByOrgAndService,
+  requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 
 export const getOne = query({
@@ -31,7 +32,7 @@ export const remove = mutation({
     service: v.literal("vapi"),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { organizationId } = await requireSubscriptionFeatureAccess(ctx);
 
     const existingPlugin = await getPluginByOrgAndService(
       ctx,

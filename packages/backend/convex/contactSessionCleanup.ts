@@ -2,8 +2,7 @@ import { v } from "convex/values";
 
 import { internal } from "@workspace/backend/_generated/api";
 import { internalMutation } from "@workspace/backend/_generated/server";
-
-const BATCH_SIZE = 100;
+import { CLEANUP_BATCH_SIZE } from "@workspace/backend/constants";
 
 export const purgeExpiredContactSessions = internalMutation({
   args: {
@@ -14,7 +13,7 @@ export const purgeExpiredContactSessions = internalMutation({
     const expiredSessions = await ctx.db
       .query("contactSessions")
       .withIndex("by_expires_at", (q) => q.lt("expiresAt", now))
-      .take(BATCH_SIZE);
+      .take(CLEANUP_BATCH_SIZE);
 
     const sessionIds = expiredSessions.map((s) => s._id);
     await Promise.all(expiredSessions.map((s) => ctx.db.delete(s._id)));
@@ -29,7 +28,7 @@ export const purgeExpiredContactSessions = internalMutation({
 
     const runningTotal = (args.totalDeleted ?? 0) + expiredSessions.length;
 
-    if (expiredSessions.length === BATCH_SIZE) {
+    if (expiredSessions.length === CLEANUP_BATCH_SIZE) {
       await ctx.scheduler.runAfter(
         0,
         internal.contactSessionCleanup.purgeExpiredContactSessions,

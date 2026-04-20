@@ -4,6 +4,8 @@ import {
   internalMutation,
   internalQuery,
 } from "@workspace/backend/_generated/server";
+import { UPDATED_AT_THROTTLE_MS } from "@workspace/backend/constants";
+import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import {
   getConversationByThreadId,
   requireConversationByThreadId,
@@ -13,10 +15,6 @@ import {
   CONVERSATION_STATUS,
   ConversationStatus,
 } from "@workspace/shared/constants/conversation";
-
-import { supportAgent } from "./ai/agents/supportAgent";
-
-const UPDATED_AT_THROTTLE_MS = 5000;
 
 const assertValidTransition = (
   existing: ConversationStatus,

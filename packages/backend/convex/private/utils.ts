@@ -19,6 +19,7 @@ import {
 import rag from "@workspace/backend/system/ai/rag";
 
 import { isNotFoundError } from "@workspace/shared/lib/file-utils";
+import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
 
 type EntryMetadata = {
   contentHash?: string;
@@ -42,6 +43,12 @@ interface AuthContext {
 interface AuthDbContext extends AuthContext {
   db: DatabaseReader;
 }
+
+type SubscriptionLookupContext =
+  | { db: DatabaseReader }
+  | Pick<ActionCtx, "runQuery">;
+
+type SubscriptionFeatureAccessContext = AuthContext & SubscriptionLookupContext;
 
 const asyncMapBatch = async <T, R>(
   items: T[],
@@ -105,6 +112,45 @@ export const getAuthenticatedOrg = async (
   return { identity, organization };
 };
 
+const getSubscriptionByOrganizationId = async (
+  ctx: SubscriptionLookupContext,
+  organizationId: string,
+): Promise<Doc<"subscriptions"> | null> => {
+  if ("db" in ctx) {
+    return await ctx.db
+      .query("subscriptions")
+      .withIndex("by_org_id", (q) => q.eq("organizationId", organizationId))
+      .unique();
+  }
+
+  return await ctx.runQuery(internal.system.subscriptions.getByOrganizationId, {
+    organizationId,
+  });
+};
+
+export const hasSubscriptionFeatureAccess = (
+  status: SubscriptionStatus | null | undefined,
+): boolean => status === "active" || status === "canceled";
+
+export const requireSubscriptionFeatureAccess = async (
+  ctx: SubscriptionFeatureAccessContext,
+): Promise<{
+  identity: ValidatedOrgUserIdentity;
+  organizationId: string;
+}> => {
+  const { identity, organizationId } = await getAuthenticatedOrgId(ctx);
+  const subscription = await getSubscriptionByOrganizationId(ctx, organizationId);
+
+  if (!hasSubscriptionFeatureAccess(subscription?.status)) {
+    throw new ConvexError({
+      code: "SUBSCRIPTION_REQUIRED",
+      message: "Pro subscription required",
+    });
+  }
+
+  return { identity, organizationId };
+};
+
 export const cleanupFileIndices = async (ctx: MutationCtx, entryId: string) => {
   const hashRow = await ctx.db
     .query("contentHashes")
@@ -129,24 +175,27 @@ export const cleanupPendingDeletions = async (
   filename: string,
   contentHash?: string,
 ): Promise<void> => {
-  const [pendingNameMatches, pendingHashMatches, pendingOrgMatches] =
-    await Promise.all([
-      ctx.runQuery(internal.private.files.listPendingDeletionsByFilename, {
-        organizationId,
-        filename,
-      }),
-      contentHash
-        ? ctx.runQuery(internal.private.files.listPendingDeletionsByHash, {
-            organizationId,
-            contentHash,
-          })
-        : Promise.resolve([] as Doc<"pendingDeletions">[]),
-      contentHash
-        ? ctx.runQuery(internal.private.files.listPendingDeletionsByOrg, {
-            organizationId,
-          })
-        : Promise.resolve([] as Doc<"pendingDeletions">[]),
-    ]);
+  const [pendingNameMatches, pendingHashMatches, pendingOrgMatches]: [
+    Doc<"pendingDeletions">[],
+    Doc<"pendingDeletions">[],
+    Doc<"pendingDeletions">[],
+  ] = await Promise.all([
+    ctx.runQuery(internal.private.files.listPendingDeletionsByFilename, {
+      organizationId,
+      filename,
+    }),
+    contentHash
+      ? ctx.runQuery(internal.private.files.listPendingDeletionsByHash, {
+          organizationId,
+          contentHash,
+        })
+      : Promise.resolve([] as Doc<"pendingDeletions">[]),
+    contentHash
+      ? ctx.runQuery(internal.private.files.listPendingDeletionsByOrg, {
+          organizationId,
+        })
+      : Promise.resolve([] as Doc<"pendingDeletions">[]),
+  ]);
 
   const seenEntryIds = new Set<string>();
   const uniquePending = [...pendingNameMatches, ...pendingHashMatches].filter(
@@ -162,44 +211,43 @@ export const cleanupPendingDeletions = async (
       (pending) => !pending.contentHash && !seenEntryIds.has(pending.entryId),
     );
 
-    const hydratedHashMatches = await asyncMapBatch(
-      pendingToHydrate,
-      10,
-      async (pending) => {
-        try {
-          const entry = await rag.getEntry(ctx, {
-            entryId: pending.entryId as EntryId,
-          });
-          const pendingHash = (entry?.metadata as EntryMetadata | undefined)
-            ?.contentHash;
+    const hydratedHashMatches = await asyncMapBatch<
+      Doc<"pendingDeletions">,
+      Doc<"pendingDeletions"> | null
+    >(pendingToHydrate, 10, async (pending) => {
+      try {
+        const entry = await rag.getEntry(ctx, {
+          entryId: pending.entryId as EntryId,
+        });
+        const pendingHash = (entry?.metadata as EntryMetadata | undefined)
+          ?.contentHash;
 
-          if (pendingHash) {
-            await ctx.runMutation(
-              internal.private.files.backfillPendingDeletionContentHash,
-              {
-                id: pending._id,
-                contentHash: pendingHash,
-              },
-            );
-          }
-
-          if (pendingHash !== contentHash) {
-            return null;
-          }
-
-          return {
-            ...pending,
-            contentHash: pendingHash,
-          };
-        } catch (error) {
-          console.error(
-            `Failed to hydrate content hash for pending deletion [${pending.entryId}]:`,
-            error,
+        if (pendingHash) {
+          await ctx.runMutation(
+            internal.private.files.backfillPendingDeletionContentHash,
+            {
+              id: pending._id,
+              contentHash: pendingHash,
+            },
           );
+        }
+
+        if (pendingHash !== contentHash) {
           return null;
         }
-      },
-    );
+
+        return {
+          ...pending,
+          contentHash: pendingHash,
+        };
+      } catch (error) {
+        console.error(
+          `Failed to hydrate content hash for pending deletion [${pending.entryId}]:`,
+          error,
+        );
+        return null;
+      }
+    });
 
     for (const pending of hydratedHashMatches) {
       if (!pending || seenEntryIds.has(pending.entryId)) continue;
@@ -255,7 +303,7 @@ export const getPluginByOrgAndService = async (
 };
 
 export const getVapiClient = async (ctx: ActionCtx): Promise<VapiClient> => {
-  const { organizationId } = await getAuthenticatedOrgId(ctx);
+  const { organizationId } = await requireSubscriptionFeatureAccess(ctx);
 
   const plugin = await ctx.runQuery(
     internal.system.plugins.getByOrgIdAndService,

@@ -51,6 +51,9 @@ export class ConversationErrorBoundary extends Component<
   }
 
   private getErrorMessage(): string {
+    if (this.errorCode === "INTERNAL") {
+      return "Something went wrong. Please try again.";
+    }
     if (this.isPersistentError) {
       return "This conversation is not available.";
     }

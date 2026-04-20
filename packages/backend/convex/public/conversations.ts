@@ -2,7 +2,8 @@ import { saveMessage } from "@convex-dev/agent";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { components } from "@workspace/backend/_generated/api";
+import { components, internal } from "@workspace/backend/_generated/api";
+import { Id } from "@workspace/backend/_generated/dataModel";
 import { mutation, query } from "@workspace/backend/_generated/server";
 import { validateSession } from "@workspace/backend/public/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
@@ -13,7 +14,7 @@ export const create = mutation({
   args: {
     contactSessionId: v.id("contactSessions"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Id<"conversations">> => {
     const session = await validateSession(ctx, args.contactSessionId);
     const organizationId = session.organizationId;
     const organization = await ctx.db.get(organizationId);
@@ -24,6 +25,17 @@ export const create = mutation({
         message: "Organization not found",
       });
     }
+
+    await ctx.runMutation(internal.system.contactSessions.refresh, {
+      contactSessionId: args.contactSessionId,
+    });
+
+    const subscription = await ctx.runQuery(
+      internal.system.subscriptions.getByOrganizationId,
+      {
+        organizationId: organization.organizationId,
+      },
+    );
 
     const widgetSettings = await ctx.db
       .query("widgetSettings")
@@ -52,7 +64,10 @@ export const create = mutation({
 
       const conversationId = await ctx.db.insert("conversations", {
         contactSessionId: session._id,
-        status: CONVERSATION_STATUS.UNRESOLVED,
+        status:
+          subscription?.status === "active"
+            ? CONVERSATION_STATUS.UNRESOLVED
+            : CONVERSATION_STATUS.ESCALATED,
         organizationId: session.organizationId,
         threadId,
         createdAt: now,

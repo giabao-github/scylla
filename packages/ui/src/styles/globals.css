@@ -232,6 +232,13 @@
   }
 }
 
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .scrollbar-themed {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) transparent;

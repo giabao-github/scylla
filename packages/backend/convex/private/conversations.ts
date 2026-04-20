@@ -44,7 +44,7 @@ export const getOne = query({
     if (!contactSession) {
       throw new ConvexError({
         code: "INTERNAL",
-        message: `Data integrity violation: missing contactSession [${conversation.contactSessionId}] for conversation [${conversation._id}]`,
+        message: "Data integrity violation: missing contact session",
       });
     }
 
@@ -103,7 +103,7 @@ export const getMany = query({
         if (!contactSession) {
           throw new ConvexError({
             code: "INTERNAL",
-            message: `Data integrity violation: missing contactSession [${conversation.contactSessionId}] for conversation [${conversation._id}]`,
+            message: "Data integrity violation: missing contact session",
           });
         }
 

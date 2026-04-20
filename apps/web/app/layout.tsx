@@ -34,7 +34,15 @@ export default function RootLayout({
       <body
         className={`${fontSans.variable} ${fontMono.variable} font-sans font-medium antialiased`}
       >
-        <ClerkProvider>
+        <ClerkProvider
+          appearance={{
+            variables: {
+              colorPrimary: "#A78BFA",
+            },
+          }}
+          signInFallbackRedirectUrl="/conversations"
+          signUpFallbackRedirectUrl="/conversations"
+        >
           <TooltipProvider>
             <Providers>
               {children}

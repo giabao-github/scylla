@@ -5,11 +5,11 @@ import { v } from "convex/values";
 
 import { internal } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
-import { action } from "@workspace/backend/_generated/server";
+import { action, type ActionCtx } from "@workspace/backend/_generated/server";
 import { extractTextContent } from "@workspace/backend/lib/extractTextContent";
 import {
   cleanupPendingDeletions,
-  getAuthenticatedOrgId,
+  requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 import rag from "@workspace/backend/system/ai/rag";
 
@@ -70,6 +70,17 @@ const isValidStorageId = (value: unknown): value is Id<"_storage"> => {
   return typeof value === "string" && value.length > 0;
 };
 
+const deleteUploadedStorageIfPresent = async (
+  ctx: ActionCtx,
+  storageId: Id<"_storage">,
+) => {
+  await ctx.storage.delete(storageId).catch((error) => {
+    if (!isNotFoundError(error)) {
+      console.error(`Failed to delete uploaded storage [${storageId}]:`, error);
+    }
+  });
+};
+
 export const addFile = action({
   args: {
     storageId: v.id("_storage"),
@@ -80,9 +91,16 @@ export const addFile = action({
     contentHash: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<AddFileResult> => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
     const { storageId, filename, category, overrideEntryId, contentHash } =
       args;
+    let organizationId: string;
+
+    try {
+      ({ organizationId } = await requireSubscriptionFeatureAccess(ctx));
+    } catch (error) {
+      await deleteUploadedStorageIfPresent(ctx, storageId);
+      throw error;
+    }
 
     const oldEntry = overrideEntryId
       ? await rag.getEntry(ctx, { entryId: overrideEntryId })
@@ -362,7 +380,7 @@ export const updateFile = action({
     category: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<UpdateFileResult> => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { organizationId } = await requireSubscriptionFeatureAccess(ctx);
 
     const entry = await rag.getEntry(ctx, { entryId: args.entryId });
 
