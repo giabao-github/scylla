@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
-import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
+import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { useQuery } from "convex/react";
 
 import { CustomizationForm } from "@/modules/customization/ui/components/customization-form";
@@ -11,7 +11,7 @@ import { CustomizationForm } from "@/modules/customization/ui/components/customi
 export const CustomizationView = ({
   initialStatus,
 }: {
-  initialStatus?: SubscriptionStatus;
+  initialStatus?: InitialSubscriptionStatus;
 }) => {
   const widgetSettings = useQuery(api.private.widgetSettings.getOne);
   const vapiPlugin = useQuery(api.private.plugins.getOne, {

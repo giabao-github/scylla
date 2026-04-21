@@ -2,7 +2,10 @@
 
 import { Suspense } from "react";
 
-import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
+import {
+  InitialSubscriptionStatus,
+  type SubscriptionStatus,
+} from "@workspace/shared/types/subscription";
 import {
   Alert,
   AlertDescription,
@@ -32,7 +35,7 @@ const getPlanBadge = (status: SubscriptionStatus | undefined): PlanBadge => {
 };
 
 interface BillingViewProps {
-  initialStatus?: SubscriptionStatus;
+  initialStatus?: InitialSubscriptionStatus;
 }
 
 export const BillingView = ({ initialStatus }: BillingViewProps) => {

@@ -7,11 +7,12 @@ import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
+import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 import {
   CONVERSATION_STATUS,
   type ConversationStatus,
 } from "@workspace/shared/types/conversation";
-import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
+import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import {
@@ -86,7 +87,7 @@ export const ConversationIdView = ({
   subscriptionStatus,
 }: {
   conversationId: string;
-  subscriptionStatus: SubscriptionStatus;
+  subscriptionStatus: InitialSubscriptionStatus;
 }) => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
   const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
@@ -115,7 +116,7 @@ export const ConversationIdView = ({
     { conversationId: conversationId as Id<"conversations"> },
   );
 
-  const { status } = useSubscription(subscriptionStatus);
+  const { isLoading, subscription } = useSubscription(subscriptionStatus);
 
   const messages = useThreadMessages(
     api.private.messages.getMany,
@@ -142,7 +143,9 @@ export const ConversationIdView = ({
   const isBlocked = !conversation || isResolved || isSending || isEnhancing;
   const submitDisabled =
     isBlocked || !form.formState.isValid || form.formState.isSubmitting;
-  const hasSubscription = status === "active" || status === "canceled";
+  const hasPremiumAccess = isLoading
+    ? subscriptionStatus === "active"
+    : hasSubscriptionFeatureAccess(subscription);
 
   const uiMessages = useMemo(
     () => toUIMessages(messages.results ?? []),
@@ -205,7 +208,7 @@ export const ConversationIdView = ({
 
   const handleEnhanceResponse = async () => {
     const currentValue = form.getValues("message");
-    if (isBlocked || !currentValue.trim() || !hasSubscription) return;
+    if (isBlocked || !currentValue.trim() || !hasPremiumAccess) return;
     const requestId = ++enhanceRequestIdRef.current;
     setIsEnhancing(true);
     try {
@@ -530,10 +533,10 @@ export const ConversationIdView = ({
                       isSending ||
                       isEnhancing ||
                       !form.formState.isValid ||
-                      !hasSubscription
+                      !hasPremiumAccess
                     }
                     enhanceText={
-                      !hasSubscription
+                      !hasPremiumAccess
                         ? "Text enhance available on Pro plan"
                         : isEnhancing
                           ? "Enhancing..."

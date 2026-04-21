@@ -1,7 +1,7 @@
 import { UseFormReturn } from "react-hook-form";
 
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
-import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
+import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   FormControl,
@@ -29,15 +29,17 @@ import {
 
 interface VapiFormFieldsProps {
   form: UseFormReturn<FormSchema>;
-  initialStatus?: SubscriptionStatus;
+  initialStatus?: InitialSubscriptionStatus;
 }
 
 export const VapiFormFields = ({
   form,
   initialStatus,
 }: VapiFormFieldsProps) => {
-  const { subscription } = useSubscription(initialStatus);
-  const hasPremiumAccess = hasSubscriptionFeatureAccess(subscription);
+  const { isLoading, subscription } = useSubscription(initialStatus);
+  const hasPremiumAccess = isLoading
+    ? initialStatus === "active"
+    : hasSubscriptionFeatureAccess(subscription);
 
   const {
     data: assistants,

@@ -98,7 +98,16 @@ export const addFile = action({
     try {
       ({ clerkOrganizationId } = await requireSubscriptionFeatureAccess(ctx));
     } catch (error) {
-      await deleteUploadedStorageIfPresent(ctx, storageId);
+      try {
+        await ctx.storage.delete(storageId);
+      } catch (deleteError) {
+        if (!isNotFoundError(deleteError)) {
+          console.error(
+            `Orphaned storage on auth failure — no pending-orphan record exists [storageId: ${storageId}]:`,
+            deleteError,
+          );
+        }
+      }
       throw error;
     }
 

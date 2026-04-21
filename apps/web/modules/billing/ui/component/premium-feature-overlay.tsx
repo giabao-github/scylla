@@ -178,7 +178,6 @@ export const PremiumFeatureOverlay = () => {
               <Button
                 size="lg"
                 onClick={handleUpgrade}
-                autoFocus
                 className="w-full h-10 bg-white rounded-xl shadow-lg transition-transform group shrink-0 text-slate-900 shadow-black/20 hover:bg-white/95 md:w-auto md:h-11 md:min-w-44"
               >
                 Upgrade to Pro

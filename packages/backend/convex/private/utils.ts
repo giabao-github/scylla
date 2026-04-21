@@ -44,8 +44,6 @@ type OrganizationLookupContext =
   | { db: DatabaseReader }
   | Pick<ActionCtx, "runQuery">;
 
-type AuthOrganizationLookupContext = OrganizationLookupContext;
-type SubscriptionLookupContext = OrganizationLookupContext;
 type AuthenticatedOrganizationContext = AuthContext & OrganizationLookupContext;
 
 const asyncMapBatch = async <T, R>(
@@ -90,7 +88,7 @@ export const getAuthenticatedIdentity = async (
 };
 
 const getOrganizationByClerkId = async (
-  ctx: AuthOrganizationLookupContext,
+  ctx: OrganizationLookupContext,
   clerkOrganizationId: string,
 ): Promise<Doc<"organizations"> | null> => {
   if ("db" in ctx) {
@@ -134,7 +132,7 @@ export const getAuthenticatedOrganization = async (
 };
 
 const getSubscriptionByOrganizationId = async (
-  ctx: SubscriptionLookupContext,
+  ctx: OrganizationLookupContext,
   clerkOrganizationId: string,
 ): Promise<Doc<"subscriptions"> | null> => {
   if ("db" in ctx) {
@@ -223,6 +221,7 @@ export const cleanupPendingDeletions = async (
     contentHash
       ? ctx.runQuery(internal.private.files.listPendingDeletionsByOrg, {
           clerkOrgId,
+          limit: 200,
         })
       : Promise.resolve([] as Doc<"pendingDeletions">[]),
   ]);

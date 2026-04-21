@@ -75,11 +75,7 @@ export const PricingTable = () => {
     }
 
     const updateCardsReadyState = () => {
-      const hasCards = Boolean(
-        container.querySelector(".cl-pricingTableCard__free_org") &&
-        container.querySelector(".cl-pricingTableCard__pro"),
-      );
-
+      const hasCards = Boolean(container.querySelector(".cl-pricingTableCard"));
       setHasRenderedCards(hasCards);
     };
 
@@ -148,7 +144,7 @@ export const PricingTable = () => {
             node.remove();
           });
 
-        if (window.innerWidth < MOBILE_BREAKPOINT) {
+        if (window.innerWidth <= MOBILE_BREAKPOINT) {
           return;
         }
 
@@ -188,12 +184,12 @@ export const PricingTable = () => {
         Choose a plan
       </h2>
 
-      <div className="isolate relative px-4 md:px-0">
+      <div className="isolate relative">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 w-[120%] h-[120%] blur-[100px] opacity-10 pointer-events-none">
           <div className="absolute inset-0 from-purple-600 via-indigo-500 to-blue-400 rounded-full animate-pulse bg-linear-to-tr" />
         </div>
 
-        <div className="relative min-h-136 md:min-h-152">
+        <div className="relative">
           {!hasRenderedCards && <PricingTableSkeleton />}
 
           <div
@@ -227,7 +223,7 @@ export const PricingTable = () => {
         </div>
       </div>
 
-      <div className="text-center">
+      <div className="mt-4 text-center">
         <div className="mx-auto flex w-fit items-center justify-center gap-3 px-2.5 md:px-6 py-2.5 rounded-2xl bg-white/40 border border-white/60 shadow-lg backdrop-blur-md">
           <div className="relative flex h-2.5 w-2.5">
             <span className="inline-flex absolute w-full h-full bg-green-400 rounded-full opacity-75 animate-ping" />

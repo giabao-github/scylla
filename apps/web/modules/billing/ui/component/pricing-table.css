@@ -3,6 +3,7 @@
   --pricing-text-secondary: #64748b;
   --pricing-accent: #7c3aed;
   --pricing-accent-hover: #6d28d9;
+
   display: flex !important;
   flex-wrap: nowrap !important;
   gap: 5rem !important;

@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
-import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
+import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -43,7 +43,7 @@ type WidgetSettings = Doc<"widgetSettings">;
 interface CustomizationFormProps {
   initialData?: WidgetSettings | null;
   hasVapiPlugin: boolean;
-  initialStatus?: SubscriptionStatus;
+  initialStatus?: InitialSubscriptionStatus;
 }
 
 const normalizeFormValue = (value: unknown): unknown => {
@@ -67,15 +67,30 @@ const normalizeFormValue = (value: unknown): unknown => {
   return value;
 };
 
+const UpgradePrompt = ({ message }: { message: string }) => {
+  const router = useRouter();
+  return (
+    <CardContent>
+      <div className="flex flex-col gap-y-4 justify-center items-center">
+        <p className="text-sm text-muted-foreground">{message}</p>
+        <Button type="button" onClick={() => router.push("/billing")}>
+          Upgrade Plan
+        </Button>
+      </div>
+    </CardContent>
+  );
+};
+
 export const CustomizationForm = ({
   initialData,
   hasVapiPlugin,
   initialStatus,
 }: CustomizationFormProps) => {
-  const router = useRouter();
   const upsertWidgetSettings = useMutation(api.private.widgetSettings.upsert);
-  const { subscription } = useSubscription(initialStatus);
-  const hasPremiumAccess = hasSubscriptionFeatureAccess(subscription);
+  const { isLoading, subscription } = useSubscription(initialStatus);
+  const hasPremiumAccess = isLoading
+    ? initialStatus === "active"
+    : hasSubscriptionFeatureAccess(subscription);
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(widgetSettingsSchema),
@@ -262,21 +277,7 @@ export const CustomizationForm = ({
               </div>
             </CardContent>
           ) : (
-            <CardContent>
-              <div className="flex flex-col gap-y-4 justify-center items-center">
-                <p className="text-sm text-muted-foreground">
-                  Subscribe a plan to access chat widget customization features
-                </p>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    router.push("/billing");
-                  }}
-                >
-                  Upgrade Plan
-                </Button>
-              </div>
-            </CardContent>
+            <UpgradePrompt message="Subscribe to a plan to access chat widget customization features" />
           )}
         </Card>
 
@@ -296,21 +297,7 @@ export const CustomizationForm = ({
                 <VapiFormFields form={form} initialStatus={initialStatus} />
               </CardContent>
             ) : (
-              <CardContent>
-                <div className="flex flex-col gap-y-4 justify-center items-center">
-                  <p className="text-sm text-muted-foreground">
-                    Subscribe a plan to access AI voice calling features
-                  </p>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      router.push("/billing");
-                    }}
-                  >
-                    Upgrade Plan
-                  </Button>
-                </div>
-              </CardContent>
+              <UpgradePrompt message="Subscribe to a plan to access AI voice calling features" />
             )}
           </Card>
         )}

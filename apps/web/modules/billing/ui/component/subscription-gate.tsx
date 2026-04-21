@@ -1,7 +1,7 @@
 "use client";
 
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
-import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
+import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 
 import { useSubscription } from "@/modules/billing/hooks/use-subscription";
 import { PremiumFeatureOverlay } from "@/modules/billing/ui/component/premium-feature-overlay";
@@ -9,7 +9,7 @@ import { PremiumFeatureOverlay } from "@/modules/billing/ui/component/premium-fe
 interface SubscriptionGateProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
-  initialStatus?: SubscriptionStatus;
+  initialStatus?: InitialSubscriptionStatus;
   loadingFallback?: React.ReactNode;
 }
 

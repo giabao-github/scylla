@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
-import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
+import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -35,7 +35,7 @@ import { VapiPhoneNumbersTab } from "@/modules/plugins/ui/components/vapi-phone-
 type VapiConnectedViewTab = "assistants" | "phone-numbers";
 
 interface VapiConnectedViewProps {
-  initialStatus?: SubscriptionStatus;
+  initialStatus?: InitialSubscriptionStatus;
   onDisconnect: () => void;
 }
 
@@ -45,8 +45,10 @@ export const VapiConnectedView = ({
 }: VapiConnectedViewProps) => {
   const router = useRouter();
   const [isLoadingCustomization, startTransition] = useTransition();
-  const { subscription } = useSubscription(initialStatus);
-  const hasPremiumAccess = hasSubscriptionFeatureAccess(subscription);
+  const { isLoading, subscription } = useSubscription(initialStatus);
+  const hasPremiumAccess = isLoading
+    ? initialStatus === "active"
+    : hasSubscriptionFeatureAccess(subscription);
 
   const [activeTab, setActiveTab] =
     useState<VapiConnectedViewTab>("phone-numbers");

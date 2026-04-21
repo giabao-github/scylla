@@ -45,7 +45,8 @@ const useVapiData = <T>(
         setError(null);
       } catch (err) {
         if (signal.cancelled) return;
-        const error = err instanceof Error ? err : new Error(String(err));
+        const normalizedError =
+          err instanceof Error ? err : new Error(String(err));
         const errorCode = getErrorCode(err);
 
         if (errorCode === "SUBSCRIPTION_REQUIRED") {
@@ -54,7 +55,7 @@ const useVapiData = <T>(
           return;
         }
 
-        setError(error);
+        setError(normalizedError);
         toast.error(errorMessage);
       } finally {
         if (!signal.cancelled) {

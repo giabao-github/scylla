@@ -558,12 +558,21 @@ export const listPendingDeletions = internalQuery({
 });
 
 export const listPendingDeletionsByOrg = internalQuery({
-  args: { clerkOrgId: v.string() },
-  handler: async (ctx, { clerkOrgId }) => {
-    return await ctx.db
+  args: { clerkOrgId: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, { clerkOrgId, limit }) => {
+    const effectiveLimit = Math.max(1, Math.min(limit ?? 200, 1000));
+    const rows = await ctx.db
       .query("pendingDeletions")
       .withIndex("by_org_id", (q) => q.eq("organizationId", clerkOrgId))
-      .collect();
+      .take(effectiveLimit);
+
+    if (rows.length >= effectiveLimit) {
+      console.warn(
+        `[listPendingDeletionsByOrg] hit limit (${effectiveLimit}) for organization [${clerkOrgId}]. Results may be truncated.`,
+      );
+    }
+
+    return rows;
   },
 });
 
