@@ -9,8 +9,8 @@ import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import {
   CONVERSATION_STATUS,
-  ConversationStatus,
-} from "@workspace/shared/constants/conversation";
+  type ConversationStatus,
+} from "@workspace/shared/types/conversation";
 import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
@@ -205,7 +205,7 @@ export const ConversationIdView = ({
 
   const handleEnhanceResponse = async () => {
     const currentValue = form.getValues("message");
-    if (isBlocked || !currentValue.trim()) return;
+    if (isBlocked || !currentValue.trim() || !hasSubscription) return;
     const requestId = ++enhanceRequestIdRef.current;
     setIsEnhancing(true);
     try {

@@ -27,7 +27,7 @@ const PhoneNumbersContent = ({
   isLoading,
   error,
 }: {
-  phoneNumbers: PhoneNumbers;
+  phoneNumbers: PhoneNumbers | undefined;
   isLoading: boolean;
   error: Error | null;
 }) => {
@@ -58,7 +58,10 @@ const PhoneNumbersContent = ({
       <TableBody>
         <TableRow>
           <TableCell colSpan={3} className="px-6 py-8">
-            <div className="flex flex-row gap-2 justify-center items-center text-rose-400">
+            <div
+              className="flex flex-row gap-2 justify-center items-center text-rose-400"
+              role="alert"
+            >
               <AlertTriangleIcon className="size-4" />
               <span className="text-xs">Error loading phone numbers</span>
             </div>
@@ -100,7 +103,13 @@ const PhoneNumbersContent = ({
           </TableCell>
           <TableCell className="px-6 py-4 text-center">
             <Badge
-              variant={phone.status === "active" ? "success" : "danger"}
+              variant={
+                phone.status === "active"
+                  ? "success"
+                  : phone.status === "blocked"
+                    ? "danger"
+                    : "inactive"
+              }
               className="capitalize select-none"
             >
               {phone.status === "active" ? (
@@ -117,8 +126,12 @@ const PhoneNumbersContent = ({
   );
 };
 
-export const VapiPhoneNumbersTab = () => {
-  const { data: phoneNumbers, isLoading, error } = useVapiPhoneNumbers();
+export const VapiPhoneNumbersTab = ({
+  enabled = true,
+}: {
+  enabled?: boolean;
+}) => {
+  const { data: phoneNumbers, isLoading, error } = useVapiPhoneNumbers(enabled);
 
   return (
     <div className="bg-gray-50 border-t">

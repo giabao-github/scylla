@@ -6,7 +6,7 @@ import { SESSION_DURATION_MS } from "@workspace/backend/constants";
 import {
   getCountryFromCode,
   normalizeCountryCode,
-} from "@workspace/shared/lib/country-utils";
+} from "@workspace/shared/lib/metadata";
 import { sanitizeInput, validateInput } from "@workspace/shared/lib/utils";
 
 export const create = mutation({

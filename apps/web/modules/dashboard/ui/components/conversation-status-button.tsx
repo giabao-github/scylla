@@ -1,7 +1,7 @@
 import {
   CONVERSATION_STATUS,
   ConversationStatus,
-} from "@workspace/shared/constants/conversation";
+} from "@workspace/shared/types/conversation";
 import { Button } from "@workspace/ui/components/button";
 import { Hint } from "@workspace/ui/components/hint";
 import { ArrowUpIcon, CheckIcon, ClockIcon } from "lucide-react";

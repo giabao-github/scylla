@@ -6,7 +6,7 @@ export const AUTO_REFRESH_THRESHOLD_MS = 5 * 60 * 60 * 1000;
 export const MAX_TOOL_CALL_ITERATIONS = 5;
 export const MAX_REQUEST_IDS = 100;
 export const MAX_PROMPT_LENGTH = 10_000;
-export const UPDATED_AT_THROTTLE_MS = 5000;
+export const UPDATED_AT_THROTTLE_MS = 5_000;
 export const STALE_TIMEOUT_MS = 30_000;
 
 // Webhooks

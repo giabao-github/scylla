@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
@@ -25,14 +25,12 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { useFocusTrap } from "@/modules/billing/hooks/use-focus-trap";
+
 interface Feature {
   icon: LucideIcon;
   label: string;
   description: string;
-}
-
-interface PremiumFeatureOverlayProps {
-  children: React.ReactNode;
 }
 
 const FEATURES: Feature[] = [
@@ -68,15 +66,10 @@ const FEATURES: Feature[] = [
   },
 ];
 
-export const PremiumFeatureOverlay = ({
-  children,
-}: PremiumFeatureOverlayProps) => {
+export const PremiumFeatureOverlay = () => {
   const router = useRouter();
-  const upgradeButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    upgradeButtonRef.current?.focus();
-  }, []);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
 
   const handleUpgrade = () => {
     const currentPath = window.location.pathname;
@@ -88,16 +81,17 @@ export const PremiumFeatureOverlay = ({
       <div
         className="overflow-hidden h-full blur-sm saturate-50 pointer-events-none select-none"
         aria-hidden="true"
-        inert
       >
-        {children}
+        <div className="w-full h-full bg-linear-to-br from-slate-100 to-slate-200" />
       </div>
 
       <div className="absolute inset-0 backdrop-blur-md bg-slate-950/35" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.24),transparent_32%)]" />
 
       <div
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="premium-overlay-title"
         aria-describedby="premium-overlay-description"
@@ -182,9 +176,9 @@ export const PremiumFeatureOverlay = ({
               </div>
 
               <Button
-                ref={upgradeButtonRef}
                 size="lg"
                 onClick={handleUpgrade}
+                autoFocus
                 className="w-full h-10 bg-white rounded-xl shadow-lg transition-transform group shrink-0 text-slate-900 shadow-black/20 hover:bg-white/95 md:w-auto md:h-11 md:min-w-44"
               >
                 Upgrade to Pro

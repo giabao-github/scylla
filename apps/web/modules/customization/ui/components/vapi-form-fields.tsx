@@ -1,5 +1,7 @@
 import { UseFormReturn } from "react-hook-form";
 
+import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
+import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   FormControl,
@@ -18,6 +20,7 @@ import {
 } from "@workspace/ui/components/select";
 import { AlertTriangleIcon } from "lucide-react";
 
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
 import { FormSchema } from "@/modules/customization/types";
 import {
   useVapiAssistants,
@@ -26,21 +29,28 @@ import {
 
 interface VapiFormFieldsProps {
   form: UseFormReturn<FormSchema>;
+  initialStatus?: SubscriptionStatus;
 }
 
-export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
+export const VapiFormFields = ({
+  form,
+  initialStatus,
+}: VapiFormFieldsProps) => {
+  const { subscription } = useSubscription(initialStatus);
+  const hasPremiumAccess = hasSubscriptionFeatureAccess(subscription);
+
   const {
     data: assistants,
     isLoading: isLoadingAssistants,
     error: assistantsError,
     refetch: refetchAssistants,
-  } = useVapiAssistants();
+  } = useVapiAssistants(hasPremiumAccess);
   const {
     data: phoneNumbers,
     isLoading: isLoadingPhoneNumbers,
     error: phoneNumbersError,
     refetch: refetchPhoneNumbers,
-  } = useVapiPhoneNumbers();
+  } = useVapiPhoneNumbers(hasPremiumAccess);
 
   const disabled = form.formState.isSubmitting;
 
@@ -48,9 +58,6 @@ export const VapiFormFields = ({ form }: VapiFormFieldsProps) => {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <h3 className="text-base font-semibold text-rose-400">
-            Vapi Data Fetching Error
-          </h3>
           <div className="flex flex-row gap-x-2 items-center">
             <AlertTriangleIcon className="text-rose-400 size-4" />
             <span className="text-sm text-rose-400">

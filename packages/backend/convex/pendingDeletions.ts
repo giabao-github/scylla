@@ -5,7 +5,7 @@ import { internalAction } from "@workspace/backend/_generated/server";
 import { DELETION_BATCH_SIZE, MAX_RETRIES } from "@workspace/backend/constants";
 import rag from "@workspace/backend/system/ai/rag";
 
-import { isNotFoundError } from "@workspace/shared/lib/file-utils";
+import { isNotFoundError } from "@workspace/shared/lib/file";
 
 export const processPendingDeletions = internalAction({
   args: {},

@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "@workspace/backend/_generated/server";
 import {
-  getAuthenticatedOrgId,
+  getAuthenticatedOrganization,
   requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 
@@ -20,11 +20,11 @@ const validateSuggestion = (suggestion: string | undefined, name: string) => {
 export const getOne = query({
   args: {},
   handler: async (ctx) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { clerkOrganizationId } = await getAuthenticatedOrganization(ctx);
 
     const widgetSettings = await ctx.db
       .query("widgetSettings")
-      .withIndex("by_org_id", (q) => q.eq("organizationId", organizationId))
+      .withIndex("by_org_id", (q) => q.eq("organizationId", clerkOrganizationId))
       .unique();
 
     return widgetSettings;
@@ -45,7 +45,7 @@ export const upsert = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireSubscriptionFeatureAccess(ctx);
+    const { clerkOrganizationId } = await requireSubscriptionFeatureAccess(ctx);
 
     if (args.greetingMessage.length > 500) {
       throw new ConvexError({
@@ -79,7 +79,7 @@ export const upsert = mutation({
 
     const existingWidgetSettings = await ctx.db
       .query("widgetSettings")
-      .withIndex("by_org_id", (q) => q.eq("organizationId", organizationId))
+      .withIndex("by_org_id", (q) => q.eq("organizationId", clerkOrganizationId))
       .unique();
 
     if (existingWidgetSettings) {
@@ -91,7 +91,7 @@ export const upsert = mutation({
       return existingWidgetSettings._id;
     } else {
       return await ctx.db.insert("widgetSettings", {
-        organizationId,
+        organizationId: clerkOrganizationId,
         greetingMessage: args.greetingMessage,
         defaultSuggestions: args.defaultSuggestions,
         vapiSettings: args.vapiSettings,

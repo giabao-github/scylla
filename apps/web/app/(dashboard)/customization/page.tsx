@@ -1,6 +1,6 @@
-import { auth } from "@clerk/nextjs/server";
 import { Metadata } from "next";
 
+import { getSubscriptionStatus } from "@/modules/billing/lib/subscription";
 import { SubscriptionGate } from "@/modules/billing/ui/component/subscription-gate";
 import { CustomizationErrorBoundary } from "@/modules/customization/ui/components/customization-error-boundary";
 import { CustomizationView } from "@/modules/customization/ui/views/customization-view";
@@ -12,13 +12,12 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const { has } = await auth();
-  const isPro = has?.({ plan: "pro" }) ?? false;
+  const initialStatus = await getSubscriptionStatus();
 
   return (
-    <SubscriptionGate initialStatus={isPro ? "active" : "free"}>
+    <SubscriptionGate initialStatus={initialStatus}>
       <CustomizationErrorBoundary>
-        <CustomizationView />
+        <CustomizationView initialStatus={initialStatus} />
       </CustomizationErrorBoundary>
     </SubscriptionGate>
   );

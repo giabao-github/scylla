@@ -7,7 +7,7 @@ import {
   query,
 } from "@workspace/backend/_generated/server";
 import {
-  getAuthenticatedOrgId,
+  getAuthenticatedOrganization,
   getPluginByOrgAndService,
   requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
@@ -17,10 +17,10 @@ export const getOne = query({
     service: v.literal("vapi"),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { clerkOrganizationId } = await getAuthenticatedOrganization(ctx);
     const plugin = await getPluginByOrgAndService(
       ctx,
-      organizationId,
+      clerkOrganizationId,
       args.service,
     );
     return plugin ? { service: plugin.service } : null;
@@ -32,11 +32,11 @@ export const remove = mutation({
     service: v.literal("vapi"),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireSubscriptionFeatureAccess(ctx);
+    const { clerkOrganizationId } = await requireSubscriptionFeatureAccess(ctx);
 
     const existingPlugin = await getPluginByOrgAndService(
       ctx,
-      organizationId,
+      clerkOrganizationId,
       args.service,
     );
 
@@ -47,7 +47,7 @@ export const remove = mutation({
     await ctx.db.delete(existingPlugin._id);
 
     await ctx.scheduler.runAfter(0, internal.system.secrets.deleteSecret, {
-      organizationId,
+      organizationId: clerkOrganizationId,
       service: args.service,
       secretName: existingPlugin.secretName,
       connectedAt: existingPlugin.lastConnectedAt,

@@ -12,8 +12,8 @@ import {
   widgetScreenAtom,
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
-import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import {

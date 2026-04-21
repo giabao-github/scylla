@@ -13,7 +13,7 @@ export const upsert = action({
     }),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireSubscriptionFeatureAccess(ctx);
+    const { clerkOrganizationId } = await requireSubscriptionFeatureAccess(ctx);
 
     const trimmedValue = {
       publicApiKey: args.value.publicApiKey.trim(),
@@ -28,7 +28,7 @@ export const upsert = action({
     }
 
     await ctx.runAction(internal.system.secrets.upsert, {
-      organizationId,
+      organizationId: clerkOrganizationId,
       service: args.service,
       value: trimmedValue,
     });

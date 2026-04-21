@@ -8,7 +8,8 @@ import { mutation, query } from "@workspace/backend/_generated/server";
 import { validateSession } from "@workspace/backend/public/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 
-import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
+import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
+import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 
 export const create = mutation({
   args: {
@@ -37,6 +38,8 @@ export const create = mutation({
       },
     );
 
+    const hasSubscription = hasSubscriptionFeatureAccess(subscription);
+
     const widgetSettings = await ctx.db
       .query("widgetSettings")
       .withIndex("by_org_id", (q) =>
@@ -64,10 +67,9 @@ export const create = mutation({
 
       const conversationId = await ctx.db.insert("conversations", {
         contactSessionId: session._id,
-        status:
-          subscription?.status === "active"
-            ? CONVERSATION_STATUS.UNRESOLVED
-            : CONVERSATION_STATUS.ESCALATED,
+        status: hasSubscription
+          ? CONVERSATION_STATUS.UNRESOLVED
+          : CONVERSATION_STATUS.ESCALATED,
         organizationId: session.organizationId,
         threadId,
         createdAt: now,

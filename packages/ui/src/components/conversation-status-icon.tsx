@@ -5,7 +5,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { ConversationStatus } from "@workspace/shared/constants/conversation";
+import { type ConversationStatus } from "@workspace/shared/types/conversation";
 
 import { cn } from "@workspace/ui/lib/utils";
 

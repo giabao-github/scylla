@@ -4,7 +4,6 @@ import { atomWithStorage } from "jotai/utils";
 
 import type { Doc, Id } from "@workspace/backend/_generated/dataModel";
 
-import { ConversationStatus } from "@workspace/shared/constants/conversation";
 import {
   CONTACT_SESSION_KEY,
   SELECTED_MODEL_KEY,
@@ -15,6 +14,7 @@ import {
   ModelId,
 } from "@workspace/shared/constants/model-catalog";
 import { WidgetScreen } from "@workspace/shared/constants/screens";
+import { ConversationStatus } from "@workspace/shared/types/conversation";
 
 // Interfaces
 export interface WidgetOrganizationProfile {

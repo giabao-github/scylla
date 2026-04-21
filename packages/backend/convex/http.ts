@@ -46,9 +46,15 @@ type ClerkWebhookEvent =
   | { type: "subscription.updated"; data: SubscriptionData }
   | { type: string; data: Record<string, unknown> };
 
-const clerkClient = createClerkClient({
-  secretKey: process.env.CLERK_SECRET_KEY,
-});
+let _clerkClient: ReturnType<typeof createClerkClient> | undefined;
+
+const getClerkClient = () => {
+  if (_clerkClient) return _clerkClient;
+  const secretKey = process.env.CLERK_SECRET_KEY;
+  if (!secretKey) throw new Error("Missing CLERK_SECRET_KEY");
+  _clerkClient = createClerkClient({ secretKey });
+  return _clerkClient;
+};
 
 const validateRequest = async (
   req: Request,
@@ -88,11 +94,6 @@ const validateRequest = async (
 };
 
 const handleClerkWebhook = httpAction(async (ctx, request) => {
-  if (!process.env.CLERK_SECRET_KEY) {
-    console.error("Missing CLERK_SECRET_KEY");
-    return new Response("Server configuration error", { status: 500 });
-  }
-
   const event = await validateRequest(request);
 
   if (event instanceof Response) {
@@ -126,6 +127,7 @@ const handleClerkWebhook = httpAction(async (ctx, request) => {
       }
 
       case "subscription.updated": {
+        const clerkClient = getClerkClient();
         const subscription = data as SubscriptionData;
         const organizationId = subscription.payer?.organization_id;
 
@@ -136,7 +138,7 @@ const handleClerkWebhook = httpAction(async (ctx, request) => {
           return new Response(null, { status: 204 });
         }
 
-        const items = (subscription.items ?? []) as SubscriptionItem[];
+        const items = subscription.items ?? [];
         const proItem = items.find((i) => i.plan.slug === "pro");
         const now = Date.now();
 

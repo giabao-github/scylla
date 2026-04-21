@@ -17,8 +17,8 @@ import { resolveConversation } from "@workspace/backend/system/ai/tools/resolveC
 import { search } from "@workspace/backend/system/ai/tools/search";
 import { getConversationByThreadId } from "@workspace/backend/system/utils";
 
-import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { modelCatalog } from "@workspace/shared/constants/model-catalog";
+import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 
 const ALLOWED_MODEL_IDS = new Set<string>(modelCatalog.map((m) => m.id));
 

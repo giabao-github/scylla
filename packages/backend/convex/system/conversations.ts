@@ -13,8 +13,8 @@ import {
 
 import {
   CONVERSATION_STATUS,
-  ConversationStatus,
-} from "@workspace/shared/constants/conversation";
+  type ConversationStatus,
+} from "@workspace/shared/types/conversation";
 
 const assertValidTransition = (
   existing: ConversationStatus,

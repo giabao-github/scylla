@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getSubscriptionStatus } from "@/modules/billing/lib/subscription";
 import { Metadata } from "next";
 
 import { BillingView } from "@/modules/billing/ui/views/billing-view";
@@ -8,8 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const { has } = await auth();
-  const isPro = has?.({ plan: "pro" }) ?? false;
+  const status = await getSubscriptionStatus();
 
-  return <BillingView initialStatus={isPro ? "active" : "free"} />;
+  return <BillingView initialStatus={status} />;
 }

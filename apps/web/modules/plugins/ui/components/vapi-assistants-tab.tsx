@@ -20,7 +20,7 @@ const AssistantsContent = ({
   isLoading,
   error,
 }: {
-  assistants: Assistants;
+  assistants: Assistants | undefined;
   isLoading: boolean;
   error: Error | null;
 }) => {
@@ -51,7 +51,10 @@ const AssistantsContent = ({
       <TableBody>
         <TableRow>
           <TableCell colSpan={3} className="px-6 py-8">
-            <div className="flex flex-row gap-2 justify-center items-center text-rose-400">
+            <div
+              className="flex flex-row gap-2 justify-center items-center text-rose-400"
+              role="alert"
+            >
               <AlertTriangleIcon className="size-4" />
               <span className="text-xs">Error loading assistants</span>
             </div>
@@ -105,8 +108,12 @@ const AssistantsContent = ({
   );
 };
 
-export const VapiAssistantsTab = () => {
-  const { data: assistants, isLoading, error } = useVapiAssistants();
+export const VapiAssistantsTab = ({
+  enabled = true,
+}: {
+  enabled?: boolean;
+}) => {
+  const { data: assistants, isLoading, error } = useVapiAssistants(enabled);
 
   return (
     <div className="bg-gray-50 border-t">

@@ -40,7 +40,7 @@ export const BillingView = ({ initialStatus }: BillingViewProps) => {
   const planBadge = getPlanBadge(status);
 
   return (
-    <div className="flex flex-col gap-y-4 p-8 min-h-screen text-base bg-white">
+    <div className="flex overflow-y-auto flex-col gap-y-4 p-8 min-h-screen text-base bg-white">
       <div className="mx-auto w-full max-w-3xl">
         {/* Header */}
         <div className="flex flex-col gap-4 justify-between items-start md:flex-row md:items-center">
@@ -82,14 +82,14 @@ export const BillingView = ({ initialStatus }: BillingViewProps) => {
             </AlertDescription>
           </Alert>
         )}
+      </div>
 
-        <div className="mt-12">
-          <Suspense
-            fallback={<Skeleton className="h-[600px] w-full rounded-lg" />}
-          >
-            <PricingTable />
-          </Suspense>
-        </div>
+      <div className="mx-auto mt-8 w-full max-w-6xl">
+        <Suspense
+          fallback={<Skeleton className="h-[600px] w-full rounded-lg" />}
+        >
+          <PricingTable />
+        </Suspense>
       </div>
     </div>
   );

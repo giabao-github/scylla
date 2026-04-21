@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
-import { computeFileHash } from "@workspace/shared/lib/file-utils";
+import { computeFileHash } from "@workspace/shared/lib/file";
 import { EntryId, PublicFile } from "@workspace/shared/types/file";
 import { Button } from "@workspace/ui/components/button";
 import {

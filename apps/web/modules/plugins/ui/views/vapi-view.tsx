@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
+import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
@@ -99,7 +100,7 @@ const VapiPluginConnectForm = ({
       });
       setOpen(false);
     } catch (error) {
-      console.error("Failed to create Vapi secret:", error);
+      console.error("Failed to create Vapi secret");
       toast.error("Failed to create Vapi secret");
     }
   };
@@ -197,7 +198,7 @@ const VapiPluginDisconnectForm = ({
       await removePlugin({ service: "vapi" });
       setOpen(false);
     } catch (error) {
-      console.error("Failed to disconnect Vapi plugin:", error);
+      console.error("Failed to disconnect Vapi plugin");
       toast.error("Failed to disconnect Vapi plugin");
     } finally {
       setIsDisconnecting(false);
@@ -238,7 +239,11 @@ const VapiPluginDisconnectForm = ({
   );
 };
 
-export const VapiView = () => {
+export const VapiView = ({
+  initialStatus,
+}: {
+  initialStatus?: SubscriptionStatus;
+}) => {
   const vapiPlugin = useQuery(api.private.plugins.getOne, { service: "vapi" });
 
   const [connectOpen, setConnectOpen] = useState(false);
@@ -262,7 +267,11 @@ export const VapiView = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 justify-center items-center min-h-screen">
+      <div
+        className="flex flex-col gap-4 justify-center items-center min-h-screen"
+        role="status"
+        aria-live="polite"
+      >
         <div className="loader" />
         Loading plugin status...
       </div>
@@ -288,7 +297,10 @@ export const VapiView = () => {
 
           <div className="mt-12">
             {vapiPlugin ? (
-              <VapiConnectedView onDisconnect={() => setDisconnectOpen(true)} />
+              <VapiConnectedView
+                initialStatus={initialStatus}
+                onDisconnect={() => setDisconnectOpen(true)}
+              />
             ) : (
               <PluginCard
                 serviceName="Vapi"

@@ -4,6 +4,8 @@ import { type Path, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
+import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
+import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -26,8 +28,10 @@ import { Separator } from "@workspace/ui/components/separator";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { useMutation } from "convex/react";
 import { BotMessageSquareIcon, Loader2Icon, MicIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
 import {
   FormSchema,
   widgetSettingsSchema,
@@ -39,6 +43,7 @@ type WidgetSettings = Doc<"widgetSettings">;
 interface CustomizationFormProps {
   initialData?: WidgetSettings | null;
   hasVapiPlugin: boolean;
+  initialStatus?: SubscriptionStatus;
 }
 
 const normalizeFormValue = (value: unknown): unknown => {
@@ -65,8 +70,12 @@ const normalizeFormValue = (value: unknown): unknown => {
 export const CustomizationForm = ({
   initialData,
   hasVapiPlugin,
+  initialStatus,
 }: CustomizationFormProps) => {
+  const router = useRouter();
   const upsertWidgetSettings = useMutation(api.private.widgetSettings.upsert);
+  const { subscription } = useSubscription(initialStatus);
+  const hasPremiumAccess = hasSubscriptionFeatureAccess(subscription);
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(widgetSettingsSchema),
@@ -149,108 +158,126 @@ export const CustomizationForm = ({
               Configure basic chat widget behavior and messages
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="greetingMessage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base font-semibold">
-                    Greeting Message
-                  </FormLabel>
-                  <FormDescription className="text-sm text-muted-foreground">
-                    The first message shown to customers when they open the
-                    chat.
-                  </FormDescription>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      onKeyDown={handleFillPlaceholder}
-                      rows={3}
-                      placeholder="Welcome message shown when conversation starts"
-                      className="mt-2 max-h-28 scrollbar-themed placeholder:text-muted-foreground/50 focus-visible:ring"
-                    />
-                  </FormControl>
+          {hasPremiumAccess ? (
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="greetingMessage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold">
+                      Greeting Message
+                    </FormLabel>
+                    <FormDescription className="text-sm text-muted-foreground">
+                      The first message shown to customers when they open the
+                      chat.
+                    </FormDescription>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        onKeyDown={handleFillPlaceholder}
+                        rows={3}
+                        placeholder="Welcome message shown when conversation starts"
+                        className="mt-2 max-h-28 scrollbar-themed placeholder:text-muted-foreground/50 focus-visible:ring"
+                      />
+                    </FormControl>
 
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Separator className="my-6" />
-            <div className="space-y-4">
-              <div>
-                <h3 className="mb-2 text-base font-semibold">
-                  Default Suggestions
-                </h3>
-                <p className="mb-6 text-sm text-muted-foreground">
-                  Messages shown to customers as quick replies to help them
-                  guide the conversation.
-                </p>
-                <div className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="defaultSuggestions.firstSuggestion"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-semibold">
-                          First Suggestion
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            onKeyDown={handleFillPlaceholder}
-                            placeholder="How do I get started?"
-                            className="placeholder:text-muted-foreground/50 focus-visible:ring"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="defaultSuggestions.secondSuggestion"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-semibold">
-                          Second Suggestion
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            onKeyDown={handleFillPlaceholder}
-                            placeholder="What pricing plans does your platform feature?"
-                            className="placeholder:text-muted-foreground/50 focus-visible:ring"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="defaultSuggestions.thirdSuggestion"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-semibold">
-                          Third Suggestion
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            onKeyDown={handleFillPlaceholder}
-                            placeholder="How do I enable two-factor authentication?"
-                            className="placeholder:text-muted-foreground/50 focus-visible:ring"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Separator className="my-6" />
+              <div className="space-y-4">
+                <div>
+                  <h3 className="mb-2 text-base font-semibold">
+                    Default Suggestions
+                  </h3>
+                  <p className="mb-6 text-sm text-muted-foreground">
+                    Messages shown to customers as quick replies to help them
+                    guide the conversation.
+                  </p>
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="defaultSuggestions.firstSuggestion"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-semibold">
+                            First Suggestion
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              onKeyDown={handleFillPlaceholder}
+                              placeholder="How do I get started?"
+                              className="placeholder:text-muted-foreground/50 focus-visible:ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="defaultSuggestions.secondSuggestion"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-semibold">
+                            Second Suggestion
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              onKeyDown={handleFillPlaceholder}
+                              placeholder="What pricing plans does your platform feature?"
+                              className="placeholder:text-muted-foreground/50 focus-visible:ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="defaultSuggestions.thirdSuggestion"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-semibold">
+                            Third Suggestion
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              onKeyDown={handleFillPlaceholder}
+                              placeholder="How do I enable two-factor authentication?"
+                              className="placeholder:text-muted-foreground/50 focus-visible:ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
+            </CardContent>
+          ) : (
+            <CardContent>
+              <div className="flex flex-col gap-y-4 justify-center items-center">
+                <p className="text-sm text-muted-foreground">
+                  Subscribe a plan to access chat widget customization features
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    router.push("/billing");
+                  }}
+                >
+                  Upgrade Plan
+                </Button>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {hasVapiPlugin && (
@@ -264,9 +291,27 @@ export const CustomizationForm = ({
                 Configure AI voice calling features powered by Vapi
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <VapiFormFields form={form} />
-            </CardContent>
+            {hasPremiumAccess ? (
+              <CardContent className="space-y-6">
+                <VapiFormFields form={form} initialStatus={initialStatus} />
+              </CardContent>
+            ) : (
+              <CardContent>
+                <div className="flex flex-col gap-y-4 justify-center items-center">
+                  <p className="text-sm text-muted-foreground">
+                    Subscribe a plan to access AI voice calling features
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      router.push("/billing");
+                    }}
+                  >
+                    Upgrade Plan
+                  </Button>
+                </div>
+              </CardContent>
+            )}
           </Card>
         )}
 

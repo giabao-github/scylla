@@ -23,8 +23,10 @@ const badgeVariants = cva(
           "bg-emerald-500 text-white [a&]:hover:bg-emerald-600 focus-visible:ring-emerald-500/20 dark:focus-visible:ring-emerald-500/40 dark:bg-emerald-500/60",
         danger:
           "bg-rose-500 text-white [a&]:hover:bg-rose-600 focus-visible:ring-rose-500/20 dark:focus-visible:ring-rose-500/40 dark:bg-rose-500/60",
-        inactive: "bg-gray-400 text-white [a&]:hover:bg-gray-500",
-        warning: "bg-amber-500 text-white [a&]:hover:bg-amber-600",
+        inactive:
+          "bg-gray-400 text-white [a&]:hover:bg-gray-500 focus-visible:ring-gray-400/20 dark:focus-visible:ring-gray-400/40 dark:bg-gray-400/60",
+        warning:
+          "bg-amber-500 text-white [a&]:hover:bg-amber-600 focus-visible:ring-amber-500/20 dark:focus-visible:ring-amber-500/40 dark:bg-amber-500/60",
       },
     },
     defaultVariants: {

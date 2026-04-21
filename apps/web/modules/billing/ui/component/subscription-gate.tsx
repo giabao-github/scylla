@@ -1,5 +1,6 @@
 "use client";
 
+import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
 
 import { useSubscription } from "@/modules/billing/hooks/use-subscription";
@@ -7,11 +8,8 @@ import { PremiumFeatureOverlay } from "@/modules/billing/ui/component/premium-fe
 
 interface SubscriptionGateProps {
   children: React.ReactNode;
-
   fallback?: React.ReactNode;
-
   initialStatus?: SubscriptionStatus;
-
   loadingFallback?: React.ReactNode;
 }
 
@@ -21,20 +19,16 @@ export const SubscriptionGate = ({
   initialStatus,
   loadingFallback = null,
 }: SubscriptionGateProps) => {
-  const { isLoading, status } = useSubscription(initialStatus);
+  const { isLoading, subscription } = useSubscription(initialStatus);
 
   if (isLoading) {
     return <>{loadingFallback}</>;
   }
 
-  const isConfirmedPaid = status === "active" || status === "canceled";
+  const isConfirmedPaid = hasSubscriptionFeatureAccess(subscription);
 
   if (!isConfirmedPaid) {
-    return (
-      <>
-        {fallback ?? <PremiumFeatureOverlay>{children}</PremiumFeatureOverlay>}
-      </>
-    );
+    return <>{fallback ?? <PremiumFeatureOverlay />}</>;
   }
 
   return <>{children}</>;
