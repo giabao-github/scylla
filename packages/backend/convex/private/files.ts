@@ -782,8 +782,12 @@ export const claimContentHash = internalMutation({
     organizationId: v.string(),
     contentHash: v.string(),
     entryId: v.string(),
+    replaceEntryId: v.optional(v.string()),
   },
-  handler: async (ctx, { organizationId, contentHash, entryId }) => {
+  handler: async (
+    ctx,
+    { organizationId, contentHash, entryId, replaceEntryId },
+  ) => {
     const existing = await ctx.db
       .query("contentHashes")
       .withIndex("by_org_id_and_hash", (q) =>
@@ -793,6 +797,10 @@ export const claimContentHash = internalMutation({
 
     if (existing) {
       if (existing.entryId === entryId) return { success: true };
+      if (replaceEntryId && existing.entryId === replaceEntryId) {
+        await ctx.db.patch(existing._id, { entryId });
+        return { success: true };
+      }
       return { success: false, conflictEntryId: existing.entryId };
     }
 

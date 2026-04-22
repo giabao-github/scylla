@@ -315,6 +315,7 @@ export const addFile = action({
             organizationId: clerkOrganizationId,
             contentHash,
             entryId,
+            replaceEntryId: args.overrideEntryId,
           },
         );
 
