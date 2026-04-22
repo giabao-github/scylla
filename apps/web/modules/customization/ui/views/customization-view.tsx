@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
-import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
+import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { useQuery } from "convex/react";
 
 import { CustomizationForm } from "@/modules/customization/ui/components/customization-form";

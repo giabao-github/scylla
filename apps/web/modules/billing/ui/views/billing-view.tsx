@@ -2,9 +2,9 @@
 
 import { Suspense } from "react";
 
-import {
+import type {
   InitialSubscriptionStatus,
-  type SubscriptionStatus,
+  SubscriptionStatus,
 } from "@workspace/shared/types/subscription";
 import {
   Alert,

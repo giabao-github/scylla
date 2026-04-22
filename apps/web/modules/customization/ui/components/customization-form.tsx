@@ -1,11 +1,11 @@
-import type { KeyboardEvent } from "react";
+import { type KeyboardEvent, useEffect } from "react";
 import { type Path, useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
-import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
+import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -69,6 +69,11 @@ const normalizeFormValue = (value: unknown): unknown => {
 
 const UpgradePrompt = ({ message }: { message: string }) => {
   const router = useRouter();
+
+  useEffect(() => {
+    router.prefetch("/billing");
+  }, [router]);
+
   return (
     <CardContent>
       <div className="flex flex-col gap-y-4 justify-center items-center">

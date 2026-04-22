@@ -12,7 +12,7 @@ import {
   CONVERSATION_STATUS,
   type ConversationStatus,
 } from "@workspace/shared/types/conversation";
-import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
+import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import {
@@ -537,7 +537,7 @@ export const ConversationIdView = ({
                     }
                     enhanceText={
                       !hasPremiumAccess
-                        ? "Text enhance available on Pro plan"
+                        ? "Upgrade to Pro to enhance responses"
                         : isEnhancing
                           ? "Enhancing..."
                           : "Enhance"

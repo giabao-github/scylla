@@ -32,6 +32,7 @@ type EntryMetadata = {
 type FilteredCursor = {
   __type: "filtered";
   rawCursor: string | null;
+  rawIsDone?: boolean;
   bufferedEntryIds?: string[];
 };
 
@@ -64,6 +65,8 @@ const decodeFilteredCursor = (s: string): FilteredCursor | null => {
     if (
       parsed?.__type === "filtered" &&
       (typeof parsed.rawCursor === "string" || parsed.rawCursor === null) &&
+      (parsed.rawIsDone === undefined ||
+        typeof parsed.rawIsDone === "boolean") &&
       (parsed.bufferedEntryIds === undefined ||
         (Array.isArray(parsed.bufferedEntryIds) &&
           parsed.bufferedEntryIds.every(
@@ -346,6 +349,7 @@ export const list = query({
 
     if (category) {
       let rawCursor: string | null = null;
+      let rawIsDone = false;
       let bufferedEntryIds: string[] = [];
 
       const decoded = paginationOpts.cursor
@@ -353,13 +357,14 @@ export const list = query({
         : null;
       if (decoded) {
         rawCursor = decoded.rawCursor;
+        rawIsDone = decoded.rawIsDone ?? false;
         bufferedEntryIds = decoded.bufferedEntryIds ?? [];
       }
 
       const targetCount = paginationOpts.numItems;
       const matched: Entry[] = [];
       let cursor: string | null = rawCursor;
-      let isDone = false;
+      let isDone = rawIsDone;
       const maxScan = 1000;
       let scanned = 0;
 
@@ -465,6 +470,7 @@ export const list = query({
           : encodeFilteredCursor({
               __type: "filtered",
               rawCursor: cursor,
+              rawIsDone: isDone,
               bufferedEntryIds,
             });
 
@@ -474,7 +480,7 @@ export const list = query({
 
       return {
         page: files,
-        isDone,
+        isDone: isDone && bufferedEntryIds.length === 0,
         continueCursor: nextCursor,
       };
     }
@@ -737,8 +743,12 @@ export const claimFileName = internalMutation({
     organizationId: v.string(),
     filename: v.string(),
     entryId: v.string(),
+    replaceEntryId: v.optional(v.string()),
   },
-  handler: async (ctx, { organizationId, filename, entryId }) => {
+  handler: async (
+    ctx,
+    { organizationId, filename, entryId, replaceEntryId },
+  ) => {
     const existing = await ctx.db
       .query("fileNameIndex")
       .withIndex("by_org_id_and_filename", (q) =>
@@ -748,6 +758,10 @@ export const claimFileName = internalMutation({
 
     if (existing) {
       if (existing.entryId === entryId) {
+        return { success: true };
+      }
+      if (replaceEntryId && existing.entryId === replaceEntryId) {
+        await ctx.db.patch(existing._id, { entryId });
         return { success: true };
       }
       return { success: false, conflictEntryId: existing.entryId };

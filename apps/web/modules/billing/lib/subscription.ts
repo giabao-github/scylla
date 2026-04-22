@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
+import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 
 export const getSubscriptionStatus =
   async (): Promise<InitialSubscriptionStatus> => {

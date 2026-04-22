@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
-import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
+import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
@@ -272,7 +272,7 @@ export const VapiView = ({
         role="status"
         aria-live="polite"
       >
-        <div className="loader" />
+        <div className="loader" aria-hidden="true" />
         Loading plugin status...
       </div>
     );

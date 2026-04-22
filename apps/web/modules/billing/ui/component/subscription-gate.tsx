@@ -1,7 +1,7 @@
 "use client";
 
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
-import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
+import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 
 import { useSubscription } from "@/modules/billing/hooks/use-subscription";
 import { PremiumFeatureOverlay } from "@/modules/billing/ui/component/premium-feature-overlay";

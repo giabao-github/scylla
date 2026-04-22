@@ -1,7 +1,7 @@
 import { UseFormReturn } from "react-hook-form";
 
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
-import { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
+import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   FormControl,

@@ -276,6 +276,7 @@ export const addFile = action({
           organizationId: clerkOrganizationId,
           filename,
           entryId,
+          replaceEntryId: args.overrideEntryId,
         },
       );
 
@@ -498,6 +499,7 @@ export const updateFile = action({
           organizationId: clerkOrganizationId,
           filename: newFilename,
           entryId: newEntryId,
+          replaceEntryId: args.entryId,
         },
       );
 
