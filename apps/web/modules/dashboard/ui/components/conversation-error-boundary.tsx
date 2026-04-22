@@ -10,6 +10,7 @@ interface ConvexErrorWithCode extends Error {
 }
 
 const PERSISTENT_ERROR_CODES = new Set(["UNAUTHORIZED", "NOT_FOUND"]);
+const RETRYABLE_ERROR_CODES = new Set(["INTERNAL"]);
 
 export class ConversationErrorBoundary extends Component<
   { children: ReactNode },
@@ -51,6 +52,9 @@ export class ConversationErrorBoundary extends Component<
   }
 
   private getErrorMessage(): string {
+    if (this.errorCode && RETRYABLE_ERROR_CODES.has(this.errorCode)) {
+      return "Something went wrong. Please try again.";
+    }
     if (this.isPersistentError) {
       return "This conversation is not available.";
     }

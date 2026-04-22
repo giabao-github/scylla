@@ -8,12 +8,10 @@ import {
   conversationIdAtom,
   widgetScreenAtom,
 } from "@workspace/shared/atoms/atoms";
-import {
-  CONVERSATION_STATUS,
-  type ConversationStatus,
-} from "@workspace/shared/constants/conversation";
 import { WidgetScreen } from "@workspace/shared/constants/screens";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
+import { type ConversationStatus } from "@workspace/shared/types/conversation";
 import { Button } from "@workspace/ui/components/button";
 import { ConversationStatusIcon } from "@workspace/ui/components/conversation-status-icon";
 import { FrostLens } from "@workspace/ui/components/glass/frost-lens";

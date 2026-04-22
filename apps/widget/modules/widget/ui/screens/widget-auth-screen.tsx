@@ -13,7 +13,7 @@ import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import {
   getCountryFromCode,
   normalizeCountryCode,
-} from "@workspace/shared/lib/country-utils";
+} from "@workspace/shared/lib/metadata";
 import {
   NavigatorWithUAData,
   getPlatform,

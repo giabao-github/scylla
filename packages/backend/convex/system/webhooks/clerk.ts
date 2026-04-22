@@ -7,6 +7,10 @@ import {
   internalAction,
   internalMutation,
 } from "@workspace/backend/_generated/server";
+import {
+  MAX_BATCHES_PER_PARENT,
+  MESSAGE_REQUEST_BATCH,
+} from "@workspace/backend/constants";
 
 type RemoveOrganizationResult =
   | { ok: true }
@@ -19,9 +23,6 @@ type RemoveOrganizationResult =
         | "finalization_incomplete"
         | "finalization_failed";
     };
-
-const MESSAGE_REQUEST_BATCH = 500;
-const MAX_BATCHES_PER_PARENT = 20;
 
 const purgeMessageRequests = async (
   ctx: MutationCtx,

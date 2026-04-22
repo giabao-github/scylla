@@ -4,11 +4,12 @@ import {
   internalMutation,
   internalQuery,
 } from "@workspace/backend/_generated/server";
+import {
+  MAX_REQUEST_IDS,
+  STALE_TIMEOUT_MS,
+} from "@workspace/backend/constants";
 
 import { getMessageRequest, requireMessageRequest } from "./utils";
-
-const STALE_TIMEOUT = 30_000;
-const MAX_REQUEST_IDS = 100;
 
 type ClaimResult =
   | { status: "already_done"; userMessageId: string | null }
@@ -157,7 +158,7 @@ export const claimAndSaveUserMessage = internalMutation({
         existing.status === "processing" &&
         typeof existing.updatedAt === "number" &&
         Number.isFinite(existing.updatedAt) &&
-        now - existing.updatedAt < STALE_TIMEOUT
+        now - existing.updatedAt < STALE_TIMEOUT_MS
       ) {
         return { status: "in_progress" };
       }
@@ -185,7 +186,7 @@ export const claimAndSaveUserMessage = internalMutation({
         q.and(
           q.neq(q.field("requestId"), requestId),
           q.eq(q.field("status"), "processing"),
-          q.gte(q.field("updatedAt"), now - STALE_TIMEOUT),
+          q.gte(q.field("updatedAt"), now - STALE_TIMEOUT_MS),
         ),
       )
       .first();

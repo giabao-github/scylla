@@ -1,14 +1,14 @@
 import { v } from "convex/values";
 
 import { query } from "@workspace/backend/_generated/server";
-import { getAuthenticatedOrg } from "@workspace/backend/convex/private/utils";
+import { getAuthenticatedOrganization } from "@workspace/backend/convex/private/utils";
 
 export const getOneByConversationId = query({
   args: {
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const organizationId = (await getAuthenticatedOrg(ctx)).organization._id;
+    const { organizationId } = await getAuthenticatedOrganization(ctx);
 
     const conversation = await ctx.db.get(args.conversationId);
 

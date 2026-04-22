@@ -20,10 +20,10 @@ export const DashboardLayout = async ({
         <JotaiProvider>
           <SidebarProvider
             defaultOpen={defaultOpen}
-            className="h-svh overflow-hidden"
+            className="overflow-hidden h-svh"
           >
             <DashboardSidebar />
-            <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <main className="flex overflow-hidden flex-col flex-1 min-w-0 min-h-0">
               {children}
             </main>
           </SidebarProvider>

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 
+import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
+import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -26,18 +28,27 @@ import {
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
 import { VapiAssistantsTab } from "@/modules/plugins/ui/components/vapi-assistants-tab";
 import { VapiPhoneNumbersTab } from "@/modules/plugins/ui/components/vapi-phone-numbers-tab";
 
 type VapiConnectedViewTab = "assistants" | "phone-numbers";
 
 interface VapiConnectedViewProps {
+  initialStatus?: InitialSubscriptionStatus;
   onDisconnect: () => void;
 }
 
-export const VapiConnectedView = ({ onDisconnect }: VapiConnectedViewProps) => {
+export const VapiConnectedView = ({
+  initialStatus,
+  onDisconnect,
+}: VapiConnectedViewProps) => {
   const router = useRouter();
   const [isLoadingCustomization, startTransition] = useTransition();
+  const { isLoading, subscription } = useSubscription(initialStatus);
+  const hasPremiumAccess = isLoading
+    ? initialStatus === "active"
+    : hasSubscriptionFeatureAccess(subscription);
 
   const [activeTab, setActiveTab] =
     useState<VapiConnectedViewTab>("phone-numbers");
@@ -167,14 +178,14 @@ export const VapiConnectedView = ({ onDisconnect }: VapiConnectedViewProps) => {
             {...(visitedTabs.has("phone-numbers") ? { forceMount: true } : {})}
             className="data-[state=inactive]:hidden"
           >
-            <VapiPhoneNumbersTab />
+            <VapiPhoneNumbersTab enabled={hasPremiumAccess} />
           </TabsContent>
           <TabsContent
             value="assistants"
             {...(visitedTabs.has("assistants") ? { forceMount: true } : {})}
             className="data-[state=inactive]:hidden"
           >
-            <VapiAssistantsTab />
+            <VapiAssistantsTab enabled={hasPremiumAccess} />
           </TabsContent>
         </Tabs>
       </div>

@@ -7,7 +7,7 @@ import { Id } from "@workspace/backend/_generated/dataModel";
 import {
   getCountryFlagUrl,
   getCountryFromTimezone,
-} from "@workspace/shared/lib/country-utils";
+} from "@workspace/shared/lib/metadata";
 import {
   Accordion,
   AccordionContent,

@@ -5,15 +5,15 @@ import { v } from "convex/values";
 
 import { internal } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
-import { action } from "@workspace/backend/_generated/server";
+import { type ActionCtx, action } from "@workspace/backend/_generated/server";
 import { extractTextContent } from "@workspace/backend/lib/extractTextContent";
 import {
   cleanupPendingDeletions,
-  getAuthenticatedOrgId,
+  requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 import rag from "@workspace/backend/system/ai/rag";
 
-import { isNotFoundError } from "@workspace/shared/lib/file-utils";
+import { isNotFoundError } from "@workspace/shared/lib/file";
 import { EntryId } from "@workspace/shared/types/file";
 
 type EntryMetadata = {
@@ -70,6 +70,17 @@ const isValidStorageId = (value: unknown): value is Id<"_storage"> => {
   return typeof value === "string" && value.length > 0;
 };
 
+const deleteUploadedStorageIfPresent = async (
+  ctx: ActionCtx,
+  storageId: Id<"_storage">,
+) => {
+  await ctx.storage.delete(storageId).catch((error) => {
+    if (!isNotFoundError(error)) {
+      console.error(`Failed to delete uploaded storage [${storageId}]:`, error);
+    }
+  });
+};
+
 export const addFile = action({
   args: {
     storageId: v.id("_storage"),
@@ -80,9 +91,25 @@ export const addFile = action({
     contentHash: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<AddFileResult> => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
     const { storageId, filename, category, overrideEntryId, contentHash } =
       args;
+    let clerkOrganizationId: string;
+
+    try {
+      ({ clerkOrganizationId } = await requireSubscriptionFeatureAccess(ctx));
+    } catch (error) {
+      try {
+        await ctx.storage.delete(storageId);
+      } catch (deleteError) {
+        if (!isNotFoundError(deleteError)) {
+          console.error(
+            `Orphaned storage on auth failure — no pending-orphan record exists [storageId: ${storageId}]:`,
+            deleteError,
+          );
+        }
+      }
+      throw error;
+    }
 
     const oldEntry = overrideEntryId
       ? await rag.getEntry(ctx, { entryId: overrideEntryId })
@@ -91,9 +118,9 @@ export const addFile = action({
     if (
       overrideEntryId &&
       oldEntry &&
-      oldEntry.metadata?.uploadedBy !== organizationId
+      oldEntry.metadata?.uploadedBy !== clerkOrganizationId
     ) {
-      await ctx.storage.delete(storageId);
+      await deleteUploadedStorageIfPresent(ctx, storageId);
       return {
         status: "error",
         url: null,
@@ -103,7 +130,7 @@ export const addFile = action({
     }
 
     const namespace = await rag.getNamespace(ctx, {
-      namespace: organizationId,
+      namespace: clerkOrganizationId,
     });
 
     // Step 1: Name collision check (O(1), skip for override)
@@ -111,13 +138,13 @@ export const addFile = action({
       const collision = await ctx.runQuery(
         internal.private.files.getByFilename,
         {
-          organizationId,
+          organizationId: clerkOrganizationId,
           filename,
           excludeEntryId: undefined,
         },
       );
       if (collision) {
-        await ctx.storage.delete(storageId);
+        await deleteUploadedStorageIfPresent(ctx, storageId);
         return {
           status: "name_conflict",
           existingEntryId: collision.entryId as EntryId,
@@ -132,14 +159,18 @@ export const addFile = action({
     if (contentHash) {
       const hashMatch = await ctx.runQuery(
         internal.private.contentHashIndex.getByHash,
-        { organizationId, contentHash, excludeEntryId: args.overrideEntryId },
+        {
+          organizationId: clerkOrganizationId,
+          contentHash,
+          excludeEntryId: args.overrideEntryId,
+        },
       );
       if (hashMatch) {
         const existingEntry = await rag.getEntry(ctx, {
           entryId: hashMatch.entryId as EntryId,
         });
         if (existingEntry) {
-          await ctx.storage.delete(storageId);
+          await deleteUploadedStorageIfPresent(ctx, storageId);
           return {
             status: "content_duplicate",
             url: null,
@@ -155,7 +186,7 @@ export const addFile = action({
 
     // Step 3: Override — validate target still exists
     if (overrideEntryId && !oldEntry) {
-      await ctx.storage.delete(storageId);
+      await deleteUploadedStorageIfPresent(ctx, storageId);
       return {
         status: "error",
         url: null,
@@ -167,7 +198,7 @@ export const addFile = action({
     // Step 4: Get file URL
     const fileUrl = await ctx.storage.getUrl(storageId);
     if (!fileUrl) {
-      await ctx.storage.delete(storageId);
+      await deleteUploadedStorageIfPresent(ctx, storageId);
       return {
         status: "error",
         url: null,
@@ -187,7 +218,7 @@ export const addFile = action({
       if (!args.overrideEntryId && namespace) {
         await cleanupPendingDeletions(
           ctx,
-          organizationId,
+          clerkOrganizationId,
           filename,
           contentHash,
         );
@@ -195,7 +226,7 @@ export const addFile = action({
 
       await ctx.runMutation(internal.private.orphans.markPendingOrphan, {
         storageId,
-        organizationId,
+        organizationId: clerkOrganizationId,
         createdAt: Date.now(),
       });
 
@@ -206,14 +237,14 @@ export const addFile = action({
       });
 
       const { entryId, created } = await rag.add(ctx, {
-        namespace: organizationId,
+        namespace: clerkOrganizationId,
         text,
         key: filename,
         title: filename,
         contentHash,
         metadata: {
           storageId,
-          uploadedBy: organizationId,
+          uploadedBy: clerkOrganizationId,
           filename,
           category: category ?? null,
           contentHash,
@@ -228,7 +259,7 @@ export const addFile = action({
             storageId,
           })
           .catch(() => {});
-        await ctx.storage.delete(storageId);
+        await deleteUploadedStorageIfPresent(ctx, storageId);
         return {
           status: "error",
           url: null,
@@ -242,16 +273,17 @@ export const addFile = action({
       const claimResult = await ctx.runMutation(
         internal.private.files.claimFileName,
         {
-          organizationId,
+          organizationId: clerkOrganizationId,
           filename,
           entryId,
+          replaceEntryId: args.overrideEntryId,
         },
       );
 
       if (!claimResult.success) {
         await Promise.all([
           rag.deleteAsync(ctx, { entryId }).catch(console.error),
-          ctx.storage.delete(storageId).catch(console.error),
+          deleteUploadedStorageIfPresent(ctx, storageId),
           ctx
             .runMutation(internal.private.orphans.removePendingOrphan, {
               storageId,
@@ -280,9 +312,10 @@ export const addFile = action({
         const hashClaimResult = await ctx.runMutation(
           internal.private.files.claimContentHash,
           {
-            organizationId,
+            organizationId: clerkOrganizationId,
             contentHash,
             entryId,
+            replaceEntryId: args.overrideEntryId,
           },
         );
 
@@ -294,7 +327,7 @@ export const addFile = action({
                 entryId,
               })
               .catch(() => {}),
-            ctx.storage.delete(storageId).catch(() => {}),
+            deleteUploadedStorageIfPresent(ctx, storageId),
           ]);
 
           return {
@@ -313,7 +346,7 @@ export const addFile = action({
           contentHash: oldMetadata?.contentHash,
           entryId: args.overrideEntryId,
           storageId: oldMetadata?.storageId ?? null,
-          organizationId,
+          organizationId: clerkOrganizationId,
         });
       }
 
@@ -325,7 +358,7 @@ export const addFile = action({
 
       return { status: "success", url: fileUrl, entryId, error: null };
     } catch (error) {
-      await ctx.storage.delete(storageId).catch(() => {});
+      await deleteUploadedStorageIfPresent(ctx, storageId);
       await ctx
         .runMutation(internal.private.orphans.removePendingOrphan, {
           storageId,
@@ -362,7 +395,7 @@ export const updateFile = action({
     category: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<UpdateFileResult> => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { clerkOrganizationId } = await requireSubscriptionFeatureAccess(ctx);
 
     const entry = await rag.getEntry(ctx, { entryId: args.entryId });
 
@@ -372,7 +405,7 @@ export const updateFile = action({
 
     const metadata = entry.metadata as EntryMetadata | undefined;
 
-    if (metadata?.uploadedBy !== organizationId) {
+    if (metadata?.uploadedBy !== clerkOrganizationId) {
       return { status: "error" as const, error: "Unauthorized" };
     }
 
@@ -382,7 +415,7 @@ export const updateFile = action({
     }
 
     const namespace = await rag.getNamespace(ctx, {
-      namespace: organizationId,
+      namespace: clerkOrganizationId,
     });
 
     const newCategory =
@@ -395,7 +428,7 @@ export const updateFile = action({
       const collision = await ctx.runQuery(
         internal.private.files.getByFilename,
         {
-          organizationId,
+          organizationId: clerkOrganizationId,
           filename: newFilename,
           excludeEntryId: args.entryId,
         },
@@ -424,7 +457,7 @@ export const updateFile = action({
       if (isRenaming) {
         await cleanupPendingDeletions(
           ctx,
-          organizationId,
+          clerkOrganizationId,
           newFilename,
           metadata?.contentHash,
         );
@@ -442,7 +475,7 @@ export const updateFile = action({
       });
 
       const { entryId: newEntryId, created } = await rag.add(ctx, {
-        namespace: organizationId,
+        namespace: clerkOrganizationId,
         text,
         key: newFilename,
         title: newFilename,
@@ -464,9 +497,10 @@ export const updateFile = action({
       const claimResult = await ctx.runMutation(
         internal.private.files.claimFileName,
         {
-          organizationId,
+          organizationId: clerkOrganizationId,
           filename: newFilename,
           entryId: newEntryId,
+          replaceEntryId: args.entryId,
         },
       );
 
@@ -484,7 +518,7 @@ export const updateFile = action({
 
       if (metadata?.contentHash) {
         await ctx.runMutation(internal.private.contentHashIndex.upsert, {
-          organizationId,
+          organizationId: clerkOrganizationId,
           contentHash: metadata.contentHash,
           entryId: newEntryId,
         });
@@ -495,7 +529,7 @@ export const updateFile = action({
         contentHash: metadata?.contentHash,
         entryId: args.entryId,
         storageId: null,
-        organizationId,
+        organizationId: clerkOrganizationId,
       });
 
       return { status: "success" as const, error: null };

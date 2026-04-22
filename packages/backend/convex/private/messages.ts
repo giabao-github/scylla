@@ -7,14 +7,14 @@ import { ConvexError, v } from "convex/values";
 import { components, internal } from "@workspace/backend/_generated/api";
 import { action, mutation, query } from "@workspace/backend/_generated/server";
 import {
-  getAuthenticatedOrg,
-  getAuthenticatedOrgId,
+  getAuthenticatedOrganization,
+  requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import { OPERATOR_MESSAGE_ENHANCEMENT_PROMPT } from "@workspace/backend/system/ai/prompts";
 import { getConversationByThreadId } from "@workspace/backend/system/utils";
 
-import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
+import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 
 const ENHANCE_TIMEOUT_MS = 30_000;
 const MAX_PROMPT_LENGTH = 10_000;
@@ -29,8 +29,8 @@ export const create = mutation({
     ctx,
     { conversationId, prompt, requestId },
   ): Promise<void> => {
-    const { identity, organization } = await getAuthenticatedOrg(ctx);
-    const organizationId = organization._id;
+    const { identity, organizationId } =
+      await getAuthenticatedOrganization(ctx);
 
     const conversation = await ctx.db.get(conversationId);
 
@@ -71,8 +71,6 @@ export const create = mutation({
     );
 
     if (duplicate) return;
-
-    // TODO: implement subscription check
 
     let savedMessage;
     try {
@@ -127,8 +125,7 @@ export const getMany = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const { organization } = await getAuthenticatedOrg(ctx);
-    const organizationId = organization._id;
+    const { organizationId } = await getAuthenticatedOrganization(ctx);
 
     const conversation = await getConversationByThreadId(ctx, args.threadId);
 
@@ -153,7 +150,7 @@ export const enhanceResponse = action({
     prompt: v.string(),
   },
   handler: async (ctx, { prompt }) => {
-    await getAuthenticatedOrgId(ctx);
+    await requireSubscriptionFeatureAccess(ctx);
 
     if (!prompt.trim()) {
       throw new ConvexError({

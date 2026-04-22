@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as constants from "../constants.js";
 import type * as contactSessionCleanup from "../contactSessionCleanup.js";
 import type * as conversationCleanup from "../conversationCleanup.js";
 import type * as crons from "../crons.js";
@@ -27,6 +28,7 @@ import type * as private_messages from "../private/messages.js";
 import type * as private_orphans from "../private/orphans.js";
 import type * as private_plugins from "../private/plugins.js";
 import type * as private_secrets from "../private/secrets.js";
+import type * as private_subscriptions from "../private/subscriptions.js";
 import type * as private_utils from "../private/utils.js";
 import type * as private_vapi from "../private/vapi.js";
 import type * as private_widgetSettings from "../private/widgetSettings.js";
@@ -49,6 +51,7 @@ import type * as system_messageRequests from "../system/messageRequests.js";
 import type * as system_organizations from "../system/organizations.js";
 import type * as system_plugins from "../system/plugins.js";
 import type * as system_secrets from "../system/secrets.js";
+import type * as system_subscriptions from "../system/subscriptions.js";
 import type * as system_utils from "../system/utils.js";
 import type * as system_webhooks_clerk from "../system/webhooks/clerk.js";
 import type * as users from "../users.js";
@@ -60,6 +63,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  constants: typeof constants;
   contactSessionCleanup: typeof contactSessionCleanup;
   conversationCleanup: typeof conversationCleanup;
   crons: typeof crons;
@@ -79,6 +83,7 @@ declare const fullApi: ApiFromModules<{
   "private/orphans": typeof private_orphans;
   "private/plugins": typeof private_plugins;
   "private/secrets": typeof private_secrets;
+  "private/subscriptions": typeof private_subscriptions;
   "private/utils": typeof private_utils;
   "private/vapi": typeof private_vapi;
   "private/widgetSettings": typeof private_widgetSettings;
@@ -101,6 +106,7 @@ declare const fullApi: ApiFromModules<{
   "system/organizations": typeof system_organizations;
   "system/plugins": typeof system_plugins;
   "system/secrets": typeof system_secrets;
+  "system/subscriptions": typeof system_subscriptions;
   "system/utils": typeof system_utils;
   "system/webhooks/clerk": typeof system_webhooks_clerk;
   users: typeof users;

@@ -1,27 +1,14 @@
-"use client";
+import { getSubscriptionStatus } from "@/modules/billing/lib/subscription";
+import { Metadata } from "next";
 
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
+import { BillingView } from "@/modules/billing/ui/views/billing-view";
 
-export default function Page() {
-  return (
-    <div className="flex flex-col gap-y-4 justify-center items-center text-base min-h-svh">
-      <p>Billing</p>
-      <UserButton
-        appearance={{
-          elements: {
-            userButtonAvatarBox: "!size-12",
-          },
-        }}
-      />
-      <OrganizationSwitcher
-        hidePersonal
-        appearance={{
-          elements: {
-            organizationPreviewAvatarBox: "!size-7",
-            organizationPreviewMainIdentifier: "!font-semibold !text-[15px]",
-          },
-        }}
-      />
-    </div>
-  );
+export const metadata: Metadata = {
+  title: "Billing & Plans - Scylla",
+};
+
+export default async function Page() {
+  const status = await getSubscriptionStatus();
+
+  return <BillingView initialStatus={status} />;
 }

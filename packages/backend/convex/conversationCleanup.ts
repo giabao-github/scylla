@@ -2,8 +2,7 @@ import { v } from "convex/values";
 
 import { internal } from "@workspace/backend/_generated/api";
 import { internalMutation } from "@workspace/backend/_generated/server";
-
-const BATCH_SIZE = 100;
+import { CLEANUP_BATCH_SIZE } from "@workspace/backend/constants";
 
 export const cleanupOrphanedConversations = internalMutation({
   args: {
@@ -25,7 +24,10 @@ export const cleanupOrphanedConversations = internalMutation({
         .withIndex("by_contact_session_id", (q) =>
           q.eq("contactSessionId", sessionId),
         )
-        .paginate({ numItems: BATCH_SIZE, cursor: args.cursor ?? null });
+        .paginate({
+          numItems: CLEANUP_BATCH_SIZE,
+          cursor: args.cursor ?? null,
+        });
 
       await Promise.all(result.page.map((c) => ctx.db.delete(c._id)));
       deleted += result.page.length;

@@ -5,7 +5,7 @@ import { internalAction } from "@workspace/backend/_generated/server";
 import { ORPHAN_BATCH_SIZE } from "@workspace/backend/private/orphans";
 import rag from "@workspace/backend/system/ai/rag";
 
-import { isNotFoundError } from "@workspace/shared/lib/file-utils";
+import { isNotFoundError } from "@workspace/shared/lib/file";
 
 export const cleanupStaleOrphans = internalAction({
   args: {},

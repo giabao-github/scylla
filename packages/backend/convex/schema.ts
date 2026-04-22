@@ -1,8 +1,9 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { MESSAGE_REQUEST_STATUS } from "@workspace/shared/constants/message-request";
+import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
+import { SUBSCRIPTION_STATUS } from "@workspace/shared/types/subscription";
 
 /** Run `npx convex dev` in backend directory after editing this file */
 export default defineSchema({
@@ -177,5 +178,16 @@ export default defineSchema({
       assistantId: v.optional(v.string()),
       phoneNumber: v.optional(v.string()),
     }),
+  }).index("by_org_id", ["organizationId"]),
+  subscriptions: defineTable({
+    organizationId: v.string(),
+    status: v.union(
+      v.literal(SUBSCRIPTION_STATUS.FREE),
+      v.literal(SUBSCRIPTION_STATUS.ACTIVE),
+      v.literal(SUBSCRIPTION_STATUS.CANCELED),
+    ),
+    periodEnd: v.union(v.number(), v.null()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
   }).index("by_org_id", ["organizationId"]),
 });

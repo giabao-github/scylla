@@ -6,18 +6,20 @@ import { ConvexError, v } from "convex/values";
 
 import { components, internal } from "@workspace/backend/_generated/api";
 import { action, query } from "@workspace/backend/_generated/server";
+import {
+  MAX_PROMPT_LENGTH,
+  MAX_REQUEST_IDS,
+  MAX_TOOL_CALL_ITERATIONS,
+} from "@workspace/backend/constants";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import { escalateConversation } from "@workspace/backend/system/ai/tools/escalateConversation";
 import { resolveConversation } from "@workspace/backend/system/ai/tools/resolveConversation";
 import { search } from "@workspace/backend/system/ai/tools/search";
 import { getConversationByThreadId } from "@workspace/backend/system/utils";
 
-import { CONVERSATION_STATUS } from "@workspace/shared/constants/conversation";
 import { modelCatalog } from "@workspace/shared/constants/model-catalog";
+import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 
-const MAX_TOOL_CALL_ITERATIONS = 5;
-const MAX_REQUEST_IDS = 100;
-const MAX_PROMPT_LENGTH = 10_000;
 const ALLOWED_MODEL_IDS = new Set<string>(modelCatalog.map((m) => m.id));
 
 type SupportTools = {
@@ -166,6 +168,17 @@ export const create = action({
             messageAt: message._creationTime,
           },
         );
+
+        try {
+          await ctx.runMutation(internal.system.contactSessions.refresh, {
+            contactSessionId,
+          });
+        } catch (refreshErr) {
+          console.error("[create] Failed to refresh contact session", {
+            contactSessionId,
+            error: refreshErr,
+          });
+        }
 
         await ctx.runMutation(internal.system.conversations.updateLastMessage, {
           threadId,

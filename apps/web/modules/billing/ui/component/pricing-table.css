@@ -1,0 +1,353 @@
+.cl-pricingTable {
+  --pricing-text-primary: #0f172a;
+  --pricing-text-secondary: #64748b;
+  --pricing-accent: #7c3aed;
+  --pricing-accent-hover: #6d28d9;
+
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 5rem !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  padding: 2rem !important;
+  margin-inline: auto !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+}
+
+.cl-pricingTableCard {
+  flex: 0 0 22rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 22rem !important;
+  max-width: 22rem !important;
+  min-width: 0 !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 2rem !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.4s ease !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  position: relative !important;
+  isolation: isolate !important;
+  text-align: left !important;
+}
+
+.cl-pricingTableCard:hover {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-color: rgba(139, 92, 246, 0.25) !important;
+  box-shadow: 0 20px 40px -10px rgba(139, 92, 246, 0.1) !important;
+}
+
+.cl-pricingTableCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    145deg,
+    rgba(168, 85, 247, 0.2),
+    rgba(99, 102, 241, 0.14),
+    rgba(59, 130, 246, 0.18)
+  );
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: 0;
+}
+
+.cl-pricingTableCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 18px 40px -24px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cl-pricingTableCard:hover::before {
+  opacity: 1;
+}
+
+.cl-pricingTableCard > * {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.cl-pricingTableCardHighlight {
+  inset: 0 !important;
+  border-radius: inherit !important;
+  background: transparent !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.cl-pricingTableCardHeader {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 0.35rem !important;
+  position: static !important;
+  padding: 2rem 2rem 1rem !important;
+  background: transparent !important;
+}
+
+.cl-pricingTableCardBody {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  flex: 0 0 auto !important;
+  gap: 0 !important;
+  padding: 0 2rem 2rem !important;
+  background: transparent !important;
+}
+
+.cl-pricingTableCardHeader > *,
+.cl-pricingTableCardBody > * {
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.cl-pricingTableCardTitleContainer {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: start !important;
+  gap: 1rem !important;
+  width: 100% !important;
+}
+
+.cl-pricingTableCardTitleContainer > * {
+  width: auto !important;
+  text-align: left !important;
+}
+
+.cl-pricingTableCardTitleContainer .cl-pricingTableCardTitle {
+  min-width: 0 !important;
+}
+
+.cl-pricingTableCardFeeContainer {
+  display: grid !important;
+  grid-template-columns: auto auto !important;
+  align-items: end !important;
+  justify-content: start !important;
+  column-gap: 0.35rem !important;
+  row-gap: 0.35rem !important;
+  width: 100% !important;
+}
+
+.cl-pricingTableCardFeeContainer > * {
+  width: auto !important;
+  text-align: left !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.cl-pricingTableCardFeeContainer > .cl-pricingTableCardPrice {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+
+.cl-pricingTableCardFeeContainer > .cl-pricingTableCardFeePeriod {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  align-self: end !important;
+  white-space: nowrap !important;
+}
+
+.cl-pricingTableCardFeeContainer > .cl-pricingTableCardFeePeriodNotice {
+  grid-column: 1 / -1 !important;
+  grid-row: 2 !important;
+}
+
+.cl-pricingTableCardTitle {
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  color: var(--pricing-text-primary) !important;
+  margin: 0 !important;
+  line-height: 1.1 !important;
+}
+
+.cl-pricingTableCardDescription {
+  display: block !important;
+  align-self: flex-start !important;
+  width: 100% !important;
+  text-align: left !important;
+  color: var(--pricing-text-secondary) !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  margin-top: 0 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+.cl-pricingTableCardPrice {
+  font-size: 2.5rem !important;
+  font-weight: 800 !important;
+  color: var(--pricing-text-primary) !important;
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 0.25rem !important;
+  margin: 0 !important;
+  line-height: 1.05 !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+}
+
+.cl-pricingTableCardPrice > * {
+  white-space: nowrap !important;
+}
+
+.cl-pricingTableCardBody > div {
+  width: 100% !important;
+  align-self: stretch !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: none !important;
+  padding: 1.5rem !important;
+  margin-top: 1.25rem !important;
+  min-height: 0 !important;
+}
+
+.cl-pricingTableCardBody > div:not(:last-child) {
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+.cl-pricingTableCardFeatureList {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin-top: 0 !important;
+  box-shadow: none !important;
+}
+
+.cl-pricingTableCardFeatures {
+  width: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  align-self: stretch !important;
+}
+
+.cl-pricingTableCardFeatures > * {
+  min-height: 0 !important;
+}
+
+.cl-pricingTableCardFeatures .cl-pricingTableCardFeatures {
+  min-height: 0 !important;
+}
+
+.cl-pricingTableCardFeaturePlaceholder,
+.cl-pricingTableCardFooterPlaceholder,
+.cl-pricingTableCardFooterButtonPlaceholder {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.cl-pricingTableCardBody > div:last-child {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-top: 1.5rem !important;
+}
+
+.cl-pricingTableCardFeature {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  color: #334155 !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  padding: 0.35rem 0 !important;
+}
+
+.cl-pricingTableCardFeatureIcon {
+  width: 20px !important;
+  height: 20px !important;
+  background: #ede9fe !important;
+  color: var(--pricing-accent) !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #ddd6fe !important;
+  flex-shrink: 0 !important;
+}
+
+.cl-pricingTableCardButton {
+  background: var(--pricing-accent) !important;
+  border: none !important;
+  border-radius: 1rem !important;
+  height: 3.5rem !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2) !important;
+  transition: all 0.3s ease !important;
+  margin-top: 0 !important;
+  padding-inline: 1.25rem !important;
+  cursor: pointer !important;
+  width: 100% !important;
+}
+
+.cl-pricingTableCardButton:hover {
+  background: var(--pricing-accent-hover) !important;
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.3) !important;
+}
+
+.cl-pricingTableCardButton:focus-visible {
+  outline: 2px solid var(--pricing-accent) !important;
+  outline-offset: 2px !important;
+  background: var(--pricing-accent-hover) !important;
+}
+
+.cl-pricingTableCardBadge {
+  background: var(--pricing-accent) !important;
+  color: white !important;
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  margin: 0 !important;
+  padding: 0.25rem 0.75rem !important;
+  border-radius: 6px !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  width: auto !important;
+  text-align: center !important;
+  z-index: 3 !important;
+  flex-shrink: 0 !important;
+  justify-self: end !important;
+}
+
+@media (max-width: 768px) {
+  .cl-pricingTable {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    width: 100% !important;
+    padding: 1rem !important;
+    gap: 2rem !important;
+  }
+
+  .cl-pricingTableCard {
+    flex-basis: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cl-pricingTableCard,
+  .cl-pricingTableCard::before,
+  .cl-pricingTableCardButton {
+    transition: none !important;
+  }
+}

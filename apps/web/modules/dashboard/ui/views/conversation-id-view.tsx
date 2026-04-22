@@ -7,10 +7,12 @@ import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
+import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 import {
   CONVERSATION_STATUS,
-  ConversationStatus,
-} from "@workspace/shared/constants/conversation";
+  type ConversationStatus,
+} from "@workspace/shared/types/conversation";
+import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import {
@@ -45,6 +47,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
 import { ContactPanel } from "@/modules/dashboard/ui/components/contact-panel";
 import { ConversationStatusButton } from "@/modules/dashboard/ui/components/conversation-status-button";
 
@@ -81,8 +84,10 @@ const MESSAGE_CONTAINER_MAX_HEIGHT = "calc(100vh - 190px)";
 
 export const ConversationIdView = ({
   conversationId,
+  subscriptionStatus,
 }: {
   conversationId: string;
+  subscriptionStatus: InitialSubscriptionStatus;
 }) => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
   const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
@@ -111,6 +116,8 @@ export const ConversationIdView = ({
     { conversationId: conversationId as Id<"conversations"> },
   );
 
+  const { isLoading, subscription } = useSubscription(subscriptionStatus);
+
   const messages = useThreadMessages(
     api.private.messages.getMany,
     conversation?.threadId ? { threadId: conversation.threadId } : "skip",
@@ -136,6 +143,9 @@ export const ConversationIdView = ({
   const isBlocked = !conversation || isResolved || isSending || isEnhancing;
   const submitDisabled =
     isBlocked || !form.formState.isValid || form.formState.isSubmitting;
+  const hasPremiumAccess = isLoading
+    ? subscriptionStatus === "active"
+    : hasSubscriptionFeatureAccess(subscription);
 
   const uiMessages = useMemo(
     () => toUIMessages(messages.results ?? []),
@@ -198,7 +208,7 @@ export const ConversationIdView = ({
 
   const handleEnhanceResponse = async () => {
     const currentValue = form.getValues("message");
-    if (isBlocked || !currentValue.trim()) return;
+    if (isBlocked || !currentValue.trim() || !hasPremiumAccess) return;
     const requestId = ++enhanceRequestIdRef.current;
     setIsEnhancing(true);
     try {
@@ -520,9 +530,18 @@ export const ConversationIdView = ({
                   <PromptBoxDefaultTools
                     tools={{ enhance: true, modelSelector: false }}
                     enhanceDisabled={
-                      isSending || isEnhancing || !form.formState.isValid
+                      isSending ||
+                      isEnhancing ||
+                      !form.formState.isValid ||
+                      !hasPremiumAccess
                     }
-                    enhanceText={isEnhancing ? "Enhancing..." : "Enhance"}
+                    enhanceText={
+                      !hasPremiumAccess
+                        ? "Upgrade to Pro to enhance responses"
+                        : isEnhancing
+                          ? "Enhancing..."
+                          : "Enhance"
+                    }
                     onEnhance={handleEnhanceResponse}
                   />
                   <PromptInputSubmit

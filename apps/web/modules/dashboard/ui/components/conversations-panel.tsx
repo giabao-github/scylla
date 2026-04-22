@@ -5,13 +5,13 @@ import { useEffect, useMemo } from "react";
 import { api } from "@workspace/backend/_generated/api";
 import { statusFilterAtom } from "@workspace/shared/atoms/atoms";
 import {
-  CONVERSATION_STATUS,
-  ConversationStatus,
-} from "@workspace/shared/constants/conversation";
-import {
   getCountryFlagUrl,
   getCountryFromTimezone,
-} from "@workspace/shared/lib/country-utils";
+} from "@workspace/shared/lib/metadata";
+import {
+  CONVERSATION_STATUS,
+  ConversationStatus,
+} from "@workspace/shared/types/conversation";
 import { AnimatedList } from "@workspace/ui/components/animated-list";
 import { ConversationStatusIcon } from "@workspace/ui/components/conversation-status-icon";
 import { DicebearAvatar } from "@workspace/ui/components/dicebear-avatar";

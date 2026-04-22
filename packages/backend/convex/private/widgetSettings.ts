@@ -1,16 +1,30 @@
 import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "@workspace/backend/_generated/server";
-import { getAuthenticatedOrgId } from "@workspace/backend/private/utils";
+import {
+  getAuthenticatedOrganization,
+  requireSubscriptionFeatureAccess,
+} from "@workspace/backend/private/utils";
+
+const MAX_SUGGESTION_LENGTH = 200;
+
+const validateSuggestion = (suggestion: string | undefined, name: string) => {
+  if (suggestion && suggestion.length > MAX_SUGGESTION_LENGTH) {
+    throw new ConvexError({
+      code: "INVALID_DEFAULT_SUGGESTION",
+      message: `${name} exceeds maximum length of ${MAX_SUGGESTION_LENGTH} characters`,
+    });
+  }
+};
 
 export const getOne = query({
   args: {},
   handler: async (ctx) => {
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
+    const { clerkOrganizationId } = await getAuthenticatedOrganization(ctx);
 
     const widgetSettings = await ctx.db
       .query("widgetSettings")
-      .withIndex("by_org_id", (q) => q.eq("organizationId", organizationId))
+      .withIndex("by_org_id", (q) => q.eq("organizationId", clerkOrganizationId))
       .unique();
 
     return widgetSettings;
@@ -31,6 +45,8 @@ export const upsert = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    const { clerkOrganizationId } = await requireSubscriptionFeatureAccess(ctx);
+
     if (args.greetingMessage.length > 500) {
       throw new ConvexError({
         code: "INVALID_GREETING_MESSAGE",
@@ -38,38 +54,18 @@ export const upsert = mutation({
       });
     }
 
-    if (args.defaultSuggestions) {
-      if (
-        args.defaultSuggestions.firstSuggestion &&
-        args.defaultSuggestions.firstSuggestion.length > 200
-      ) {
-        throw new ConvexError({
-          code: "INVALID_DEFAULT_SUGGESTION",
-          message:
-            "Default suggestion exceeds maximum length of 200 characters",
-        });
-      }
-      if (
-        args.defaultSuggestions.secondSuggestion &&
-        args.defaultSuggestions.secondSuggestion.length > 200
-      ) {
-        throw new ConvexError({
-          code: "INVALID_DEFAULT_SUGGESTION",
-          message:
-            "Default suggestion exceeds maximum length of 200 characters",
-        });
-      }
-      if (
-        args.defaultSuggestions.thirdSuggestion &&
-        args.defaultSuggestions.thirdSuggestion.length > 200
-      ) {
-        throw new ConvexError({
-          code: "INVALID_DEFAULT_SUGGESTION",
-          message:
-            "Default suggestion exceeds maximum length of 500 characters",
-        });
-      }
-    }
+    validateSuggestion(
+      args.defaultSuggestions.firstSuggestion,
+      "First suggestion",
+    );
+    validateSuggestion(
+      args.defaultSuggestions.secondSuggestion,
+      "Second suggestion",
+    );
+    validateSuggestion(
+      args.defaultSuggestions.thirdSuggestion,
+      "Third suggestion",
+    );
 
     if (
       args.vapiSettings.phoneNumber &&
@@ -81,11 +77,9 @@ export const upsert = mutation({
       });
     }
 
-    const { organizationId } = await getAuthenticatedOrgId(ctx);
-
     const existingWidgetSettings = await ctx.db
       .query("widgetSettings")
-      .withIndex("by_org_id", (q) => q.eq("organizationId", organizationId))
+      .withIndex("by_org_id", (q) => q.eq("organizationId", clerkOrganizationId))
       .unique();
 
     if (existingWidgetSettings) {
@@ -97,7 +91,7 @@ export const upsert = mutation({
       return existingWidgetSettings._id;
     } else {
       return await ctx.db.insert("widgetSettings", {
-        organizationId,
+        organizationId: clerkOrganizationId,
         greetingMessage: args.greetingMessage,
         defaultSuggestions: args.defaultSuggestions,
         vapiSettings: args.vapiSettings,
