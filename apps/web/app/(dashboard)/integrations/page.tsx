@@ -1,7 +1,12 @@
+import { Metadata } from "next";
+
+import { IntegrationsView } from "@/modules/integrations/ui/views/integrations-view";
+
+export const metadata: Metadata = {
+  title: "Integrations - Scylla",
+  description: "Manage integrations for your organization.",
+};
+
 export default function Page() {
-  return (
-    <div className="flex flex-col gap-y-4 justify-center items-center text-base min-h-svh">
-      <p className="text-2xl font-semibold">Coming soon...</p>
-    </div>
-  );
+  return <IntegrationsView />;
 }

@@ -1,15 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
+import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
 import { Button } from "@workspace/ui/components/button";
-import {
-  AlertCircleIcon,
-  CheckIcon,
-  CopyIcon as CopyIdleIcon,
-  MessageCircleHeartIcon,
-  ShieldCheckIcon,
-} from "lucide-react";
+import { MessageCircleHeartIcon, ShieldCheckIcon } from "lucide-react";
 
 export const UNKNOWN_ORGANIZATION_ID = "Unknown";
 
@@ -55,90 +48,23 @@ const STATUS_COLOR_MAP = {
   },
 } as const;
 
-type CopyState = "idle" | "copied" | "error";
-
-const COPY_RESET_MS = 1600;
-
-const COPY_STATE_CONFIG = {
-  idle: {
-    icon: CopyIdleIcon,
-    label: "Copy",
-    iconClassName: "",
-    ariaLabel: "Copy organization ID",
-  },
-  copied: {
-    icon: CheckIcon,
-    label: "Copied",
-    iconClassName: "text-emerald-600",
-    ariaLabel: "Organization ID copied",
-  },
-  error: {
-    icon: AlertCircleIcon,
-    label: "Failed",
-    iconClassName: "text-red-500",
-    ariaLabel: "Failed to copy organization ID",
-  },
-} as const satisfies Record<
-  CopyState,
-  {
-    icon: React.ElementType;
-    label: string;
-    iconClassName: string;
-    ariaLabel: string;
-  }
->;
-
 export const OrganizationSummaryCards = ({
   displayOrganizationId,
   createdAtLabel,
 }: OrganizationSummaryCardsProps) => {
-  const [copyState, setCopyState] = useState<CopyState>("idle");
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const canCopyOrganizationId =
-    Boolean(displayOrganizationId) &&
-    displayOrganizationId !== UNKNOWN_ORGANIZATION_ID;
-
-  const scheduleCopyReset = () => {
-    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(
-      () => setCopyState("idle"),
-      COPY_RESET_MS,
-    );
-  };
-
-  const handleCopy = async () => {
-    if (!canCopyOrganizationId) return;
-
-    if (!navigator.clipboard) {
-      console.warn("Clipboard API not available");
-      setCopyState("error");
-      scheduleCopyReset();
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(displayOrganizationId);
-      setCopyState("copied");
-    } catch (error) {
-      console.error("Failed to copy organization ID:", error);
-      setCopyState("error");
-    } finally {
-      scheduleCopyReset();
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    };
-  }, []);
-
   const {
+    copyState,
+    handleCopy,
     icon: StateIcon,
     label: copyLabel,
     iconClassName,
     ariaLabel,
-  } = COPY_STATE_CONFIG[copyState];
+  } = useCopyToClipboard({
+    errorMessage: "Failed to copy organization ID:",
+  });
+  const canCopyOrganizationId =
+    Boolean(displayOrganizationId) &&
+    displayOrganizationId !== UNKNOWN_ORGANIZATION_ID;
 
   return (
     <div
@@ -162,13 +88,13 @@ export const OrganizationSummaryCards = ({
           <Button
             type="button"
             size="sm"
-            disabled={!canCopyOrganizationId}
-            onClick={handleCopy}
+            disabled={!canCopyOrganizationId || copyState !== "idle"}
+            onClick={() => handleCopy(displayOrganizationId)}
             aria-label={ariaLabel}
             aria-live="polite"
-            className="inline-flex gap-1.5 items-center px-2.5 py-1.5 text-[10px] font-medium rounded-full border border-slate-200 bg-white/80 text-slate-700 transition-colors hover:bg-white md:text-[11px]"
+            className="inline-flex gap-1.5 items-center px-2.5 py-1.5 text-[10px] md:text-[11px] font-medium rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-white hover:ring-slate-300 hover:ring focus-visible:outline-0 focus-visible:ring-1 focus-visible:ring-primary"
           >
-            <StateIcon className={`size-3.5 ${iconClassName}`} />
+            <StateIcon className={`size-3.5 ${iconClassName ?? ""}`} />
             {copyLabel}
           </Button>
         </div>

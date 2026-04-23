@@ -1,0 +1,412 @@
+import {
+  WIDGET_BUTTON_ID,
+  WIDGET_CONTAINER_ID,
+} from "@workspace/shared/constants/widget";
+
+import { EMBED_DEFAULT_POSITION } from "@/config";
+import { chatBubbleIcon, closeIcon } from "@/icons";
+
+declare global {
+  interface Window {
+    SCYLLA_WIDGET_URL?: string;
+    ScyllaWidget?: {
+      init: (newConfig: {
+        organizationId?: string;
+        position?: "bottom-right" | "bottom-left";
+      }) => void;
+      show: () => void;
+      hide: () => void;
+      destroy: () => void;
+    };
+  }
+}
+
+(function () {
+  const MAX_WIDGET_HEIGHT_PX = 2000;
+  const OPEN_WIDGET_LABEL = "Open chat widget";
+  const CLOSE_WIDGET_LABEL = "Close chat widget";
+  const WIDGET_SCRIPT_MARKER = "true";
+  let iframe: HTMLIFrameElement | null = null;
+  let container: HTMLDivElement | null = null;
+  let button: HTMLButtonElement | null = null;
+  let isOpen = false;
+  let showTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let hideTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let pendingInitListener: (() => void) | null = null;
+
+  // Get configuration from script tag
+  let organizationId: string | null = null;
+  let position: "bottom-right" | "bottom-left" = EMBED_DEFAULT_POSITION;
+
+  const resolvePosition = (
+    value: string | null | undefined,
+  ): "bottom-right" | "bottom-left" =>
+    value === "bottom-left" || value === "bottom-right"
+      ? value
+      : EMBED_DEFAULT_POSITION;
+
+  const isLocalDevelopmentHost = (hostname: string) =>
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]";
+
+  const isEmbedScript = (script: Element): script is HTMLScriptElement => {
+    if (!(script instanceof HTMLScriptElement) || !script.src) {
+      return false;
+    }
+
+    if (script.getAttribute("data-scylla-widget") === WIDGET_SCRIPT_MARKER) {
+      return true;
+    }
+
+    try {
+      const scriptUrl = new URL(script.src, window.location.href);
+      const pathname = scriptUrl.pathname.toLowerCase();
+
+      // Support both the published widget bundle and the Vite dev entry.
+      return (
+        pathname.endsWith("/widget.js") ||
+        pathname.endsWith("/embed.js") ||
+        pathname.endsWith("/embed.ts")
+      );
+    } catch {
+      return false;
+    }
+  };
+
+  const findEmbedScript = (): HTMLScriptElement | null =>
+    Array.from(document.querySelectorAll("script[data-organization-id]")).find(
+      isEmbedScript,
+    ) ?? null;
+
+  // Try to get the current script
+  const currentScript =
+    document.currentScript instanceof HTMLScriptElement
+      ? document.currentScript
+      : null;
+  if (currentScript) {
+    organizationId = currentScript.getAttribute("data-organization-id");
+    position = resolvePosition(currentScript.getAttribute("data-position"));
+  } else {
+    // Fallback: find the Scylla loader script explicitly
+    const embedScript = findEmbedScript();
+
+    if (embedScript) {
+      organizationId = embedScript.getAttribute("data-organization-id");
+      position = resolvePosition(embedScript.getAttribute("data-position"));
+    }
+  }
+
+  // Exit if no organization ID
+  if (!organizationId) {
+    console.error("Scylla Widget: data-organization-id attribute is required");
+    return;
+  }
+
+  const resolveWidgetUrl = (script: HTMLScriptElement | null): URL | null => {
+    const configuredWidgetUrl =
+      script?.getAttribute("data-widget-url") || window.SCYLLA_WIDGET_URL;
+
+    try {
+      if (configuredWidgetUrl) {
+        return new URL(configuredWidgetUrl, window.location.href);
+      }
+
+      if (script?.src) {
+        return new URL("/", new URL(script.src, window.location.href));
+      }
+    } catch (error) {
+      console.error("Scylla Widget: invalid widget URL configuration", error);
+      return null;
+    }
+
+    console.error("Scylla Widget: unable to resolve widget URL");
+    return null;
+  };
+
+  let resolvedWidgetUrl: URL | null = resolveWidgetUrl(currentScript);
+  if (!resolvedWidgetUrl && currentScript === null) {
+    resolvedWidgetUrl = resolveWidgetUrl(findEmbedScript());
+  }
+
+  if (!resolvedWidgetUrl) {
+    console.error("Scylla Widget: invalid widget URL configuration");
+    return;
+  }
+
+  const widgetUrl = resolvedWidgetUrl;
+
+  function handleButtonMouseEnter() {
+    if (button) {
+      button.style.transform = "scale(1.05)";
+    }
+  }
+
+  function handleButtonMouseLeave() {
+    if (button) {
+      button.style.transform = "scale(1)";
+    }
+  }
+
+  if (
+    widgetUrl.protocol !== "https:" &&
+    !isLocalDevelopmentHost(widgetUrl.hostname)
+  ) {
+    console.warn(
+      "Scylla Widget: non-HTTPS widget URL detected outside localhost",
+      widgetUrl.toString(),
+    );
+  }
+
+  function init() {
+    if (document.readyState === "loading") {
+      if (!pendingInitListener) {
+        pendingInitListener = () => {
+          pendingInitListener = null;
+          render();
+        };
+        document.addEventListener("DOMContentLoaded", pendingInitListener, {
+          once: true,
+        });
+      }
+    } else {
+      render();
+    }
+  }
+
+  function render() {
+    // Create floating action button
+    button = document.createElement("button");
+    button.id = WIDGET_BUTTON_ID;
+    button.type = "button";
+    button.innerHTML = chatBubbleIcon;
+    button.setAttribute("aria-label", OPEN_WIDGET_LABEL);
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-haspopup", "dialog");
+    button.style.cssText = `
+      position: fixed;
+      ${position === "bottom-right" ? "right: 20px;" : "left: 20px;"}
+      bottom: 20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #a78bfa;
+      color: white;
+      border: none;
+      cursor: pointer;
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 24px rgba(167, 139, 250, 0.35);
+      transition: all 0.2s ease;
+    `;
+
+    button.addEventListener("click", toggleWidget);
+    button.addEventListener("mouseenter", handleButtonMouseEnter);
+    button.addEventListener("mouseleave", handleButtonMouseLeave);
+
+    document.body.appendChild(button);
+
+    // Create container (hidden by default)
+    container = document.createElement("div");
+    container.id = WIDGET_CONTAINER_ID;
+    button.setAttribute("aria-controls", container.id);
+    container.style.cssText = `
+      position: fixed;
+      ${position === "bottom-right" ? "right: 20px;" : "left: 20px;"}
+      bottom: 90px;
+      width: 400px;
+      height: 600px;
+      max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 110px);
+      z-index: 999998;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(167, 139, 250, 0.35);
+      display: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease;
+    `;
+
+    // Create iframe
+    iframe = document.createElement("iframe");
+    iframe.src = buildWidgetUrl();
+    iframe.style.cssText = `
+      width: 100%;
+      height: 100%;
+      border: none;
+    `;
+    // Add permissions for microphone and clipboard
+    iframe.allow = "microphone; clipboard-read; clipboard-write";
+    iframe.sandbox =
+      "allow-scripts allow-same-origin allow-forms allow-top-navigation-by-user-activation";
+    iframe.title = "Chat widget";
+
+    container.appendChild(iframe);
+    document.body.appendChild(container);
+
+    // Handle messages from widget
+    window.addEventListener("message", handleMessage);
+  }
+
+  function buildWidgetUrl(): string {
+    const url = new URL(widgetUrl.toString());
+    url.searchParams.set("organizationId", organizationId!);
+    return url.toString();
+  }
+
+  function handleMessage(event: MessageEvent) {
+    if (event.origin !== widgetUrl.origin) return;
+
+    const data = event.data;
+    if (
+      typeof data !== "object" ||
+      data === null ||
+      typeof data.type !== "string"
+    ) {
+      return;
+    }
+
+    const { type, payload } = data;
+
+    switch (type) {
+      case "close":
+        hide();
+        break;
+      case "resize": {
+        const height = Number(payload?.height);
+        if (
+          !container ||
+          !Number.isFinite(height) ||
+          height <= 0 ||
+          height > MAX_WIDGET_HEIGHT_PX
+        ) {
+          break;
+        }
+        container.style.height = `${height}px`;
+        break;
+      }
+    }
+  }
+
+  function toggleWidget() {
+    if (isOpen) {
+      hide();
+    } else {
+      show();
+    }
+  }
+
+  function show() {
+    if (container && button) {
+      if (showTimeoutId) {
+        clearTimeout(showTimeoutId);
+        showTimeoutId = null;
+      }
+      if (hideTimeoutId) {
+        clearTimeout(hideTimeoutId);
+        hideTimeoutId = null;
+      }
+      isOpen = true;
+      container.style.display = "block";
+      // Trigger animation
+      showTimeoutId = setTimeout(() => {
+        if (container) {
+          container.style.opacity = "1";
+          container.style.transform = "translateY(0)";
+        }
+        iframe?.focus({ preventScroll: true });
+        showTimeoutId = null;
+      }, 10);
+      // Change button icon to close
+      button.innerHTML = closeIcon;
+      button.setAttribute("aria-label", CLOSE_WIDGET_LABEL);
+      button.setAttribute("aria-expanded", "true");
+    }
+  }
+
+  function hide() {
+    if (container && button) {
+      if (showTimeoutId) {
+        clearTimeout(showTimeoutId);
+        showTimeoutId = null;
+      }
+      isOpen = false;
+      container.style.opacity = "0";
+      container.style.transform = "translateY(10px)";
+      // Hide after animation
+      hideTimeoutId = setTimeout(() => {
+        if (container) container.style.display = "none";
+        hideTimeoutId = null;
+      }, 300);
+      // Change button icon back to chat
+      button.innerHTML = chatBubbleIcon;
+      button.setAttribute("aria-label", OPEN_WIDGET_LABEL);
+      button.setAttribute("aria-expanded", "false");
+      button.focus({ preventScroll: true });
+    }
+  }
+
+  function destroy() {
+    if (pendingInitListener) {
+      document.removeEventListener("DOMContentLoaded", pendingInitListener);
+      pendingInitListener = null;
+    }
+    if (hideTimeoutId) {
+      clearTimeout(hideTimeoutId);
+      hideTimeoutId = null;
+    }
+    if (showTimeoutId) {
+      clearTimeout(showTimeoutId);
+      showTimeoutId = null;
+    }
+    window.removeEventListener("message", handleMessage);
+    if (container) {
+      container.remove();
+      container = null;
+      iframe = null;
+    }
+    if (button) {
+      button.removeEventListener("click", toggleWidget);
+      button.removeEventListener("mouseenter", handleButtonMouseEnter);
+      button.removeEventListener("mouseleave", handleButtonMouseLeave);
+      button.remove();
+      button = null;
+    }
+    isOpen = false;
+  }
+
+  // Function to reinitialize with new config
+  function reinit(newConfig: {
+    organizationId?: string;
+    position?: "bottom-right" | "bottom-left";
+  }) {
+    // Destroy existing widget
+    destroy();
+
+    // Update config
+    if (newConfig.organizationId) {
+      organizationId = newConfig.organizationId;
+    }
+    if (newConfig.position) {
+      position = resolvePosition(newConfig.position);
+    }
+
+    // Reinitialize
+    init();
+  }
+
+  // Expose API to global scope
+  window.ScyllaWidget = {
+    init: reinit,
+    show,
+    hide,
+    destroy,
+  };
+
+  // Auto-initialize
+  init();
+})();
