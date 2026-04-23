@@ -811,7 +811,7 @@
                 <input
                   type="text"
                   id="orgId"
-                  value="org_3BfmAKKf9ppH3eJDrKFFXSOFBHn"
+                  placeholder="Your organization ID (org_...)"
                   autocomplete="off"
                   spellcheck="false"
                 />
@@ -1026,26 +1026,11 @@
     </main>
 
     <script type="module">
-      import { EMBED_DEMO_WIDGET_URL } from "@/config";
-
-      window.SCYLLA_WIDGET_URL = EMBED_DEMO_WIDGET_URL;
-    </script>
-
-    <script
-      id="scylla-loader"
-      type="module"
-      src="/embed.ts"
-      data-scylla-widget="true"
-      data-organization-id="org_3BfmAKKf9ppH3eJDrKFFXSOFBHn"
-      data-position="bottom-right"
-    ></script>
-
-    <script type="module">
       import {
         EMBED_DEFAULT_POSITION,
         EMBED_DEMO_DEFAULT_ORG_ID,
         EMBED_DEMO_WIDGET_URL,
-      } from "@/config";
+      } from "@/demo-config";
 
       const SYNC_DELAYS = {
         SHOW: 30,
@@ -1055,6 +1040,9 @@
         OBSERVER: 20,
         MOUNT_CHECK: 180,
       };
+      const MAX_ACTIVITY_ITEMS = 100;
+      const LOADER_SCRIPT_ID = "scylla-loader";
+      const LOADER_SOURCE = "/embed.ts";
 
       function getRequiredElement(id) {
         const element = document.getElementById(id);
@@ -1081,7 +1069,6 @@
       const destroyButton = getRequiredElement("destroyButton");
       const copySnippetButton = getRequiredElement("copySnippet");
       const snippetPreview = getRequiredElement("snippetPreview");
-      const loaderScript = document.getElementById("scylla-loader");
       const loaderPathPill = getRequiredElement("loaderPathPill");
       const runtimeTargetPill = getRequiredElement("runtimeTargetPill");
       const apiStatus = getRequiredElement("apiStatus");
@@ -1089,13 +1076,65 @@
       const visibleStatus = getRequiredElement("visibleStatus");
       const positionStatus = getRequiredElement("positionStatus");
       const activityLog = getRequiredElement("activityLog");
+      let loaderReadyPromise = null;
 
-      const defaultOrganizationId =
-        loaderScript?.getAttribute("data-organization-id") ||
-        EMBED_DEMO_DEFAULT_ORG_ID;
-      const defaultPosition =
-        loaderScript?.getAttribute("data-position") || EMBED_DEFAULT_POSITION;
-      const loaderSource = loaderScript?.getAttribute("src") || "/embed.ts";
+      function getLoaderScript() {
+        const script = document.getElementById(LOADER_SCRIPT_ID);
+        return script instanceof HTMLScriptElement ? script : null;
+      }
+
+      function applyLoaderConfig(script, config) {
+        script.dataset.scyllaWidget = "true";
+        script.dataset.position = config.position;
+        script.dataset.widgetUrl = EMBED_DEMO_WIDGET_URL;
+
+        if (config.organizationId) {
+          script.dataset.organizationId = config.organizationId;
+        } else {
+          script.removeAttribute("data-organization-id");
+        }
+      }
+
+      function ensureLoaderScript(config) {
+        const existingScript = getLoaderScript();
+
+        if (existingScript) {
+          applyLoaderConfig(existingScript, config);
+          return loaderReadyPromise || Promise.resolve(existingScript);
+        }
+
+        const script = document.createElement("script");
+        script.id = LOADER_SCRIPT_ID;
+        script.type = "module";
+        script.src = LOADER_SOURCE;
+        applyLoaderConfig(script, config);
+
+        loaderReadyPromise = new Promise((resolve, reject) => {
+          script.addEventListener(
+            "load",
+            () => {
+              loaderReadyPromise = null;
+              resolve(script);
+            },
+            { once: true },
+          );
+          script.addEventListener(
+            "error",
+            () => {
+              loaderReadyPromise = null;
+              reject(new Error("Failed to load the widget loader script."));
+            },
+            { once: true },
+          );
+        });
+
+        document.body.appendChild(script);
+        return loaderReadyPromise;
+      }
+
+      const defaultOrganizationId = EMBED_DEMO_DEFAULT_ORG_ID;
+      const defaultPosition = EMBED_DEFAULT_POSITION;
+      const loaderSource = LOADER_SOURCE;
 
       orgInput.value = defaultOrganizationId;
       positionInput.value = defaultPosition;
@@ -1225,7 +1264,7 @@
         item.append(title, body);
         activityLog.prepend(item);
 
-        while (activityLog.children.length > 6) {
+        while (activityLog.children.length > MAX_ACTIVITY_ITEMS) {
           activityLog.removeChild(activityLog.lastElementChild);
         }
       }
@@ -1266,10 +1305,21 @@
         }
       }
 
-      function initWidget() {
+      async function initWidget() {
         if (!requireOrganizationId()) return;
 
         const config = getConfig();
+
+        try {
+          await ensureLoaderScript(config);
+        } catch (error) {
+          console.error("Failed to load the widget loader:", error);
+          pushLog(
+            "ScyllaWidget loader failed to load. Check the browser console.",
+            "danger",
+          );
+          return;
+        }
 
         if (!window.ScyllaWidget?.init) {
           pushLog(
@@ -1355,6 +1405,15 @@
         });
       }
 
+      function getNextOptionIndex(currentIndex, direction) {
+        if (positionOptions.length === 0) return -1;
+
+        return direction === "down"
+          ? (currentIndex + 1) % positionOptions.length
+          : (currentIndex - 1 + positionOptions.length) %
+              positionOptions.length;
+      }
+
       positionTrigger.addEventListener("keydown", (event) => {
         const currentIndex = positionOptions.findIndex(
           (option) => option.dataset.value === positionInput.value,
@@ -1363,18 +1422,14 @@
         switch (event.key) {
           case "ArrowDown": {
             event.preventDefault();
-            const nextIndex = (currentIndex + 1) % positionOptions.length;
             setSelectOpen(true);
-            positionOptions[nextIndex].focus();
+            positionOptions[getNextOptionIndex(currentIndex, "down")]?.focus();
             break;
           }
           case "ArrowUp": {
             event.preventDefault();
-            const nextIndex =
-              (currentIndex - 1 + positionOptions.length) %
-              positionOptions.length;
             setSelectOpen(true);
-            positionOptions[nextIndex].focus();
+            positionOptions[getNextOptionIndex(currentIndex, "up")]?.focus();
             break;
           }
           case "Enter":
@@ -1398,16 +1453,12 @@
         switch (event.key) {
           case "ArrowDown": {
             event.preventDefault();
-            const nextIndex = (currentIndex + 1) % positionOptions.length;
-            positionOptions[nextIndex].focus();
+            positionOptions[getNextOptionIndex(currentIndex, "down")]?.focus();
             break;
           }
           case "ArrowUp": {
             event.preventDefault();
-            const nextIndex =
-              (currentIndex - 1 + positionOptions.length) %
-              positionOptions.length;
-            positionOptions[nextIndex].focus();
+            positionOptions[getNextOptionIndex(currentIndex, "up")]?.focus();
             break;
           }
           case "Enter":
@@ -1439,40 +1490,88 @@
       });
 
       let runtimeObserverTimeout = 0;
-      const runtimeObserver = new MutationObserver(() => {
+      const scheduleRuntimeSync = () => {
         window.clearTimeout(runtimeObserverTimeout);
-        runtimeObserverTimeout = window.setTimeout(
-          syncAll,
-          SYNC_DELAYS.OBSERVER,
-        );
+        runtimeObserverTimeout = window.setTimeout(() => {
+          syncAll();
+          observeRuntimeElements();
+        }, SYNC_DELAYS.OBSERVER);
+      };
+
+      const runtimeObserver = new MutationObserver(() => {
+        scheduleRuntimeSync();
       });
+
+      const runtimeElementObserver = new MutationObserver(() => {
+        scheduleRuntimeSync();
+      });
+
+      function observeRuntimeElements() {
+        runtimeElementObserver.disconnect();
+
+        const button = document.getElementById("scylla-widget-button");
+        const container = document.getElementById("scylla-widget-container");
+
+        if (button) {
+          runtimeElementObserver.observe(button, {
+            attributes: true,
+            attributeFilter: ["style"],
+          });
+        }
+
+        if (container) {
+          runtimeElementObserver.observe(container, {
+            attributes: true,
+            attributeFilter: ["style"],
+          });
+        }
+      }
 
       runtimeObserver.observe(document.body, {
         subtree: true,
         childList: true,
-        attributes: true,
-        attributeFilter: ["style"],
       });
 
       pushLog(
-        "Demo page loaded. Waiting for the widget loader to mount.",
+        defaultOrganizationId
+          ? "Demo page loaded. Waiting for the widget loader to mount."
+          : "Demo page loaded. Enter an organization ID and initialize the widget to mount it.",
         "info",
       );
       syncAll();
+      observeRuntimeElements();
 
-      window.setTimeout(() => {
-        syncAll();
+      if (defaultOrganizationId) {
+        ensureLoaderScript({
+          organizationId: defaultOrganizationId,
+          position: defaultPosition,
+        })
+          .then(() => {
+            window.setTimeout(() => {
+              syncAll();
 
-        const { mounted } = getRuntimeState();
-        if (mounted) {
-          pushLog("Widget auto-initialized from the loader script.", "success");
-        } else {
-          pushLog(
-            "Widget has not mounted yet. Check the embed loader output.",
-            "warning",
-          );
-        }
-      }, SYNC_DELAYS.MOUNT_CHECK);
+              const { mounted } = getRuntimeState();
+              if (mounted) {
+                pushLog(
+                  "Widget auto-initialized from the loader script.",
+                  "success",
+                );
+              } else {
+                pushLog(
+                  "Widget has not mounted yet. Check the embed loader output.",
+                  "warning",
+                );
+              }
+            }, SYNC_DELAYS.MOUNT_CHECK);
+          })
+          .catch((error) => {
+            console.error("Failed to preload the widget loader:", error);
+            pushLog(
+              "Widget loader failed to preload. Initialize again after checking the console.",
+              "danger",
+            );
+          });
+      }
     </script>
   </body>
 </html>

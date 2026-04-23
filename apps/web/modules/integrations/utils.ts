@@ -1,20 +1,22 @@
 import {
-  HTML_SNIPPET,
   type IntegrationId,
-  JAVASCRIPT_SNIPPET,
-  NEXTJS_SNIPPET,
-  REACT_SNIPPET,
+  createHtmlSnippet,
+  createJavascriptSnippet,
+  createNextjsSnippet,
+  createReactSnippet,
+  getWidgetScriptUrl,
 } from "@/modules/integrations/constants";
 
 export const createIntegrationSnippet = (
   integrationId: IntegrationId,
   organizationId: string,
 ): string => {
+  const widgetScriptUrl = getWidgetScriptUrl();
   const snippetMap: Record<IntegrationId, string> = {
-    html: HTML_SNIPPET,
-    javascript: JAVASCRIPT_SNIPPET,
-    react: REACT_SNIPPET,
-    nextjs: NEXTJS_SNIPPET,
+    html: createHtmlSnippet(widgetScriptUrl),
+    javascript: createJavascriptSnippet(widgetScriptUrl),
+    react: createReactSnippet(widgetScriptUrl),
+    nextjs: createNextjsSnippet(widgetScriptUrl),
   };
 
   const snippet = snippetMap[integrationId];

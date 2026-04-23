@@ -43,7 +43,7 @@ export const WidgetContactScreen = () => {
   const setScreen = useSetAtom(widgetScreenAtom);
   const {
     copyState,
-    icon: CopyIcon_,
+    icon: StateIcon,
     label: copyLabel,
     ariaLabel,
     handleCopy,
@@ -136,7 +136,7 @@ export const WidgetContactScreen = () => {
                   <Button
                     size="lg"
                     variant="warning"
-                    disabled={!phoneNumber || copyState !== "idle"}
+                    disabled={!phoneNumber || copyState === "copied"}
                     aria-label={ariaLabel}
                     aria-live="polite"
                     onClick={() => {
@@ -146,7 +146,7 @@ export const WidgetContactScreen = () => {
                     }}
                     className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-amber-500/20"
                   >
-                    <CopyIcon_ className="size-4" />
+                    <StateIcon className="size-4" />
                     {copyLabel}
                   </Button>
                 </div>

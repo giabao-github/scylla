@@ -8,7 +8,6 @@ import { chatBubbleIcon, closeIcon } from "@/icons";
 
 declare global {
   interface Window {
-    SCYLLA_WIDGET_URL?: string;
     ScyllaWidget?: {
       init: (newConfig: {
         organizationId?: string;
@@ -17,6 +16,7 @@ declare global {
       show: () => void;
       hide: () => void;
       destroy: () => void;
+      isOpen: () => boolean;
     };
   }
 }
@@ -26,10 +26,15 @@ declare global {
   const OPEN_WIDGET_LABEL = "Open chat widget";
   const CLOSE_WIDGET_LABEL = "Close chat widget";
   const WIDGET_SCRIPT_MARKER = "true";
+  // Intentionally high so the launcher stays above typical host app chrome.
+  const WIDGET_BUTTON_Z_INDEX = 999999;
+  const WIDGET_CONTAINER_Z_INDEX = 999998;
   let iframe: HTMLIFrameElement | null = null;
   let container: HTMLDivElement | null = null;
+  let loadingOverlay: HTMLDivElement | null = null;
   let button: HTMLButtonElement | null = null;
   let isOpen = false;
+  let hasRequestedIframeLoad = false;
   let showTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let hideTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let pendingInitListener: (() => void) | null = null;
@@ -75,10 +80,23 @@ declare global {
     }
   };
 
-  const findEmbedScript = (): HTMLScriptElement | null =>
-    Array.from(document.querySelectorAll("script[data-organization-id]")).find(
-      isEmbedScript,
-    ) ?? null;
+  const findEmbedScript = (): HTMLScriptElement | null => {
+    const markedScript = Array.from(
+      document.querySelectorAll(
+        "script[data-organization-id][data-scylla-widget]",
+      ),
+    ).find(isEmbedScript);
+
+    if (markedScript) {
+      return markedScript;
+    }
+
+    return (
+      Array.from(
+        document.querySelectorAll("script[data-organization-id]"),
+      ).find(isEmbedScript) ?? null
+    );
+  };
 
   // Try to get the current script
   const currentScript =
@@ -105,8 +123,7 @@ declare global {
   }
 
   const resolveWidgetUrl = (script: HTMLScriptElement | null): URL | null => {
-    const configuredWidgetUrl =
-      script?.getAttribute("data-widget-url") || window.SCYLLA_WIDGET_URL;
+    const configuredWidgetUrl = script?.getAttribute("data-widget-url");
 
     try {
       if (configuredWidgetUrl) {
@@ -126,28 +143,19 @@ declare global {
   };
 
   let resolvedWidgetUrl: URL | null = resolveWidgetUrl(currentScript);
-  if (!resolvedWidgetUrl && currentScript === null) {
-    resolvedWidgetUrl = resolveWidgetUrl(findEmbedScript());
+  if (!resolvedWidgetUrl) {
+    const fallbackScript = findEmbedScript();
+
+    if (fallbackScript && fallbackScript !== currentScript) {
+      resolvedWidgetUrl = resolveWidgetUrl(fallbackScript);
+    }
   }
 
   if (!resolvedWidgetUrl) {
-    console.error("Scylla Widget: invalid widget URL configuration");
     return;
   }
 
   const widgetUrl = resolvedWidgetUrl;
-
-  function handleButtonMouseEnter() {
-    if (button) {
-      button.style.transform = "scale(1.05)";
-    }
-  }
-
-  function handleButtonMouseLeave() {
-    if (button) {
-      button.style.transform = "scale(1)";
-    }
-  }
 
   if (
     widgetUrl.protocol !== "https:" &&
@@ -175,6 +183,49 @@ declare global {
     }
   }
 
+  function setLoadingOverlayVisible(isVisible: boolean) {
+    if (!loadingOverlay) {
+      return;
+    }
+
+    loadingOverlay.style.display = isVisible ? "flex" : "none";
+    loadingOverlay.style.opacity = isVisible ? "1" : "0";
+
+    if (container) {
+      container.setAttribute("aria-busy", String(isVisible));
+    }
+  }
+
+  function requestIframeLoad() {
+    if (!iframe || hasRequestedIframeLoad) {
+      return;
+    }
+
+    hasRequestedIframeLoad = true;
+    setLoadingOverlayVisible(true);
+    iframe.src = buildWidgetUrl();
+  }
+
+  function handleIframeLoad() {
+    if (!hasRequestedIframeLoad) {
+      return;
+    }
+
+    setLoadingOverlayVisible(false);
+  }
+
+  function handleButtonMouseEnter() {
+    if (button) {
+      button.style.transform = "scale(1.05)";
+    }
+  }
+
+  function handleButtonMouseLeave() {
+    if (button) {
+      button.style.transform = "scale(1)";
+    }
+  }
+
   function render() {
     // Create floating action button
     button = document.createElement("button");
@@ -195,7 +246,7 @@ declare global {
       color: white;
       border: none;
       cursor: pointer;
-      z-index: 999999;
+      z-index: ${WIDGET_BUTTON_Z_INDEX};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -212,6 +263,10 @@ declare global {
     // Create container (hidden by default)
     container = document.createElement("div");
     container.id = WIDGET_CONTAINER_ID;
+    container.tabIndex = -1;
+    container.setAttribute("role", "dialog");
+    container.setAttribute("aria-label", "Chat widget");
+    container.setAttribute("aria-busy", "true");
     button.setAttribute("aria-controls", container.id);
     container.style.cssText = `
       position: fixed;
@@ -221,7 +276,7 @@ declare global {
       height: 600px;
       max-width: calc(100vw - 40px);
       max-height: calc(100vh - 110px);
-      z-index: 999998;
+      z-index: ${WIDGET_CONTAINER_Z_INDEX};
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 4px 24px rgba(167, 139, 250, 0.35);
@@ -231,9 +286,47 @@ declare global {
       transition: all 0.3s ease;
     `;
 
+    loadingOverlay = document.createElement("div");
+    loadingOverlay.setAttribute("aria-hidden", "true");
+    loadingOverlay.style.cssText = `
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.22), rgba(15, 23, 42, 0.35));
+      color: rgba(255, 255, 255, 0.92);
+      z-index: 1;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    `;
+
+    const loadingSpinner = document.createElement("div");
+    loadingSpinner.style.cssText = `
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-top-color: rgba(255, 255, 255, 0.95);
+    `;
+    loadingSpinner.animate(
+      [{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }],
+      { duration: 750, iterations: Infinity },
+    );
+
+    const loadingLabel = document.createElement("div");
+    loadingLabel.textContent = "Loading widget...";
+    loadingLabel.style.cssText = `
+      font: 500 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0.01em;
+    `;
+
+    loadingOverlay.append(loadingSpinner, loadingLabel);
+
     // Create iframe
     iframe = document.createElement("iframe");
-    iframe.src = buildWidgetUrl();
     iframe.style.cssText = `
       width: 100%;
       height: 100%;
@@ -244,9 +337,12 @@ declare global {
     iframe.sandbox =
       "allow-scripts allow-same-origin allow-forms allow-top-navigation-by-user-activation";
     iframe.title = "Chat widget";
+    iframe.addEventListener("load", handleIframeLoad);
 
+    container.appendChild(loadingOverlay);
     container.appendChild(iframe);
     document.body.appendChild(container);
+    setLoadingOverlayVisible(false);
 
     // Handle messages from widget
     window.addEventListener("message", handleMessage);
@@ -311,14 +407,15 @@ declare global {
         hideTimeoutId = null;
       }
       isOpen = true;
+      requestIframeLoad();
       container.style.display = "block";
       // Trigger animation
       showTimeoutId = setTimeout(() => {
         if (container) {
           container.style.opacity = "1";
           container.style.transform = "translateY(0)";
+          container.focus({ preventScroll: true });
         }
-        iframe?.focus({ preventScroll: true });
         showTimeoutId = null;
       }, 10);
       // Change button icon to close
@@ -333,6 +430,10 @@ declare global {
       if (showTimeoutId) {
         clearTimeout(showTimeoutId);
         showTimeoutId = null;
+      }
+      if (hideTimeoutId) {
+        clearTimeout(hideTimeoutId);
+        hideTimeoutId = null;
       }
       isOpen = false;
       container.style.opacity = "0";
@@ -367,8 +468,13 @@ declare global {
     if (container) {
       container.remove();
       container = null;
+      loadingOverlay = null;
+    }
+    if (iframe) {
+      iframe.removeEventListener("load", handleIframeLoad);
       iframe = null;
     }
+    hasRequestedIframeLoad = false;
     if (button) {
       button.removeEventListener("click", toggleWidget);
       button.removeEventListener("mouseenter", handleButtonMouseEnter);
@@ -391,6 +497,7 @@ declare global {
     if (newConfig.organizationId) {
       organizationId = newConfig.organizationId;
     }
+    // Public API consumers may call this from plain JavaScript, so keep the runtime guard.
     if (newConfig.position) {
       position = resolvePosition(newConfig.position);
     }
@@ -405,6 +512,7 @@ declare global {
     show,
     hide,
     destroy,
+    isOpen: () => isOpen,
   };
 
   // Auto-initialize

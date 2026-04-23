@@ -1,8 +1,3 @@
-import {
-  WIDGET_BUTTON_ID,
-  WIDGET_CONTAINER_ID,
-} from "@workspace/shared/constants/widget";
-
 export const INTEGRATIONS = [
   {
     id: "html",
@@ -29,85 +24,97 @@ export const INTEGRATIONS = [
 export type IntegrationId = (typeof INTEGRATIONS)[number]["id"];
 
 const DEFAULT_POSITION = "bottom-right";
+const LOCAL_WIDGET_SCRIPT_URL = "http://localhost:3001/widget.js";
 
-const getWidgetScriptUrl = () => {
-  const url = process.env.NEXT_PUBLIC_WIDGET_SCRIPT_URL;
+export const getWidgetScriptUrl = () => {
+  const url = process.env.NEXT_PUBLIC_WIDGET_SCRIPT_URL?.trim();
 
-  if (!url) {
-    if (process.env.NODE_ENV === "development") {
-      return "http://localhost:3001/widget.js";
-    }
-    throw new Error("NEXT_PUBLIC_WIDGET_SCRIPT_URL is not set");
+  if (url) {
+    return url;
   }
-  return url;
+
+  if (process.env.NODE_ENV === "development") {
+    return LOCAL_WIDGET_SCRIPT_URL;
+  }
+
+  throw new Error("NEXT_PUBLIC_WIDGET_SCRIPT_URL is not set");
 };
 
-export const WIDGET_SCRIPT_URL = getWidgetScriptUrl();
+export const createHtmlSnippet = (widgetScriptUrl: string) =>
+  `<script
+  src="${widgetScriptUrl}"
+  async
+  data-scylla-widget="true"
+  data-organization-id="{{ORGANIZATION_ID}}"
+  data-position="${DEFAULT_POSITION}"
+></script>`;
 
-export const HTML_SNIPPET = `
-  <script
-    src="${WIDGET_SCRIPT_URL}"
-    data-scylla-widget="true"
-    data-organization-id="{{ORGANIZATION_ID}}"
-    data-position="${DEFAULT_POSITION}"
-  ></script>
-`;
+export const createReactSnippet = (widgetScriptUrl: string) =>
+  `"use client";
 
-export const REACT_SNIPPET = `
-  import { useEffect } from "react";
+import { useEffect } from "react";
 
-  export function ScyllaWidgetScript() {
-    useEffect(() => {
-      const script = document.createElement("script");
-      script.src = "${WIDGET_SCRIPT_URL}";
-      script.async = true;
-      script.dataset.scyllaWidget = "true";
-      script.dataset.organizationId = "{{ORGANIZATION_ID}}";
-      script.dataset.position = "${DEFAULT_POSITION}";
-      document.body.appendChild(script);
+type ScyllaWidgetWindow = Window & {
+  ScyllaWidget?: {
+    destroy: () => void;
+  };
+};
 
-      return () => {
-        script.remove();
-        document.getElementById("${WIDGET_BUTTON_ID}")?.remove();
-        document.getElementById("${WIDGET_CONTAINER_ID}")?.remove();
-      };
-    }, []);
+export function ScyllaWidgetScript() {
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "${widgetScriptUrl}";
+    script.async = true;
+    script.dataset.scyllaWidget = "true";
+    script.dataset.organizationId = "{{ORGANIZATION_ID}}";
+    script.dataset.position = "${DEFAULT_POSITION}";
+    document.body.appendChild(script);
 
-    return null;
-  }
-`;
+    return () => {
+      (window as ScyllaWidgetWindow).ScyllaWidget?.destroy();
+      script.remove();
+    };
+  }, []);
 
-export const NEXTJS_SNIPPET = `
-  import { useEffect } from "react";
-  import Script from "next/script";
+  return null;
+}`;
 
-  export function ScyllaWidgetScript() {
-    useEffect(() => {
-      return () => {
-        document.getElementById("${WIDGET_BUTTON_ID}")?.remove();
-        document.getElementById("${WIDGET_CONTAINER_ID}")?.remove();
-      };
-    }, []);
+export const createNextjsSnippet = (widgetScriptUrl: string) =>
+  `"use client";
 
-    return (
-      <Script
-        id="scylla-widget"
-        src="${WIDGET_SCRIPT_URL}"
-        strategy="afterInteractive"
-        data-scylla-widget="true"
-        data-organization-id="{{ORGANIZATION_ID}}"
-        data-position="${DEFAULT_POSITION}"
-      />
-    );
-  }
-`;
+import { useEffect } from "react";
+import Script from "next/script";
 
-export const JAVASCRIPT_SNIPPET = `
-  const script = document.createElement("script");
-  script.src = "${WIDGET_SCRIPT_URL}";
-  script.async = true;
-  script.dataset.scyllaWidget = "true";
-  script.dataset.organizationId = "{{ORGANIZATION_ID}}";
-  script.dataset.position = "${DEFAULT_POSITION}";
-  document.body.appendChild(script);
-`;
+type ScyllaWidgetWindow = Window & {
+  ScyllaWidget?: {
+    destroy: () => void;
+  };
+};
+
+export function ScyllaWidgetScript() {
+  useEffect(() => {
+    return () => {
+      (window as ScyllaWidgetWindow).ScyllaWidget?.destroy();
+    };
+  }, []);
+
+  return (
+    <Script
+      id="scylla-widget"
+      src="${widgetScriptUrl}"
+      strategy="afterInteractive"
+      data-scylla-widget="true"
+      data-organization-id="{{ORGANIZATION_ID}}"
+      data-position="${DEFAULT_POSITION}"
+    />
+  );
+}`;
+
+export const createJavascriptSnippet = (widgetScriptUrl: string) =>
+  `const script = document.createElement("script");
+script.src = "${widgetScriptUrl}";
+script.async = true;
+script.dataset.scyllaWidget = "true";
+script.dataset.organizationId = "{{ORGANIZATION_ID}}";
+script.dataset.position = "${DEFAULT_POSITION}";
+document.body.appendChild(script);`;

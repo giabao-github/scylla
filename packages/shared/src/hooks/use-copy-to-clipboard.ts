@@ -9,6 +9,12 @@ import {
   type CopyStateConfig,
 } from "@workspace/shared/constants/copy";
 
+type UseCopyToClipboardReturn = {
+  copyState: CopyState;
+  handleCopy: (text: string) => Promise<void>;
+  reset: () => void;
+} & CopyStateConfig[CopyState];
+
 interface UseCopyToClipboardOptions {
   onError?: (error: unknown) => void;
   errorMessage?: string;
@@ -16,7 +22,9 @@ interface UseCopyToClipboardOptions {
   stateConfig?: CopyStateConfig;
 }
 
-export const useCopyToClipboard = (options: UseCopyToClipboardOptions = {}) => {
+export const useCopyToClipboard = (
+  options: UseCopyToClipboardOptions = {},
+): UseCopyToClipboardReturn => {
   const {
     onError,
     errorMessage = "Failed to copy to clipboard:",

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --port 3002",
     "build": "vite build && node ./scripts/sync-widget-bundle.mjs",
-    "sync:widget-public": "node ./scripts/sync-widget-bundle.mjs"
+    "sync:widget-public": "node ./scripts/sync-widget-bundle.mjs",
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^25.2.3",

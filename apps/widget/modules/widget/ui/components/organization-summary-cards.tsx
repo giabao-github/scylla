@@ -2,6 +2,7 @@
 
 import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
 import { Button } from "@workspace/ui/components/button";
+import { cn } from "@workspace/ui/lib/utils";
 import { MessageCircleHeartIcon, ShieldCheckIcon } from "lucide-react";
 
 export const UNKNOWN_ORGANIZATION_ID = "Unknown";
@@ -88,13 +89,13 @@ export const OrganizationSummaryCards = ({
           <Button
             type="button"
             size="sm"
-            disabled={!canCopyOrganizationId || copyState !== "idle"}
+            disabled={!canCopyOrganizationId || copyState === "copied"}
             onClick={() => handleCopy(displayOrganizationId)}
             aria-label={ariaLabel}
             aria-live="polite"
             className="inline-flex gap-1.5 items-center px-2.5 py-1.5 text-[10px] md:text-[11px] font-medium rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-white hover:ring-slate-300 hover:ring focus-visible:outline-0 focus-visible:ring-1 focus-visible:ring-primary"
           >
-            <StateIcon className={`size-3.5 ${iconClassName ?? ""}`} />
+            <StateIcon className={cn("size-3.5", iconClassName)} />
             {copyLabel}
           </Button>
         </div>
@@ -117,19 +118,32 @@ export const OrganizationSummaryCards = ({
           return (
             <div
               key={label}
-              className={`flex gap-2.5 items-start px-3 py-2.5 rounded-2xl border md:gap-3 ${colors.border} ${colors.bg}`}
+              className={cn(
+                "flex gap-2.5 items-start px-3 py-2.5 rounded-2xl border md:gap-3",
+                colors.border,
+                colors.bg,
+              )}
             >
               <Icon
-                className={`mt-0.5 size-3.5 shrink-0 md:size-4 ${colors.icon}`}
+                className={cn(
+                  "mt-0.5 size-3.5 shrink-0 md:size-4",
+                  colors.icon,
+                )}
               />
               <div className="min-w-0">
                 <p
-                  className={`text-[11px] font-semibold md:text-xs ${colors.label}`}
+                  className={cn(
+                    "text-[11px] font-semibold md:text-xs",
+                    colors.label,
+                  )}
                 >
                   {label}
                 </p>
                 <p
-                  className={`text-[10px] leading-4 md:text-[11px] ${colors.description}`}
+                  className={cn(
+                    "text-[10px] leading-4 md:text-[11px]",
+                    colors.description,
+                  )}
                 >
                   {description}
                 </p>
