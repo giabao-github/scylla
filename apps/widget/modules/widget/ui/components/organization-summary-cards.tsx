@@ -61,8 +61,11 @@ export const OrganizationSummaryCards = ({
     iconClassName,
     ariaLabel,
   } = useCopyToClipboard({
+    subject: "organization ID",
+    idleLabel: "Copy ID",
     errorMessage: "Failed to copy organization ID:",
   });
+
   const canCopyOrganizationId =
     Boolean(displayOrganizationId) &&
     displayOrganizationId !== UNKNOWN_ORGANIZATION_ID;
@@ -90,7 +93,7 @@ export const OrganizationSummaryCards = ({
             type="button"
             size="sm"
             disabled={!canCopyOrganizationId || copyState === "copied"}
-            onClick={() => handleCopy(displayOrganizationId)}
+            onClick={() => void handleCopy(displayOrganizationId)}
             aria-label={ariaLabel}
             aria-live="polite"
             className="inline-flex gap-1.5 items-center px-2.5 py-1.5 text-[10px] md:text-[11px] font-medium rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-white hover:ring-slate-300 hover:ring focus-visible:outline-0 focus-visible:ring-1 focus-visible:ring-primary"

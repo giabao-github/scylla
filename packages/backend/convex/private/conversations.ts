@@ -212,3 +212,52 @@ export const updateStatus = mutation({
     });
   },
 });
+
+export const markSeen = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    seenAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const { organizationId } = await getAuthenticatedOrganization(ctx);
+
+    const conversation = await ctx.db.get(args.conversationId);
+
+    if (!conversation) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Conversation not found",
+      });
+    }
+
+    if (conversation.organizationId !== organizationId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "User is not authorized to access this conversation",
+      });
+    }
+
+    const maxSeenAt = Math.min(
+      Date.now(),
+      conversation.lastMessageAt ?? Number.POSITIVE_INFINITY,
+    );
+
+    if (args.seenAt < conversation.createdAt || args.seenAt > maxSeenAt) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Invalid seen timestamp",
+      });
+    }
+
+    if (
+      conversation.lastSeenByAgentAt &&
+      conversation.lastSeenByAgentAt >= args.seenAt
+    ) {
+      return;
+    }
+
+    await ctx.db.patch(args.conversationId, {
+      lastSeenByAgentAt: args.seenAt,
+    });
+  },
+});

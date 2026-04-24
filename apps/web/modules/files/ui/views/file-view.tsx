@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
+import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
 import { PublicFile } from "@workspace/shared/types/file";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
@@ -12,10 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
+import { cn } from "@workspace/ui/lib/utils";
 import { useQuery } from "convex/react";
 import {
-  CheckIcon,
-  CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
   FileIcon,
@@ -58,25 +58,23 @@ export const FileView = ({
     file ? { entryId: file.id } : "skip",
   );
 
-  const [isCopied, setIsCopied] = useState(false);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const mountedRef = useRef(true);
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(content);
-      setIsCopied(true);
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy file content:", err);
-    }
-  };
+  const {
+    copyState,
+    icon: StateIcon,
+    label: copyLabel,
+    iconClassName,
+    handleCopy,
+    reset,
+  } = useCopyToClipboard({
+    subject: "file content",
+  });
 
   const handleDownload = async () => {
     if (!fileUrl || !file) return;
@@ -107,10 +105,15 @@ export const FileView = ({
   const hasNoUrl = fileUrl === null;
 
   useEffect(() => {
+    if (!open) {
+      reset();
+    }
+  }, [open, reset]);
+
+  useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     };
   }, []);
 
@@ -169,25 +172,17 @@ export const FileView = ({
                 <div className="flex gap-2 items-center mr-8 ml-auto">
                   {(file.type === "txt" || file.type === "md") && (
                     <Button
-                      disabled={loading || error || !content}
+                      disabled={
+                        loading || error || !content || copyState === "copied"
+                      }
                       title="Copy file content"
-                      onClick={handleCopy}
+                      onClick={() => void handleCopy(content)}
                       variant="outline"
                       size="sm"
                       className="gap-1.5 h-7 text-xs"
                     >
-                      {isCopied ? (
-                        <CheckIcon
-                          className="text-foreground shrink-0"
-                          size={12}
-                        />
-                      ) : (
-                        <CopyIcon
-                          className="text-foreground shrink-0"
-                          size={12}
-                        />
-                      )}
-                      {isCopied ? "Copied" : "Copy"}
+                      <StateIcon className={cn("size-3", iconClassName)} />
+                      {copyLabel}
                     </Button>
                   )}
                   <DownloadButton

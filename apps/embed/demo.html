@@ -1026,8 +1026,9 @@
     </main>
 
     <script type="module">
+      import { WIDGET_DEFAULT_POSITION } from "@workspace/shared/constants/widget";
+
       import {
-        EMBED_DEFAULT_POSITION,
         EMBED_DEMO_DEFAULT_ORG_ID,
         EMBED_DEMO_WIDGET_URL,
       } from "@/demo-config";
@@ -1061,7 +1062,7 @@
       const positionMenu = getRequiredElement("positionMenu");
       const positionValue = getRequiredElement("positionValue");
       const positionOptions = Array.from(
-        document.querySelectorAll(".select-option"),
+        positionMenu.querySelectorAll(".select-option"),
       );
       const initButton = getRequiredElement("initButton");
       const showButton = getRequiredElement("showButton");
@@ -1133,7 +1134,7 @@
       }
 
       const defaultOrganizationId = EMBED_DEMO_DEFAULT_ORG_ID;
-      const defaultPosition = EMBED_DEFAULT_POSITION;
+      const defaultPosition = WIDGET_DEFAULT_POSITION;
       const loaderSource = LOADER_SOURCE;
 
       orgInput.value = defaultOrganizationId;

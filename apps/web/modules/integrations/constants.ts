@@ -1,3 +1,5 @@
+import { WIDGET_DEFAULT_POSITION } from "@workspace/shared/constants/widget";
+
 export const INTEGRATIONS = [
   {
     id: "html",
@@ -23,7 +25,6 @@ export const INTEGRATIONS = [
 
 export type IntegrationId = (typeof INTEGRATIONS)[number]["id"];
 
-const DEFAULT_POSITION = "bottom-right";
 const LOCAL_WIDGET_SCRIPT_URL = "http://localhost:3001/widget.js";
 
 export const getWidgetScriptUrl = () => {
@@ -46,7 +47,7 @@ export const createHtmlSnippet = (widgetScriptUrl: string) =>
   async
   data-scylla-widget="true"
   data-organization-id="{{ORGANIZATION_ID}}"
-  data-position="${DEFAULT_POSITION}"
+  data-position="${WIDGET_DEFAULT_POSITION}"
 ></script>`;
 
 export const createReactSnippet = (widgetScriptUrl: string) =>
@@ -67,7 +68,7 @@ export function ScyllaWidgetScript() {
     script.async = true;
     script.dataset.scyllaWidget = "true";
     script.dataset.organizationId = "{{ORGANIZATION_ID}}";
-    script.dataset.position = "${DEFAULT_POSITION}";
+    script.dataset.position = "${WIDGET_DEFAULT_POSITION}";
     document.body.appendChild(script);
 
     return () => {
@@ -105,7 +106,7 @@ export function ScyllaWidgetScript() {
       strategy="afterInteractive"
       data-scylla-widget="true"
       data-organization-id="{{ORGANIZATION_ID}}"
-      data-position="${DEFAULT_POSITION}"
+      data-position="${WIDGET_DEFAULT_POSITION}"
     />
   );
 }`;
@@ -116,5 +117,5 @@ script.src = "${widgetScriptUrl}";
 script.async = true;
 script.dataset.scyllaWidget = "true";
 script.dataset.organizationId = "{{ORGANIZATION_ID}}";
-script.dataset.position = "${DEFAULT_POSITION}";
+script.dataset.position = "${WIDGET_DEFAULT_POSITION}";
 document.body.appendChild(script);`;

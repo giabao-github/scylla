@@ -8,47 +8,30 @@ import {
   widgetScreenAtom,
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
-import { type CopyStateConfig } from "@workspace/shared/constants/copy";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
 import { useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlertCircleIcon, CheckIcon, CopyIcon, PhoneIcon } from "lucide-react";
+import { PhoneIcon } from "lucide-react";
 
 import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
-
-const COPY_STATE_CONFIG = {
-  idle: {
-    icon: CopyIcon,
-    label: "Copy number",
-    ariaLabel: "Copy phone number",
-  },
-  copied: {
-    icon: CheckIcon,
-    label: "Copied",
-    ariaLabel: "Phone number copied",
-  },
-  error: {
-    icon: AlertCircleIcon,
-    label: "Failed",
-    ariaLabel: "Failed to copy phone number",
-  },
-} as const satisfies CopyStateConfig;
 
 export const WidgetContactScreen = () => {
   const contactSessionId = useAtomValue(contactSessionIdAtom);
   const widgetSettings = useAtomValue(widgetSettingsAtom);
   const setScreen = useSetAtom(widgetScreenAtom);
   const {
-    copyState,
     icon: StateIcon,
     label: copyLabel,
     ariaLabel,
+    copyState,
+    iconClassName,
     handleCopy,
   } = useCopyToClipboard({
-    stateConfig: COPY_STATE_CONFIG,
+    subject: "phone number",
+    idleLabel: "Copy number",
     errorMessage: "Failed to copy phone number:",
   });
 
@@ -146,7 +129,7 @@ export const WidgetContactScreen = () => {
                     }}
                     className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-amber-500/20"
                   >
-                    <StateIcon className="size-4" />
+                    <StateIcon className={cn("size-4", iconClassName)} />
                     {copyLabel}
                   </Button>
                 </div>

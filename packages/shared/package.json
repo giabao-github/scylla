@@ -9,7 +9,8 @@
     "./utils": "./src/utils.ts",
     "./constants/*": "./src/constants/*.ts",
     "./hooks/*": "./src/hooks/*.ts",
-    "./atoms/*": "./src/atoms/*.ts"
+    "./atoms/*": "./src/atoms/*.ts",
+    "./lib/*": "./src/lib/*.ts"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

@@ -70,6 +70,8 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
+    lastSeenByAgentAt: v.optional(v.number()),
+    lastSeenByContactAt: v.optional(v.number()),
     lastMessage: v.optional(
       v.object({
         text: v.string(),

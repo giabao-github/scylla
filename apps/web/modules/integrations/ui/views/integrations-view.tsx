@@ -41,6 +41,7 @@ export const IntegrationsView = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedIntegrationId, setSelectedIntegrationId] =
     useState<IntegrationId | null>(null);
+
   const { organization } = useOrganization();
   const {
     copyState,
@@ -49,7 +50,11 @@ export const IntegrationsView = () => {
     label: copyLabel,
     iconClassName,
     ariaLabel,
-  } = useCopyToClipboard();
+  } = useCopyToClipboard({
+    subject: "organization ID",
+    idleLabel: "Copy ID",
+  });
+
   const organizationId = organization?.id ?? "";
   const hasOrganization = Boolean(organizationId);
   const selectedIntegration = selectedIntegrationId
@@ -164,7 +169,7 @@ export const IntegrationsView = () => {
                     type="button"
                     size="sm"
                     disabled={!hasOrganization || copyState === "copied"}
-                    onClick={() => handleCopy(organizationId)}
+                    onClick={() => void handleCopy(organizationId)}
                     aria-label={ariaLabel}
                     aria-live="polite"
                     className="inline-flex gap-1.5 items-center rounded-full border border-white/80 bg-white/80 px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition-all hover:bg-white disabled:border-white/60 disabled:bg-white/60 focus-visible:outline-0 focus-visible:ring-1 focus-visible:ring-primary"
@@ -315,7 +320,9 @@ export const IntegrationDialog = ({
     label: copyLabel,
     iconClassName,
     ariaLabel,
-  } = useCopyToClipboard();
+  } = useCopyToClipboard({
+    subject: "snippet",
+  });
 
   useEffect(() => {
     if (!open) {
@@ -358,7 +365,7 @@ export const IntegrationDialog = ({
                     size="sm"
                     variant="basic"
                     disabled={!snippet || copyState === "copied"}
-                    onClick={() => handleCopy(snippet)}
+                    onClick={() => void handleCopy(snippet)}
                     aria-label={ariaLabel}
                     aria-live="polite"
                     className="inline-flex gap-1.5 items-center rounded-full border border-white/80 bg-white/85 px-3 py-2 text-[11px] font-medium text-slate-700 shadow-sm transition-opacity sm:opacity-80 sm:hover:opacity-100 sm:focus-visible:opacity-100"

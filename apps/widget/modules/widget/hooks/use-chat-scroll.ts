@@ -55,5 +55,5 @@ export const useChatScroll = (
     prevPendingSlotsLenRef.current = pendingSlotsLength;
   }, [lastVisibleId, pendingSlotsLength, conversationId, scrollToBottom]);
 
-  return { scrollRef, handleScroll };
+  return { scrollRef, handleScroll, isAtBottomRef };
 };

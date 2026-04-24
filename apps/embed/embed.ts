@@ -1,9 +1,10 @@
 import {
   WIDGET_BUTTON_ID,
   WIDGET_CONTAINER_ID,
+  WIDGET_DEFAULT_POSITION,
+  type WidgetPosition,
 } from "@workspace/shared/constants/widget";
 
-import { EMBED_DEFAULT_POSITION } from "@/config";
 import { chatBubbleIcon, closeIcon } from "@/icons";
 
 declare global {
@@ -11,7 +12,7 @@ declare global {
     ScyllaWidget?: {
       init: (newConfig: {
         organizationId?: string;
-        position?: "bottom-right" | "bottom-left";
+        position?: WidgetPosition;
       }) => void;
       show: () => void;
       hide: () => void;
@@ -41,14 +42,12 @@ declare global {
 
   // Get configuration from script tag
   let organizationId: string | null = null;
-  let position: "bottom-right" | "bottom-left" = EMBED_DEFAULT_POSITION;
+  let position: WidgetPosition = WIDGET_DEFAULT_POSITION;
 
-  const resolvePosition = (
-    value: string | null | undefined,
-  ): "bottom-right" | "bottom-left" =>
+  const resolvePosition = (value: string | null | undefined): WidgetPosition =>
     value === "bottom-left" || value === "bottom-right"
       ? value
-      : EMBED_DEFAULT_POSITION;
+      : WIDGET_DEFAULT_POSITION;
 
   const isLocalDevelopmentHost = (hostname: string) =>
     hostname === "localhost" ||
@@ -356,6 +355,7 @@ declare global {
 
   function handleMessage(event: MessageEvent) {
     if (event.origin !== widgetUrl.origin) return;
+    if (!iframe || event.source !== iframe.contentWindow) return;
 
     const data = event.data;
     if (
@@ -488,7 +488,7 @@ declare global {
   // Function to reinitialize with new config
   function reinit(newConfig: {
     organizationId?: string;
-    position?: "bottom-right" | "bottom-left";
+    position?: WidgetPosition;
   }) {
     // Destroy existing widget
     destroy();

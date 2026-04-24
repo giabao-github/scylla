@@ -6,8 +6,8 @@ export type CopyState = "idle" | "copied" | "error";
 
 export interface CopyStateConfigEntry {
   icon: ElementType;
-  label: string;
-  ariaLabel: string;
+  label?: string;
+  ariaLabel?: string;
   iconClassName?: string;
 }
 
@@ -34,4 +34,4 @@ export const COPY_STATE_CONFIG = {
     iconClassName: "text-red-500",
     ariaLabel: "Failed to copy to clipboard",
   },
-} as const satisfies CopyStateConfig;
+} as const satisfies Record<CopyState, Required<CopyStateConfigEntry>>;
