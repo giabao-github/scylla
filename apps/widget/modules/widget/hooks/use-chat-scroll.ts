@@ -31,6 +31,8 @@ export const useChatScroll = (
       el.scrollHeight - el.scrollTop - el.clientHeight < 50;
   }, []);
 
+  const getIsAtBottom = useCallback(() => isAtBottomRef.current, []);
+
   useEffect(() => {
     if (conversationId !== prevConversationIdRef.current) {
       prevLastMessageIdRef.current = undefined;
@@ -55,5 +57,5 @@ export const useChatScroll = (
     prevPendingSlotsLenRef.current = pendingSlotsLength;
   }, [lastVisibleId, pendingSlotsLength, conversationId, scrollToBottom]);
 
-  return { scrollRef, handleScroll };
+  return { scrollRef, handleScroll, getIsAtBottom };
 };

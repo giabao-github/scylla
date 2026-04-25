@@ -7,6 +7,7 @@ import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
+import { formatChatTimestamp } from "@workspace/shared/lib/chat-timestamp";
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 import {
   CONVERSATION_STATUS,
@@ -56,6 +57,7 @@ type PendingSlot = {
   requestId: string;
   text: string;
   prompt: PromptInputMessage;
+  submittedAt: number;
   cutoffId?: string;
 } & (
   | { status: "sending" }
@@ -93,6 +95,7 @@ export const ConversationIdView = ({
   const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLastMessageIdRef = useRef<string | undefined>(undefined);
@@ -100,6 +103,7 @@ export const ConversationIdView = ({
   const isAtBottomRef = useRef(true);
   const enhanceRequestIdRef = useRef(0);
   const sendLockRef = useRef(false);
+  const latestMarkedSeenAtRef = useRef(0);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -125,6 +129,7 @@ export const ConversationIdView = ({
   );
 
   const createMessage = useMutation(api.private.messages.create);
+  const markSeen = useMutation(api.private.conversations.markSeen);
   const updateStatus = useMutation(api.private.conversations.updateStatus);
 
   const enhanceResponse = useAction(api.private.messages.enhanceResponse);
@@ -155,6 +160,13 @@ export const ConversationIdView = ({
     () => uiMessages.filter(isVisibleMessage),
     [uiMessages],
   );
+  const latestClientMessageAt = useMemo(
+    () =>
+      visibleMessages.filter((message) => message.role === "user").at(-1)
+        ?._creationTime,
+    [visibleMessages],
+  );
+  const contactReadReceiptCutoff = conversation?.lastSeenByContactAt ?? 0;
   const baseMessages = useMemo(() => {
     if (!sendingSlot?.cutoffId) return visibleMessages;
     const index = visibleMessages.findIndex(
@@ -172,12 +184,28 @@ export const ConversationIdView = ({
     });
   }, []);
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     isAtBottomRef.current =
       el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-  };
+
+    if (
+      isAtBottomRef.current &&
+      conversation &&
+      latestClientMessageAt &&
+      latestClientMessageAt > latestMarkedSeenAtRef.current
+    ) {
+      const previousMarkedSeenAt = latestMarkedSeenAtRef.current;
+      latestMarkedSeenAtRef.current = latestClientMessageAt;
+      void markSeen({
+        conversationId: conversationId as Id<"conversations">,
+        seenAt: latestClientMessageAt,
+      }).catch(() => {
+        latestMarkedSeenAtRef.current = previousMarkedSeenAt;
+      });
+    }
+  }, [conversation, latestClientMessageAt, markSeen, conversationId]);
 
   const handleToggleStatus = async () => {
     if (!conversation) return;
@@ -283,6 +311,7 @@ export const ConversationIdView = ({
         requestId,
         text,
         prompt: promptMessage,
+        submittedAt: Date.now(),
         cutoffId,
         status: "sending",
       },
@@ -305,7 +334,13 @@ export const ConversationIdView = ({
     setIsDispatchingMessage(true);
     setPendingSlots((prev) =>
       prev.map((s) =>
-        s.localId === localId ? { ...s, status: "sending" as const } : s,
+        s.localId === localId
+          ? {
+              ...s,
+              submittedAt: Date.now(),
+              status: "sending" as const,
+            }
+          : s,
       ),
     );
 
@@ -335,9 +370,38 @@ export const ConversationIdView = ({
     prevPendingSlotsLenRef.current = 0;
     isAtBottomRef.current = true;
     sendLockRef.current = false;
+    latestMarkedSeenAtRef.current = 0;
     setIsDispatchingMessage(false);
     setPendingSlots([]);
+    setSelectedEntryKey(null);
   }, [conversationId, form]);
+
+  useEffect(() => {
+    const persistedSeenCutoff = conversation?.lastSeenByAgentAt ?? 0;
+    if (persistedSeenCutoff > latestMarkedSeenAtRef.current) {
+      latestMarkedSeenAtRef.current = persistedSeenCutoff;
+    }
+  }, [conversation?.lastSeenByAgentAt]);
+
+  useEffect(() => {
+    if (
+      !conversation ||
+      !latestClientMessageAt ||
+      !isAtBottomRef.current ||
+      latestClientMessageAt <= latestMarkedSeenAtRef.current
+    ) {
+      return;
+    }
+
+    const previousMarkedSeenAt = latestMarkedSeenAtRef.current;
+    latestMarkedSeenAtRef.current = latestClientMessageAt;
+    void markSeen({
+      conversationId: conversationId as Id<"conversations">,
+      seenAt: latestClientMessageAt,
+    }).catch(() => {
+      latestMarkedSeenAtRef.current = previousMarkedSeenAt;
+    });
+  }, [conversation, latestClientMessageAt, markSeen, conversationId]);
 
   const contactName = useMemo(() => {
     if (!contactSession) return "";
@@ -345,6 +409,47 @@ export const ConversationIdView = ({
     if (contactSession.email) return contactSession.email;
     return "Anonymous User";
   }, [contactSession]);
+
+  const timeline = useMemo(
+    () =>
+      [
+        ...baseMessages.map((message) => ({
+          entryKey: `confirmed:${message.id}`,
+          type: "confirmed" as const,
+          timestamp: message._creationTime,
+          data: message,
+        })),
+        ...pendingSlots.map((slot) => ({
+          entryKey: `pending:${slot.localId}`,
+          type: "pending" as const,
+          timestamp: slot.submittedAt,
+          data: slot,
+        })),
+      ].sort((left, right) => left.timestamp - right.timestamp),
+    [baseMessages, pendingSlots],
+  );
+
+  useEffect(() => {
+    if (!selectedEntryKey) {
+      return;
+    }
+
+    if (!timeline.some((entry) => entry.entryKey === selectedEntryKey)) {
+      setSelectedEntryKey(null);
+    }
+  }, [selectedEntryKey, timeline]);
+
+  const handleEntrySelect = (entryKey: string) => {
+    setSelectedEntryKey((current) => (current === entryKey ? null : entryKey));
+  };
+
+  const timestampClasses = (isSelected: boolean) =>
+    cn(
+      "grid justify-items-center transition-[grid-template-rows,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+      isSelected
+        ? "grid-rows-[1fr] translate-y-0 opacity-100"
+        : "grid-rows-[0fr] -translate-y-1 opacity-0 pointer-events-none",
+    );
 
   if (conversation === undefined || messages.status === "LoadingFirstPage") {
     return <ConversationIdViewSkeleton />;
@@ -455,43 +560,82 @@ export const ConversationIdView = ({
           <div ref={topElementRef} className="h-px" />
         </div>
 
-        {baseMessages.map((msg) => {
-          const isFromClient = msg.role === "user";
+        {timeline.map((entry) => {
+          const isSelected = selectedEntryKey === entry.entryKey;
+
+          if (entry.type === "confirmed") {
+            const message = entry.data;
+            const isFromClient = message.role === "user";
+            return (
+              <div key={entry.entryKey} className="mt-2 space-y-6">
+                <div
+                  aria-hidden={!isSelected}
+                  className={timestampClasses(isSelected)}
+                >
+                  <div className="overflow-hidden min-h-0">
+                    <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                      {formatChatTimestamp(entry.timestamp)}
+                    </p>
+                  </div>
+                </div>
+                <Message
+                  from={isFromClient ? "assistant" : "user"}
+                  className="max-w-4/5 md:max-w-1/2"
+                >
+                  <ChatBubble
+                    text={message.text ?? ""}
+                    variant={isFromClient ? "agent" : "user"}
+                    avatarSeed={
+                      isFromClient ? conversation.contactSessionId : undefined
+                    }
+                    status={
+                      isFromClient
+                        ? undefined
+                        : message._creationTime <= contactReadReceiptCutoff
+                          ? "seen"
+                          : "sent"
+                    }
+                    onClick={() => handleEntrySelect(entry.entryKey)}
+                    showStatus={
+                      !isFromClient && entry.entryKey === selectedEntryKey
+                    }
+                  />
+                </Message>
+              </div>
+            );
+          }
+
+          const slot = entry.data;
           return (
-            <Message
-              from={isFromClient ? "assistant" : "user"}
-              key={msg.id}
-              className="max-w-4/5 md:max-w-1/2"
-            >
-              <ChatBubble
-                text={msg.text ?? ""}
-                variant={isFromClient ? "agent" : "user"}
-                avatarSeed={
-                  isFromClient ? conversation.contactSessionId : undefined
-                }
-              />
-            </Message>
+            <div key={entry.entryKey} className="mt-2 space-y-6">
+              <div
+                aria-hidden={!isSelected}
+                className={timestampClasses(isSelected)}
+              >
+                <div className="overflow-hidden min-h-0">
+                  <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                    {formatChatTimestamp(entry.timestamp)}
+                  </p>
+                </div>
+              </div>
+              <Message from="user" className="max-w-4/5 md:max-w-1/2">
+                <ChatBubble
+                  text={slot.text}
+                  variant="user"
+                  status={slot.status}
+                  error={slot.status === "failed" ? slot.error : undefined}
+                  onRetry={
+                    slot.status === "failed" && slot.retryable
+                      ? () => handleRetry(slot.localId)
+                      : undefined
+                  }
+                  onClick={() => handleEntrySelect(entry.entryKey)}
+                  showStatus={entry.entryKey === selectedEntryKey}
+                />
+              </Message>
+            </div>
           );
         })}
-        {pendingSlots.map((slot) => (
-          <Message
-            from="user"
-            key={slot.localId}
-            className="max-w-4/5 md:max-w-1/2"
-          >
-            <ChatBubble
-              text={slot.text}
-              variant="user"
-              status={slot.status}
-              error={slot.status === "failed" ? slot.error : undefined}
-              onRetry={
-                slot.status === "failed" && slot.retryable
-                  ? () => handleRetry(slot.localId)
-                  : undefined
-              }
-            />
-          </Message>
-        ))}
       </div>
 
       {!isResolved && (

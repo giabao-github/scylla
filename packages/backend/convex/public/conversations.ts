@@ -125,7 +125,62 @@ export const getOne = query({
       status: conversation.status,
       threadId: conversation.threadId,
       createdAt: conversation.createdAt,
+      lastSeenByAgentAt: conversation.lastSeenByAgentAt ?? null,
+      lastSeenByContactAt: conversation.lastSeenByContactAt ?? null,
     };
+  },
+});
+
+export const markSeenByContact = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    contactSessionId: v.id("contactSessions"),
+    seenAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const session = await validateSession(ctx, args.contactSessionId);
+    const conversation = await ctx.db.get(args.conversationId);
+
+    if (!conversation) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Conversation not found",
+      });
+    }
+
+    if (
+      conversation.contactSessionId !== session._id ||
+      conversation.organizationId !== session.organizationId
+    ) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Invalid session",
+      });
+    }
+
+    if (args.seenAt < conversation.createdAt) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Invalid seen timestamp",
+      });
+    }
+
+    const maxSeenAt = Math.min(
+      Date.now(),
+      conversation.lastMessageAt ?? Number.POSITIVE_INFINITY,
+    );
+    const clampedSeenAt = Math.min(args.seenAt, maxSeenAt);
+
+    if (
+      conversation.lastSeenByContactAt &&
+      conversation.lastSeenByContactAt >= clampedSeenAt
+    ) {
+      return;
+    }
+
+    await ctx.db.patch(args.conversationId, {
+      lastSeenByContactAt: clampedSeenAt,
+    });
   },
 });
 

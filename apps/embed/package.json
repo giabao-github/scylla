@@ -1,0 +1,22 @@
+{
+  "name": "embed",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite --port 3002",
+    "build": "vite build && node ./scripts/sync-widget-bundle.mjs",
+    "sync:widget-public": "node ./scripts/sync-widget-bundle.mjs",
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "@workspace/eslint-config": "workspace:^",
+    "@workspace/shared": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "^9.39.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.9"
+  }
+}

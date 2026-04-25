@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback } from "react";
 
 import { api } from "@workspace/backend/_generated/api";
 import {
@@ -9,51 +9,31 @@ import {
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
 import { useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlertCircleIcon, CheckIcon, CopyIcon, PhoneIcon } from "lucide-react";
-import Link from "next/link";
+import { PhoneIcon } from "lucide-react";
 
 import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
-type CopyState = "idle" | "copied" | "error";
-
-const COPY_RESET_MS = 1600;
-
-const COPY_STATE_CONFIG = {
-  idle: {
-    icon: CopyIcon,
-    label: "Copy number",
-    ariaLabel: "Copy phone number",
-  },
-  copied: {
-    icon: CheckIcon,
-    label: "Copied",
-    ariaLabel: "Phone number copied",
-  },
-  error: {
-    icon: AlertCircleIcon,
-    label: "Failed",
-    ariaLabel: "Failed to copy phone number",
-  },
-} as const satisfies Record<
-  CopyState,
-  {
-    icon: React.ElementType;
-    label: string;
-    ariaLabel: string;
-  }
->;
-
 export const WidgetContactScreen = () => {
-  const [copyState, setCopyState] = useState<CopyState>("idle");
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const contactSessionId = useAtomValue(contactSessionIdAtom);
   const widgetSettings = useAtomValue(widgetSettingsAtom);
   const setScreen = useSetAtom(widgetScreenAtom);
+  const {
+    icon: StateIcon,
+    label: copyLabel,
+    ariaLabel,
+    copyState,
+    iconClassName,
+    handleCopy,
+  } = useCopyToClipboard({
+    subject: "phone number",
+    idleLabel: "Copy number",
+    errorMessage: "Failed to copy phone number:",
+  });
 
   const phoneNumber = widgetSettings?.vapiSettings.phoneNumber;
 
@@ -65,50 +45,9 @@ export const WidgetContactScreen = () => {
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
 
-  const scheduleCopyReset = () => {
-    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(
-      () => setCopyState("idle"),
-      COPY_RESET_MS,
-    );
-  };
-
-  const handleCopy = async () => {
-    if (!phoneNumber) return;
-
-    if (!navigator.clipboard) {
-      console.warn("Clipboard API not available");
-      setCopyState("error");
-      scheduleCopyReset();
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(phoneNumber);
-      setCopyState("copied");
-    } catch (error) {
-      console.error("Failed to copy phone number:", error);
-      setCopyState("error");
-    } finally {
-      scheduleCopyReset();
-    }
-  };
-
   const handleAuthenticate = useCallback(() => {
     setScreen(WIDGET_SCREENS.AUTH);
   }, [setScreen]);
-
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    };
-  }, []);
-
-  const {
-    icon: CopyIcon_,
-    label: copyLabel,
-    ariaLabel,
-  } = COPY_STATE_CONFIG[copyState];
 
   return (
     <WidgetSessionGuard
@@ -124,7 +63,7 @@ export const WidgetContactScreen = () => {
               <PhoneIcon className="text-white size-5 md:size-6" />
             </div>
             <p className="max-w-xs text-[14px] leading-5 text-center text-muted-foreground md:text-base md:leading-6">
-              Available 24/7
+              Call our AI agent directly
             </p>
             <p className="max-w-xs text-[22px] md:text-2xl font-bold tracking-wide leading-5 text-center text-muted-foreground md:leading-6">
               {phoneNumber ?? "—"}
@@ -180,13 +119,17 @@ export const WidgetContactScreen = () => {
                   <Button
                     size="lg"
                     variant="warning"
-                    disabled={!phoneNumber}
+                    disabled={!phoneNumber || copyState === "copied"}
                     aria-label={ariaLabel}
                     aria-live="polite"
-                    onClick={handleCopy}
+                    onClick={() => {
+                      if (phoneNumber) {
+                        void handleCopy(phoneNumber);
+                      }
+                    }}
                     className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-amber-500/20"
                   >
-                    <CopyIcon_ className="size-4" />
+                    <StateIcon className={cn("size-4", iconClassName)} />
                     {copyLabel}
                   </Button>
                 </div>

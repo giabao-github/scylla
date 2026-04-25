@@ -1,11 +1,10 @@
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 
 import { Doc, Id } from "@workspace/backend/_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
 } from "@workspace/backend/_generated/server";
-import { getAuthenticatedIdentity } from "@workspace/backend/private/utils";
 
 export const upsert = internalMutation({
   args: {
@@ -49,15 +48,6 @@ export const getByOrganizationId = internalQuery({
     organizationId: v.string(),
   },
   handler: async (ctx, args): Promise<Doc<"subscriptions"> | null> => {
-    const { clerkOrganizationId } = await getAuthenticatedIdentity(ctx);
-
-    if (clerkOrganizationId !== args.organizationId) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Unauthorized to view subscription data",
-      });
-    }
-
     return await ctx.db
       .query("subscriptions")
       .withIndex("by_org_id", (q) =>

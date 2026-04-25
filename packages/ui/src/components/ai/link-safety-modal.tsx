@@ -3,8 +3,9 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { CheckIcon, CopyIcon, ExternalLinkIcon, XIcon } from "lucide-react";
-import { toast } from "sonner";
+import { ExternalLinkIcon, XIcon } from "lucide-react";
+
+import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
 
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -27,28 +28,26 @@ export const LinkSafetyModal = ({
   url: string;
 }) => {
   const [mounted, setMounted] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
 
   const anchorRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<Element | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
+  const {
+    copyState,
+    icon: StateIcon,
+    label: copyLabel,
+    ariaLabel,
+    iconClassName,
+    handleCopy,
+    reset,
+  } = useCopyToClipboard({
+    subject: "link",
+    errorMessage: "Failed to copy link:",
+  });
   const titleId = useId();
   const descriptionId = useId();
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setIsCopied(true);
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy link:", err);
-      toast.error("Failed to copy link");
-    }
-  };
 
   useLayoutEffect(() => {
     if (isOpen && modalRef.current && anchorRef.current) {
@@ -85,12 +84,11 @@ export const LinkSafetyModal = ({
     setMounted(true);
   }, []);
 
-  useEffect(
-    () => () => {
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    },
-    [],
-  );
+  useEffect(() => {
+    if (!isOpen) {
+      reset();
+    }
+  }, [isOpen, reset]);
 
   useEffect(() => {
     if (isOpen) {
@@ -233,17 +231,15 @@ export const LinkSafetyModal = ({
 
           <div className="flex gap-2 px-4 pb-4">
             <Button
+              disabled={copyState === "copied"}
               variant="outline"
               size="sm"
-              onClick={handleCopy}
+              aria-label={ariaLabel}
+              onClick={() => void handleCopy(url)}
               className="flex-1 text-xs"
             >
-              {isCopied ? (
-                <CheckIcon size={12} className="mr-1" />
-              ) : (
-                <CopyIcon size={12} className="mr-1" />
-              )}
-              {isCopied ? "Copied" : "Copy link"}
+              <StateIcon className={cn("size-3", iconClassName)} />
+              {copyLabel}
             </Button>
             <Button size="sm" onClick={onConfirm} className="flex-1 text-xs">
               <ExternalLinkIcon size={12} className="mr-1" />

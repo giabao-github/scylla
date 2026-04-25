@@ -25,27 +25,39 @@ export type PendingSlot = {
   | { status: "failed"; error: string }
 );
 
+const getConfirmedUserMessageId = (
+  slot: PendingSlot,
+  userMessages: UIMessage[],
+  messageById: ReadonlyMap<string, UIMessage>,
+  confirmedId?: string,
+): string | undefined => {
+  if (confirmedId) {
+    const confirmedMessage = messageById.get(confirmedId);
+
+    return confirmedMessage &&
+      confirmedMessage.role === "user" &&
+      !slot.snapshotIds.has(confirmedMessage.id)
+      ? confirmedMessage.id
+      : undefined;
+  }
+
+  const heuristicMatches = userMessages.filter(
+    (message) =>
+      message.text === slot.userText &&
+      message._creationTime >= slot.submittedAt &&
+      !slot.snapshotIds.has(message.id),
+  );
+
+  return heuristicMatches.length === 1 ? heuristicMatches[0]?.id : undefined;
+};
+
 const isUserMessageConfirmed = (
   slot: PendingSlot,
-  messages: UIMessage[],
+  userMessages: UIMessage[],
+  messageById: ReadonlyMap<string, UIMessage>,
   confirmedId?: string,
-): boolean => {
-  if (confirmedId) {
-    return messages.some(
-      (m) =>
-        !slot.snapshotIds.has(m.id) &&
-        m.role === "user" &&
-        m.id === confirmedId,
-    );
-  }
-  return messages.some(
-    (m) =>
-      m.role === "user" &&
-      m.text === slot.userText &&
-      m._creationTime >= slot.submittedAt &&
-      !slot.snapshotIds.has(m.id),
-  );
-};
+): boolean =>
+  !!getConfirmedUserMessageId(slot, userMessages, messageById, confirmedId);
 
 interface UseChatSubmitParams {
   conversation: { threadId: string } | null | undefined;
@@ -54,7 +66,6 @@ interface UseChatSubmitParams {
   visibleMessages: UIMessage[];
   isSessionReady: boolean;
   isResolved: boolean;
-  isEscalated: boolean;
   conversationId: Id<"conversations"> | null | undefined;
 }
 
@@ -65,7 +76,6 @@ export const useChatSubmit = ({
   visibleMessages,
   isSessionReady,
   isResolved,
-  isEscalated,
   conversationId,
 }: UseChatSubmitParams) => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
@@ -87,12 +97,41 @@ export const useChatSubmit = ({
       ? { requestIds: pendingRequestIds, contactSessionId }
       : "skip",
   );
+  const visibleUserMessages = useMemo(
+    () => visibleMessages.filter((message) => message.role === "user"),
+    [visibleMessages],
+  );
+  const visibleMessagesById = useMemo(
+    () => new Map(visibleMessages.map((message) => [message.id, message])),
+    [visibleMessages],
+  );
 
   const isGenerating = pendingSlots.some(
-    (s) => s.status === "generating" || s.status === "sent",
+    (slot) => slot.status === "generating",
   );
-  const lastVisibleId = visibleMessages.at(-1)?.id;
+  const confirmedUserMessageIdsByLocalId = useMemo(
+    () =>
+      Object.fromEntries(
+        pendingSlots.flatMap((slot) => {
+          const confirmedUserMessageId = getConfirmedUserMessageId(
+            slot,
+            visibleUserMessages,
+            visibleMessagesById,
+            messageIdsByRequestId?.[slot.localId],
+          );
 
+          return confirmedUserMessageId
+            ? [[slot.localId, confirmedUserMessageId]]
+            : [];
+        }),
+      ),
+    [
+      pendingSlots,
+      visibleUserMessages,
+      visibleMessagesById,
+      messageIdsByRequestId,
+    ],
+  );
   const sendMessage = async (
     localId: string,
     promptText: string,
@@ -216,7 +255,8 @@ export const useChatSubmit = ({
     const freshSnapshotIds = new Set(visibleMessages.map((m) => m.id));
     const userMessageConfirmed = isUserMessageConfirmed(
       slot,
-      visibleMessages,
+      visibleUserMessages,
+      visibleMessagesById,
       messageIdsByRequestId?.[slot.localId],
     );
 
@@ -252,55 +292,31 @@ export const useChatSubmit = ({
   // Reconcile pending slots against confirmed server messages
   useEffect(() => {
     setPendingSlots((prev) => {
-      const mapped = prev.map(
-        (slot): PendingSlot & { _userConfirmed: boolean } => {
-          const userConfirmed = isUserMessageConfirmed(
-            slot,
-            visibleMessages,
-            messageIdsByRequestId?.[slot.localId],
-          );
-          const updatedSlot =
-            userConfirmed && !slot.isRetry ? { ...slot, isRetry: true } : slot;
-          return { ...updatedSlot, _userConfirmed: userConfirmed };
-        },
-      );
+      let hasChanges = false;
 
-      const oldestActiveIndex = mapped.findIndex(
-        (s) => s.status === "generating" || s.status === "sent",
-      );
+      const next = prev.map((slot) => {
+        const userConfirmed = isUserMessageConfirmed(
+          slot,
+          visibleUserMessages,
+          visibleMessagesById,
+          messageIdsByRequestId?.[slot.localId],
+        );
 
-      return mapped
-        .filter((slot, index) => {
-          const isOldestActive = index === oldestActiveIndex;
-          const aiConfirmed =
-            isOldestActive &&
-            visibleMessages.some(
-              (m) =>
-                !slot.snapshotIds.has(m.id) &&
-                m.role === "assistant" &&
-                m._creationTime >= slot.submittedAt,
-            );
+        if (userConfirmed && !slot.isRetry) {
+          hasChanges = true;
+          return { ...slot, isRetry: true };
+        }
 
-          if (
-            (slot.status === "generating" || slot.status === "sent") &&
-            aiConfirmed
-          ) {
-            return false;
-          }
+        return slot;
+      });
 
-          if (slot.status === "sent" && isEscalated) {
-            if (slot._userConfirmed) return false;
-          }
-
-          return true;
-        })
-        .map(({ _userConfirmed, ...rest }) => rest);
+      return hasChanges ? next : prev;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastVisibleId, messageIdsByRequestId, isEscalated]);
+  }, [visibleUserMessages, visibleMessagesById, messageIdsByRequestId]);
 
   return {
     pendingSlots,
+    confirmedUserMessageIdsByLocalId,
     isGenerating,
     isSubmittingMessage,
     sendPromptMessage,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,6 +13,7 @@ import {
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { formatChatTimestamp } from "@workspace/shared/lib/chat-timestamp";
 import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
@@ -33,7 +34,7 @@ import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { LiquidGlass } from "@workspace/ui/components/glass/liquid-glass";
 import { cn } from "@workspace/ui/lib/utils";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Loader2Icon } from "lucide-react";
 import z from "zod";
@@ -61,6 +62,7 @@ export const WidgetChatScreen = () => {
   const [staleCheckTimestamp, setStaleCheckTimestamp] = useState(() =>
     Date.now(),
   );
+  const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
 
   const conversationId = useAtomValue(conversationIdAtom);
   const widgetSettings = useAtomValue(widgetSettingsAtom);
@@ -78,6 +80,10 @@ export const WidgetChatScreen = () => {
     api.public.contactSessions.validate,
     contactSessionId ? { contactSessionId } : "skip",
   );
+  const markSeenByContact = useMutation(
+    api.public.conversations.markSeenByContact,
+  );
+  const latestMarkedSeenAtRef = useRef(0);
 
   const isValidSession = validation?.valid === true;
   const isSessionValidating = !!contactSessionId && validation === undefined;
@@ -105,29 +111,33 @@ export const WidgetChatScreen = () => {
     isLoadingMore,
   } = useChatMessages(conversation?.threadId, contactSessionId, isValidSession);
 
-  const { pendingSlots, isSubmittingMessage, sendPromptMessage, handleRetry } =
-    useChatSubmit({
-      conversation,
-      contactSessionId,
-      selectedModel,
-      visibleMessages,
-      isSessionReady,
-      isResolved,
-      isEscalated,
-      conversationId,
-    });
-
-  const { scrollRef, handleScroll } = useChatScroll(
-    lastVisibleId,
-    pendingSlots.length,
+  const {
+    pendingSlots,
+    confirmedUserMessageIdsByLocalId,
+    isSubmittingMessage,
+    sendPromptMessage,
+    handleRetry,
+  } = useChatSubmit({
+    conversation,
+    contactSessionId,
+    selectedModel,
+    visibleMessages,
+    isSessionReady,
+    isResolved,
     conversationId,
-  );
+  });
+
+  const {
+    scrollRef,
+    handleScroll: baseHandleScroll,
+    getIsAtBottom,
+  } = useChatScroll(lastVisibleId, pendingSlots.length, conversationId);
 
   useEffect(() => {
     const now = Date.now();
     const activePendingSlots = pendingSlots.filter(
       (slot) =>
-        (slot.status === "generating" || slot.status === "sent") &&
+        slot.status === "generating" &&
         slot.submittedAt + STALE_PENDING_TIMEOUT_MS > now,
     );
 
@@ -156,7 +166,7 @@ export const WidgetChatScreen = () => {
         pendingSlots
           .filter(
             (slot) =>
-              (slot.status === "generating" || slot.status === "sent") &&
+              slot.status === "generating" &&
               staleCheckTimestamp - slot.submittedAt >=
                 STALE_PENDING_TIMEOUT_MS,
           )
@@ -164,12 +174,49 @@ export const WidgetChatScreen = () => {
       ),
     [pendingSlots, staleCheckTimestamp],
   );
-
-  const hasActivePendingSlots = pendingSlots.some(
-    (slot) =>
-      (slot.status === "generating" || slot.status === "sent") &&
-      !timedOutPendingIds.has(slot.localId),
+  const visibleMessagesById = useMemo(
+    () => new Map(visibleMessages.map((message) => [message.id, message])),
+    [visibleMessages],
   );
+  const assistantMessages = useMemo(
+    () => visibleMessages.filter((message) => message.role === "assistant"),
+    [visibleMessages],
+  );
+
+  const assistantConfirmedLocalIds = useMemo(
+    () =>
+      new Set(
+        pendingSlots.flatMap((slot) => {
+          const assistantConfirmed = assistantMessages.some(
+            (message) =>
+              !slot.snapshotIds.has(message.id) &&
+              message._creationTime >= slot.submittedAt,
+          );
+
+          return assistantConfirmed ? [slot.localId] : [];
+        }),
+      ),
+    [pendingSlots, assistantMessages],
+  );
+
+  const hasActivePendingSlots = pendingSlots.some((slot) => {
+    if (timedOutPendingIds.has(slot.localId) || slot.status === "failed") {
+      return false;
+    }
+
+    const confirmedUserMessageId =
+      confirmedUserMessageIdsByLocalId[slot.localId];
+
+    if (!confirmedUserMessageId) {
+      return true;
+    }
+
+    if (isEscalated) {
+      return false;
+    }
+
+    return !assistantConfirmedLocalIds.has(slot.localId);
+  });
 
   const isSubmitting = isSubmittingMessage || hasActivePendingSlots;
   const isBlocked = !conversation || isResolved || isSubmitting;
@@ -193,20 +240,91 @@ export const WidgetChatScreen = () => {
     [widgetSettings],
   );
 
+  const readReceiptCutoff = conversation?.lastSeenByAgentAt ?? 0;
+  const contactReadReceiptCutoff = conversation?.lastSeenByContactAt ?? 0;
+  const latestOperatorMessageAt = useMemo(
+    () => assistantMessages.at(-1)?._creationTime,
+    [assistantMessages],
+  );
+
+  const hiddenConfirmedUserMessageIds = useMemo(
+    () => new Set(Object.values(confirmedUserMessageIdsByLocalId)),
+    [confirmedUserMessageIdsByLocalId],
+  );
+
+  const displayedVisibleMessages = useMemo(
+    () =>
+      visibleMessages.filter(
+        (message) => !hiddenConfirmedUserMessageIds.has(message.id),
+      ),
+    [visibleMessages, hiddenConfirmedUserMessageIds],
+  );
+
+  const confirmedOutgoingStatusById = useMemo(
+    () =>
+      Object.fromEntries(
+        displayedVisibleMessages
+          .filter((message) => message.role === "user")
+          .map((message) => [
+            message.id,
+            message._creationTime <= readReceiptCutoff
+              ? ("seen" as const)
+              : ("sent" as const),
+          ]),
+      ),
+    [displayedVisibleMessages, readReceiptCutoff],
+  );
+
+  const syncSeenByContact = useCallback(() => {
+    if (
+      !conversationId ||
+      !contactSessionId ||
+      !conversation ||
+      !latestOperatorMessageAt ||
+      !getIsAtBottom() ||
+      latestOperatorMessageAt <= latestMarkedSeenAtRef.current
+    ) {
+      return;
+    }
+
+    const previousMarkedSeenAt = latestMarkedSeenAtRef.current;
+    latestMarkedSeenAtRef.current = latestOperatorMessageAt;
+    markSeenByContact({
+      conversationId,
+      contactSessionId,
+      seenAt: latestOperatorMessageAt,
+    }).catch(() => {
+      latestMarkedSeenAtRef.current = previousMarkedSeenAt;
+    });
+  }, [
+    conversation,
+    conversationId,
+    contactSessionId,
+    getIsAtBottom,
+    latestOperatorMessageAt,
+    markSeenByContact,
+  ]);
+
   const timeline = useMemo(
     () =>
       [
-        ...visibleMessages.map((m) => ({
+        ...displayedVisibleMessages.map((m) => ({
+          entryKey: `confirmed:${m.id}`,
           type: "confirmed" as const,
-          submittedAt: m._creationTime,
+          timestamp: m._creationTime,
           data: m,
         })),
         ...pendingSlots.flatMap((s) => {
           const items: {
+            entryKey: string;
             type: "pending-user" | "pending-ai";
-            submittedAt: number;
+            timestamp: number;
             data: PendingSlot & {
-              displayStatus: PendingSlot["status"];
+              displayStatus:
+                | PendingSlot["status"]
+                | "sending"
+                | "seen"
+                | undefined;
               displayError?: string;
               canRetry: boolean;
             };
@@ -220,23 +338,38 @@ export const WidgetChatScreen = () => {
                 ? s.error
                 : undefined;
           const canRetry = s.status === "failed";
+          const confirmedUserMessageId =
+            confirmedUserMessageIdsByLocalId[s.localId];
+          const assistantConfirmed = assistantConfirmedLocalIds.has(s.localId);
+          const confirmedUserMessage = confirmedUserMessageId
+            ? visibleMessagesById.get(confirmedUserMessageId)
+            : undefined;
+          const userDisplayStatus = !confirmedUserMessageId
+            ? s.status === "failed" || hasTimedOut
+              ? ("failed" as const)
+              : ("sending" as const)
+            : confirmedUserMessage &&
+                confirmedUserMessage._creationTime <= readReceiptCutoff
+              ? ("seen" as const)
+              : ("sent" as const);
 
-          if (!s.isRetry) {
+          items.push({
+            entryKey: `pending-user:${s.localId}`,
+            type: "pending-user" as const,
+            timestamp: s.submittedAt,
+            data: {
+              ...s,
+              canRetry,
+              displayError,
+              displayStatus: userDisplayStatus,
+            },
+          });
+
+          if (!isEscalated && !assistantConfirmed) {
             items.push({
-              type: "pending-user" as const,
-              submittedAt: s.submittedAt,
-              data: {
-                ...s,
-                canRetry,
-                displayError,
-                displayStatus,
-              },
-            });
-          }
-          if (!isEscalated && displayStatus !== "sent") {
-            items.push({
+              entryKey: `pending-ai:${s.localId}`,
               type: "pending-ai" as const,
-              submittedAt: s.submittedAt + AI_PLACEHOLDER_OFFSET_MS,
+              timestamp: s.submittedAt + AI_PLACEHOLDER_OFFSET_MS,
               data: {
                 ...s,
                 canRetry,
@@ -247,9 +380,41 @@ export const WidgetChatScreen = () => {
           }
           return items;
         }),
-      ].sort((a, b) => a.submittedAt - b.submittedAt),
-    [visibleMessages, pendingSlots, isEscalated, timedOutPendingIds],
+      ].sort((a, b) => a.timestamp - b.timestamp),
+    [
+      displayedVisibleMessages,
+      visibleMessagesById,
+      pendingSlots,
+      isEscalated,
+      timedOutPendingIds,
+      confirmedUserMessageIdsByLocalId,
+      assistantConfirmedLocalIds,
+      readReceiptCutoff,
+    ],
   );
+
+  const statusDisplayEntryKey = selectedEntryKey;
+
+  useEffect(() => {
+    setSelectedEntryKey(null);
+    latestMarkedSeenAtRef.current = 0;
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (contactReadReceiptCutoff > latestMarkedSeenAtRef.current) {
+      latestMarkedSeenAtRef.current = contactReadReceiptCutoff;
+    }
+  }, [contactReadReceiptCutoff]);
+
+  useEffect(() => {
+    if (!selectedEntryKey) {
+      return;
+    }
+
+    if (!timeline.some((entry) => entry.entryKey === selectedEntryKey)) {
+      setSelectedEntryKey(null);
+    }
+  }, [timeline, selectedEntryKey]);
 
   const modalConfig = useMemo(() => {
     if (isInvalidConversation)
@@ -273,6 +438,27 @@ export const WidgetChatScreen = () => {
   const handleSuggestionSubmit = (text: string) => {
     if (sendPromptMessage({ text, files: [], sources: [] })) clearForm();
   };
+
+  const handleScroll = useCallback(() => {
+    baseHandleScroll();
+    syncSeenByContact();
+  }, [baseHandleScroll, syncSeenByContact]);
+
+  const handleEntrySelect = (entryKey: string) => {
+    setSelectedEntryKey((current) => (current === entryKey ? null : entryKey));
+  };
+
+  const timestampClasses = (isSelected: boolean) =>
+    cn(
+      "grid justify-items-center transition-[grid-template-rows,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+      isSelected
+        ? "grid-rows-[1fr] translate-y-0 opacity-100"
+        : "grid-rows-[0fr] -translate-y-1 opacity-0 pointer-events-none",
+    );
+
+  useEffect(() => {
+    syncSeenByContact();
+  }, [syncSeenByContact]);
 
   return (
     <>
@@ -311,55 +497,114 @@ export const WidgetChatScreen = () => {
             <div ref={topElementRef} className="h-px" />
 
             {timeline.map((entry) => {
+              const isSelected = selectedEntryKey === entry.entryKey;
+
               if (entry.type === "confirmed") {
                 const msg = entry.data;
                 const isUser = msg.role === "user";
                 return (
-                  <Message
-                    from={isUser ? "user" : "assistant"}
-                    key={msg.id}
-                    className="max-w-[88%] md:max-w-[70%]"
-                  >
-                    <ChatBubble
-                      text={msg.text}
-                      variant={isUser ? "user" : "agent"}
-                    />
-                  </Message>
+                  <div key={entry.entryKey} className="mt-2 space-y-6">
+                    <div
+                      aria-hidden={!isSelected}
+                      className={timestampClasses(isSelected)}
+                    >
+                      <div className="overflow-hidden min-h-0">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                          {formatChatTimestamp(entry.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                    <Message
+                      from={isUser ? "user" : "assistant"}
+                      className="max-w-[88%] md:max-w-[50%]"
+                    >
+                      <ChatBubble
+                        text={msg.text}
+                        status={
+                          isUser
+                            ? confirmedOutgoingStatusById[msg.id]
+                            : undefined
+                        }
+                        variant={isUser ? "user" : "agent"}
+                        onClick={() => handleEntrySelect(entry.entryKey)}
+                        showStatus={
+                          isUser && entry.entryKey === statusDisplayEntryKey
+                        }
+                      />
+                    </Message>
+                  </div>
                 );
               }
 
               if (entry.type === "pending-user") {
                 const slot = entry.data;
                 return (
-                  <Message
-                    key={`pending-user-${slot.localId}`}
-                    from="user"
-                    className="max-w-[88%] md:max-w-[70%]"
-                  >
-                    <ChatBubble text={slot.userText} variant="user" />
-                  </Message>
+                  <div key={entry.entryKey} className="mt-2 space-y-6">
+                    <div
+                      aria-hidden={!isSelected}
+                      className={timestampClasses(isSelected)}
+                    >
+                      <div className="overflow-hidden min-h-0">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                          {formatChatTimestamp(entry.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                    <Message from="user" className="max-w-[88%] md:max-w-[50%]">
+                      <ChatBubble
+                        text={slot.userText}
+                        variant="user"
+                        status={slot.displayStatus}
+                        error={
+                          slot.displayStatus === "failed"
+                            ? slot.displayError
+                            : undefined
+                        }
+                        onRetry={
+                          slot.displayStatus === "failed" && slot.canRetry
+                            ? () => handleRetry(slot.localId)
+                            : undefined
+                        }
+                        onClick={() => handleEntrySelect(entry.entryKey)}
+                        showStatus={entry.entryKey === statusDisplayEntryKey}
+                      />
+                    </Message>
+                  </div>
                 );
               }
 
               const slot = entry.data;
               return (
-                <Message
-                  key={`pending-ai-${slot.localId}`}
-                  from="assistant"
-                  className="max-w-[88%] md:max-w-[70%]"
-                >
-                  <ChatBubble
-                    text=""
-                    variant="agent"
-                    status={slot.displayStatus}
-                    error={slot.displayError}
-                    onRetry={
-                      slot.canRetry
-                        ? () => handleRetry(slot.localId)
-                        : undefined
-                    }
-                  />
-                </Message>
+                <div key={entry.entryKey} className="mt-2 space-y-6">
+                  <div
+                    aria-hidden={!isSelected}
+                    className={timestampClasses(isSelected)}
+                  >
+                    <div className="overflow-hidden min-h-0">
+                      <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                        {formatChatTimestamp(entry.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                  <Message
+                    from="assistant"
+                    className="max-w-[88%] md:max-w-[50%]"
+                  >
+                    <ChatBubble
+                      text=""
+                      variant="agent"
+                      status={slot.displayStatus}
+                      error={slot.displayError}
+                      onRetry={
+                        slot.canRetry
+                          ? () => handleRetry(slot.localId)
+                          : undefined
+                      }
+                      onClick={() => handleEntrySelect(entry.entryKey)}
+                      showStatus={false}
+                    />
+                  </Message>
+                </div>
               );
             })}
           </div>

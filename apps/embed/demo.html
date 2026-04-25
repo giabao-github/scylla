@@ -1,0 +1,1578 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="shortcut icon" href="/favicon.ico?v=2" />
+    <title>Scylla Widget Embed Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #edf2ff;
+        --panel: rgba(255, 255, 255, 0.72);
+        --panel-strong: rgba(255, 255, 255, 0.84);
+        --panel-border: rgba(255, 255, 255, 0.68);
+        --text: #0f172a;
+        --muted: #51607a;
+        --muted-soft: #74829a;
+        --accent: #2563eb;
+        --accent-strong: #1d4ed8;
+        --accent-soft: rgba(37, 99, 235, 0.12);
+        --success: #0f9f6e;
+        --warning: #c77d12;
+        --danger: #dc2626;
+        --code-bg: #0f172a;
+        --shadow: 0 24px 80px rgba(15, 23, 42, 0.14);
+        --radius-xl: 28px;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-height: 100%;
+        scrollbar-width: thin;
+        scrollbar-color: #c4b5fd transparent;
+      }
+
+      html::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      html::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      html::-webkit-scrollbar-thumb {
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background: linear-gradient(
+            180deg,
+            rgba(196, 181, 253, 0.95),
+            rgba(167, 139, 250, 0.95)
+          )
+          padding-box;
+      }
+
+      html::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(
+            180deg,
+            rgba(167, 139, 250, 1),
+            rgba(139, 92, 246, 0.98)
+          )
+          padding-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        font-family:
+          "Aptos", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(
+            circle at top left,
+            rgba(125, 211, 252, 0.34),
+            transparent 28%
+          ),
+          radial-gradient(
+            circle at top right,
+            rgba(129, 140, 248, 0.22),
+            transparent 26%
+          ),
+          linear-gradient(180deg, #f7f9ff 0%, var(--bg) 52%, #e2e8f0 100%);
+      }
+
+      body::before,
+      body::after {
+        content: "";
+        position: fixed;
+        inset: auto;
+        border-radius: 999px;
+        filter: blur(70px);
+        pointer-events: none;
+      }
+
+      body::before {
+        top: 48px;
+        left: -70px;
+        width: 240px;
+        height: 240px;
+        background: rgba(56, 189, 248, 0.22);
+      }
+
+      body::after {
+        right: -72px;
+        bottom: 64px;
+        width: 260px;
+        height: 260px;
+        background: rgba(99, 102, 241, 0.16);
+      }
+
+      .page-shell {
+        position: relative;
+        width: min(1180px, calc(100% - 32px));
+        margin: 28px auto;
+        padding: 28px;
+        border: 1px solid var(--panel-border);
+        border-radius: 32px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.82),
+          rgba(255, 255, 255, 0.66)
+        );
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(22px);
+      }
+
+      .hero {
+        display: grid;
+        gap: 22px;
+        align-items: start;
+        margin-bottom: 28px;
+      }
+
+      .hero-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .hero-title {
+        margin-top: 8px;
+        margin-bottom: 32px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        width: fit-content;
+        padding: 8px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.84);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 10px 30px rgba(148, 163, 184, 0.14);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #38bdf8, #2563eb);
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.08);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 12ch;
+        font-size: clamp(2.5rem, 5vw, 4.6rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+      }
+
+      .hero-copy p {
+        max-width: 68ch;
+        font-size: 1.05rem;
+        line-height: 1.75;
+        color: var(--muted);
+      }
+
+      .hero-summary {
+        display: grid;
+        gap: 14px;
+      }
+
+      .glass-card {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-lg);
+        background: var(--panel);
+        box-shadow: 0 20px 50px rgba(148, 163, 184, 0.16);
+        backdrop-filter: blur(20px);
+      }
+
+      .glass-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.48),
+          rgba(255, 255, 255, 0.08) 42%,
+          transparent 72%
+        );
+        pointer-events: none;
+      }
+
+      .summary-card {
+        padding: 18px 20px;
+      }
+
+      .summary-card h2 {
+        margin-bottom: 10px;
+        font-size: 1rem;
+        letter-spacing: -0.02em;
+      }
+
+      .summary-card p {
+        font-size: 0.95rem;
+        line-height: 1.65;
+        color: var(--muted);
+      }
+
+      .summary-meta {
+        margin-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .meta-pill {
+        padding: 10px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.78);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.7);
+        color: var(--muted-soft);
+        font-size: 0.82rem;
+        font-weight: 600;
+      }
+
+      .dashboard {
+        display: grid;
+        gap: 18px;
+        align-items: start;
+      }
+
+      .stack {
+        display: grid;
+        gap: 18px;
+        align-content: start;
+      }
+
+      .section-card {
+        padding: 22px;
+      }
+
+      .section-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 18px;
+      }
+
+      .section-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        color: var(--muted-soft);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .section-label::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #60a5fa, #2563eb);
+      }
+
+      .section-header p {
+        max-width: 62ch;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .config-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+      }
+
+      .field label {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #334155;
+      }
+
+      .field input {
+        width: 100%;
+        min-height: 52px;
+        padding: 0 16px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--text);
+        font: inherit;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .field input:focus {
+        outline: none;
+        border-color: rgba(37, 99, 235, 0.4);
+        box-shadow:
+          0 0 0 4px rgba(37, 99, 235, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.75);
+      }
+
+      .select-shell {
+        position: relative;
+      }
+
+      .select-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        width: 100%;
+        min-height: 52px;
+        padding: 0 16px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--text);
+        font: inherit;
+        text-align: left;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+        cursor: pointer;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .select-trigger:focus-visible,
+      .select-shell[data-open="true"] .select-trigger {
+        outline: none;
+        border-color: rgba(37, 99, 235, 0.4);
+        box-shadow:
+          0 0 0 4px rgba(37, 99, 235, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.75);
+      }
+
+      .select-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .select-chevron {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        color: var(--muted-soft);
+        transition: transform 0.2s ease;
+      }
+
+      .select-shell[data-open="true"] .select-chevron {
+        transform: rotate(180deg);
+      }
+
+      .select-menu {
+        position: absolute;
+        z-index: 20;
+        top: calc(100% + 10px);
+        left: 0;
+        right: 0;
+        display: grid;
+        gap: 6px;
+        padding: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.84);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: 0 24px 50px rgba(15, 23, 42, 0.16);
+        backdrop-filter: blur(22px);
+        opacity: 0;
+        transform: translateY(8px);
+        pointer-events: none;
+        transition:
+          opacity 0.18s ease,
+          transform 0.18s ease;
+      }
+
+      .select-shell[data-open="true"] .select-menu {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+
+      .select-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        min-height: 48px;
+        padding: 0 14px;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition:
+          background 0.18s ease,
+          border-color 0.18s ease,
+          color 0.18s ease;
+      }
+
+      .select-option:hover,
+      .select-option:focus-visible {
+        outline: none;
+        background: rgba(37, 99, 235, 0.08);
+        border-color: rgba(37, 99, 235, 0.16);
+      }
+
+      .select-option[aria-selected="true"] {
+        background: linear-gradient(
+          135deg,
+          rgba(37, 99, 235, 0.12),
+          rgba(29, 78, 216, 0.08)
+        );
+        border-color: rgba(37, 99, 235, 0.18);
+        color: var(--accent-strong);
+        font-weight: 700;
+      }
+
+      .select-option[aria-selected="true"]::after {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: currentColor;
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.08);
+      }
+
+      .field-help {
+        font-size: 0.84rem;
+        line-height: 1.55;
+        color: var(--muted-soft);
+      }
+
+      .action-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      }
+
+      .action-button,
+      .ghost-button {
+        appearance: none;
+        min-height: 50px;
+        border: none;
+        border-radius: 16px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease,
+          opacity 0.2s ease,
+          background 0.2s ease;
+      }
+
+      .action-button:hover,
+      .ghost-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .action-button:focus-visible,
+      .ghost-button:focus-visible {
+        outline: 3px solid rgba(37, 99, 235, 0.18);
+        outline-offset: 2px;
+      }
+
+      .action-button:disabled,
+      .ghost-button:disabled {
+        opacity: 0.46;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .action-button[data-tone="primary"] {
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 16px 30px rgba(37, 99, 235, 0.25);
+      }
+
+      .action-button[data-tone="neutral"] {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 16px 30px rgba(148, 163, 184, 0.14);
+      }
+
+      .action-button[data-tone="danger"] {
+        color: #991b1b;
+        background: rgba(254, 226, 226, 0.88);
+        box-shadow: 0 16px 30px rgba(239, 68, 68, 0.12);
+      }
+
+      .ghost-button {
+        padding: 0 14px;
+        color: var(--accent);
+        background: rgba(37, 99, 235, 0.1);
+      }
+
+      .code-shell {
+        position: relative;
+      }
+
+      pre {
+        margin: 0;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 18px;
+        background: var(--code-bg);
+        color: #e2e8f0;
+        overflow-x: auto;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      }
+
+      code {
+        display: block;
+        padding: 18px;
+        font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+        font-size: 0.9rem;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .preview-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .status-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+
+      .status-tile {
+        padding: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .status-label {
+        margin-bottom: 8px;
+        color: var(--muted-soft);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      .status-value {
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      .status-value[data-state="ready"] {
+        color: var(--success);
+      }
+
+      .status-value[data-state="warning"] {
+        color: var(--warning);
+      }
+
+      .status-value[data-state="danger"] {
+        color: var(--danger);
+      }
+
+      .activity-log {
+        display: grid;
+        gap: 10px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: min(56vh, 620px);
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 10px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(196, 181, 253, 0.85) transparent;
+      }
+
+      .activity-log::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      .activity-log::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .activity-log::-webkit-scrollbar-thumb {
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background: linear-gradient(
+            180deg,
+            rgba(196, 181, 253, 0.95),
+            rgba(99, 102, 241, 0.92)
+          )
+          padding-box;
+      }
+
+      .activity-log::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(
+            180deg,
+            rgba(167, 139, 250, 1),
+            rgba(79, 70, 229, 0.98)
+          )
+          padding-box;
+      }
+
+      .activity-item {
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.74);
+      }
+
+      .activity-item strong {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.92rem;
+      }
+
+      .activity-item strong::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.8);
+      }
+
+      .activity-item[data-level="success"] strong::before {
+        background: var(--success);
+      }
+
+      .activity-item[data-level="warning"] strong::before {
+        background: var(--warning);
+      }
+
+      .activity-item[data-level="danger"] strong::before {
+        background: var(--danger);
+      }
+
+      .activity-item span {
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.6;
+      }
+
+      .hint-card {
+        padding: 16px 18px;
+        border-radius: 18px;
+        border: 1px solid rgba(191, 219, 254, 0.72);
+        background: rgba(239, 246, 255, 0.76);
+        color: #1e3a8a;
+        line-height: 1.65;
+      }
+
+      .hint-card strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      @media (min-width: 960px) {
+        .hero {
+          grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+        }
+
+        .dashboard {
+          grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        }
+      }
+
+      @media (max-width: 720px) {
+        body {
+          background:
+            radial-gradient(
+              circle at top left,
+              rgba(125, 211, 252, 0.24),
+              transparent 28%
+            ),
+            linear-gradient(180deg, #f7f9ff 0%, var(--bg) 60%, #e2e8f0 100%);
+        }
+
+        .page-shell {
+          width: min(100% - 20px, 100%);
+          margin: 10px auto;
+          padding: 18px;
+          border-radius: 24px;
+        }
+
+        .section-card,
+        .summary-card {
+          padding: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">
+            <span class="eyebrow-dot" aria-hidden="true"></span>
+            Embed Sandbox
+          </div>
+          <div>
+            <h1 class="hero-title">Scylla Widget Demo</h1>
+            <p>
+              A cleaner local sandbox for testing script embedding, switching
+              positions, and verifying the widget lifecycle before shipping it
+              into a real site.
+            </p>
+          </div>
+        </div>
+
+        <div class="hero-summary">
+          <article class="glass-card summary-card">
+            <h2>What this page does</h2>
+            <p>
+              The demo auto-loads the widget once using a hard-coded
+              organization ID, then lets you reinitialize, show, hide, and
+              destroy it while watching the live runtime state.
+            </p>
+            <div class="summary-meta">
+              <div class="meta-pill">Live snippet preview</div>
+              <div class="meta-pill">Runtime status tracking</div>
+              <div class="meta-pill">No framework required</div>
+            </div>
+          </article>
+          <article class="glass-card summary-card">
+            <h2>Important note</h2>
+            <p>
+              The widget loader script below auto-initializes on page load. That
+              means the first visible state is already mounted, and the
+              initialize action behaves like a reinitialize control.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="dashboard">
+        <div class="stack">
+          <article class="glass-card section-card">
+            <div class="section-header">
+              <div>
+                <div class="section-label">Configuration</div>
+                <h2>Embed settings</h2>
+              </div>
+              <p>
+                Update the hard-coded values you want to test. The snippet
+                preview stays in sync with the current inputs.
+              </p>
+            </div>
+
+            <div class="config-grid">
+              <div class="field">
+                <label for="orgId">Organization ID</label>
+                <input
+                  type="text"
+                  id="orgId"
+                  placeholder="Your organization ID (org_...)"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <p class="field-help">
+                  This value is required by the embed script. Leaving it blank
+                  makes reinitialization fail.
+                </p>
+              </div>
+
+              <div class="field">
+                <label id="positionLabel" for="positionTrigger">
+                  Launcher position
+                </label>
+                <div class="select-shell" id="positionSelect" data-open="false">
+                  <input type="hidden" id="position" value="bottom-right" />
+                  <button
+                    type="button"
+                    id="positionTrigger"
+                    class="select-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    aria-labelledby="positionLabel positionValue"
+                  >
+                    <span id="positionValue" class="select-value">
+                      Bottom Right
+                    </span>
+                    <svg
+                      class="select-chevron"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="m5 7.5 5 5 5-5"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <div
+                    id="positionMenu"
+                    class="select-menu"
+                    role="listbox"
+                    aria-labelledby="positionLabel"
+                  >
+                    <button
+                      type="button"
+                      class="select-option"
+                      role="option"
+                      data-value="bottom-right"
+                      aria-selected="true"
+                    >
+                      Bottom Right
+                    </button>
+                    <button
+                      type="button"
+                      class="select-option"
+                      role="option"
+                      data-value="bottom-left"
+                      aria-selected="false"
+                    >
+                      Bottom Left
+                    </button>
+                  </div>
+                </div>
+                <p class="field-help">
+                  Position only affects the launcher and container placement on
+                  the host page.
+                </p>
+              </div>
+            </div>
+
+            <div class="action-grid" style="margin-top: 20px">
+              <button
+                type="button"
+                id="initButton"
+                class="action-button"
+                data-tone="primary"
+              >
+                Initialize Widget
+              </button>
+              <button
+                type="button"
+                id="showButton"
+                class="action-button"
+                data-tone="neutral"
+              >
+                Show Widget
+              </button>
+              <button
+                type="button"
+                id="hideButton"
+                class="action-button"
+                data-tone="neutral"
+              >
+                Hide Widget
+              </button>
+              <button
+                type="button"
+                id="destroyButton"
+                class="action-button"
+                data-tone="danger"
+              >
+                Destroy Widget
+              </button>
+            </div>
+          </article>
+
+          <article class="glass-card section-card">
+            <div class="section-header">
+              <div>
+                <div class="section-label">Snippet Preview</div>
+                <h2>Current embed markup</h2>
+              </div>
+              <button type="button" id="copySnippet" class="ghost-button">
+                Copy Snippet
+              </button>
+            </div>
+
+            <div class="code-shell">
+              <pre><code id="snippetPreview"></code></pre>
+            </div>
+
+            <div class="preview-meta">
+              <div class="meta-pill" id="loaderPathPill">Loader: /embed.ts</div>
+              <div class="meta-pill" id="runtimeTargetPill">
+                Widget URL: pending
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="stack">
+          <article class="glass-card section-card">
+            <div class="section-header">
+              <div>
+                <div class="section-label">Runtime State</div>
+                <h2>Widget lifecycle</h2>
+              </div>
+              <p>
+                These values reflect what is currently mounted in the page, not
+                just what the buttons attempted to do.
+              </p>
+            </div>
+
+            <div class="status-grid">
+              <div class="status-tile">
+                <div class="status-label">API</div>
+                <div id="apiStatus" class="status-value" data-state="warning">
+                  Waiting
+                </div>
+              </div>
+              <div class="status-tile">
+                <div class="status-label">Mounted</div>
+                <div
+                  id="mountedStatus"
+                  class="status-value"
+                  data-state="warning"
+                >
+                  No
+                </div>
+              </div>
+              <div class="status-tile">
+                <div class="status-label">Visibility</div>
+                <div
+                  id="visibleStatus"
+                  class="status-value"
+                  data-state="warning"
+                >
+                  Hidden
+                </div>
+              </div>
+              <div class="status-tile">
+                <div class="status-label">Position</div>
+                <div
+                  id="positionStatus"
+                  class="status-value"
+                  data-state="ready"
+                >
+                  Bottom Right
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="glass-card section-card">
+            <div class="section-header">
+              <div>
+                <div class="section-label">Activity</div>
+                <h2>Recent events</h2>
+              </div>
+              <p>
+                Useful for catching silent failures when the page looks fine but
+                the widget lifecycle is out of sync.
+              </p>
+            </div>
+
+            <ul id="activityLog" class="activity-log"></ul>
+          </article>
+
+          <div class="hint-card">
+            <strong>Potential issue to watch</strong>
+            Destroying the widget removes its DOM nodes, but the global
+            `window.ScyllaWidget` API object still exists. This demo now checks
+            for mounted DOM before letting show or hide behave like they
+            succeeded.
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module">
+      import { WIDGET_DEFAULT_POSITION } from "@workspace/shared/constants/widget";
+
+      import {
+        EMBED_DEMO_DEFAULT_ORG_ID,
+        EMBED_DEMO_WIDGET_URL,
+      } from "@/demo-config";
+
+      const SYNC_DELAYS = {
+        SHOW: 30,
+        INIT: 60,
+        HIDE: 320,
+        DESTROY: 30,
+        OBSERVER: 20,
+        MOUNT_CHECK: 180,
+      };
+      const MAX_ACTIVITY_ITEMS = 100;
+      const LOADER_SCRIPT_ID = "scylla-loader";
+      const LOADER_SOURCE = "/embed.ts";
+
+      function getRequiredElement(id) {
+        const element = document.getElementById(id);
+
+        if (element) return element;
+
+        const message = `Scylla demo: required element #${id} was not found.`;
+        console.error(message);
+        throw new Error(message);
+      }
+
+      const orgInput = getRequiredElement("orgId");
+      const positionInput = getRequiredElement("position");
+      const positionSelect = getRequiredElement("positionSelect");
+      const positionTrigger = getRequiredElement("positionTrigger");
+      const positionMenu = getRequiredElement("positionMenu");
+      const positionValue = getRequiredElement("positionValue");
+      const positionOptions = Array.from(
+        positionMenu.querySelectorAll(".select-option"),
+      );
+      const initButton = getRequiredElement("initButton");
+      const showButton = getRequiredElement("showButton");
+      const hideButton = getRequiredElement("hideButton");
+      const destroyButton = getRequiredElement("destroyButton");
+      const copySnippetButton = getRequiredElement("copySnippet");
+      const snippetPreview = getRequiredElement("snippetPreview");
+      const loaderPathPill = getRequiredElement("loaderPathPill");
+      const runtimeTargetPill = getRequiredElement("runtimeTargetPill");
+      const apiStatus = getRequiredElement("apiStatus");
+      const mountedStatus = getRequiredElement("mountedStatus");
+      const visibleStatus = getRequiredElement("visibleStatus");
+      const positionStatus = getRequiredElement("positionStatus");
+      const activityLog = getRequiredElement("activityLog");
+      let loaderReadyPromise = null;
+
+      function getLoaderScript() {
+        const script = document.getElementById(LOADER_SCRIPT_ID);
+        return script instanceof HTMLScriptElement ? script : null;
+      }
+
+      function applyLoaderConfig(script, config) {
+        script.dataset.scyllaWidget = "true";
+        script.dataset.position = config.position;
+        script.dataset.widgetUrl = EMBED_DEMO_WIDGET_URL;
+
+        if (config.organizationId) {
+          script.dataset.organizationId = config.organizationId;
+        } else {
+          script.removeAttribute("data-organization-id");
+        }
+      }
+
+      function ensureLoaderScript(config) {
+        const existingScript = getLoaderScript();
+
+        if (existingScript) {
+          applyLoaderConfig(existingScript, config);
+          return loaderReadyPromise || Promise.resolve(existingScript);
+        }
+
+        const script = document.createElement("script");
+        script.id = LOADER_SCRIPT_ID;
+        script.type = "module";
+        script.src = LOADER_SOURCE;
+        applyLoaderConfig(script, config);
+
+        loaderReadyPromise = new Promise((resolve, reject) => {
+          script.addEventListener(
+            "load",
+            () => {
+              loaderReadyPromise = null;
+              resolve(script);
+            },
+            { once: true },
+          );
+          script.addEventListener(
+            "error",
+            () => {
+              loaderReadyPromise = null;
+              reject(new Error("Failed to load the widget loader script."));
+            },
+            { once: true },
+          );
+        });
+
+        document.body.appendChild(script);
+        return loaderReadyPromise;
+      }
+
+      const defaultOrganizationId = EMBED_DEMO_DEFAULT_ORG_ID;
+      const defaultPosition = WIDGET_DEFAULT_POSITION;
+      const loaderSource = LOADER_SOURCE;
+
+      orgInput.value = defaultOrganizationId;
+      positionInput.value = defaultPosition;
+      positionValue.textContent = formatPosition(defaultPosition);
+      loaderPathPill.textContent = `Loader: ${loaderSource}`;
+      runtimeTargetPill.textContent = `Widget URL: ${EMBED_DEMO_WIDGET_URL}`;
+
+      function formatPosition(position) {
+        return position === "bottom-left" ? "Bottom Left" : "Bottom Right";
+      }
+
+      function getConfig() {
+        return {
+          organizationId: orgInput.value.trim(),
+          position: positionInput.value,
+        };
+      }
+
+      function setSelectOpen(open) {
+        positionSelect.dataset.open = String(open);
+        positionTrigger.setAttribute("aria-expanded", String(open));
+      }
+
+      function setPosition(value, options = {}) {
+        positionInput.value = value;
+        positionValue.textContent = formatPosition(value);
+
+        for (const option of positionOptions) {
+          option.setAttribute(
+            "aria-selected",
+            String(option.dataset.value === value),
+          );
+        }
+
+        if (options.close !== false) {
+          setSelectOpen(false);
+        }
+
+        if (options.sync !== false) {
+          syncAll();
+        }
+      }
+
+      function buildSnippet(config) {
+        const snippetLines = [
+          '<script type="module"',
+          `  src="${loaderSource}"`,
+          '  data-scylla-widget="true"',
+          `  data-organization-id="${config.organizationId || "your_org_id"}"`,
+          `  data-position="${config.position}"`,
+          "><\/script>",
+        ];
+
+        return snippetLines.join("\n");
+      }
+
+      function setStatus(element, value, state) {
+        element.textContent = value;
+        element.dataset.state = state;
+      }
+
+      function getRuntimeState() {
+        const button = document.getElementById("scylla-widget-button");
+        const container = document.getElementById("scylla-widget-container");
+        const mounted = Boolean(button && container);
+        const apiReady = Boolean(window.ScyllaWidget);
+        const containerStyle = mounted ? getComputedStyle(container) : null;
+        const visible = Boolean(
+          containerStyle &&
+          containerStyle.display !== "none" &&
+          containerStyle.opacity !== "0",
+        );
+
+        return { apiReady, mounted, visible };
+      }
+
+      function updateControls() {
+        const { mounted, visible } = getRuntimeState();
+        showButton.disabled = !mounted || visible;
+        hideButton.disabled = !mounted || !visible;
+        destroyButton.disabled = !mounted;
+      }
+
+      function updateSnippetPreview() {
+        const config = getConfig();
+        snippetPreview.textContent = buildSnippet(config);
+        positionStatus.textContent = formatPosition(config.position);
+      }
+
+      function updateRuntimeStatus() {
+        const { apiReady, mounted, visible } = getRuntimeState();
+
+        setStatus(
+          apiStatus,
+          apiReady ? "Ready" : "Missing",
+          apiReady ? "ready" : "danger",
+        );
+        setStatus(
+          mountedStatus,
+          mounted ? "Mounted" : "Not mounted",
+          mounted ? "ready" : "warning",
+        );
+        setStatus(
+          visibleStatus,
+          visible ? "Visible" : "Hidden",
+          visible ? "ready" : "warning",
+        );
+
+        updateControls();
+      }
+
+      function pushLog(message, level = "info") {
+        const item = document.createElement("li");
+        item.className = "activity-item";
+        item.dataset.level = level;
+
+        const title = document.createElement("strong");
+        title.textContent = new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+
+        const body = document.createElement("span");
+        body.textContent = message;
+
+        item.append(title, body);
+        activityLog.prepend(item);
+
+        while (activityLog.children.length > MAX_ACTIVITY_ITEMS) {
+          activityLog.removeChild(activityLog.lastElementChild);
+        }
+      }
+
+      function syncAll() {
+        updateSnippetPreview();
+        updateRuntimeStatus();
+      }
+
+      function requireOrganizationId() {
+        const { organizationId } = getConfig();
+
+        if (organizationId) return true;
+
+        orgInput.focus();
+        pushLog(
+          "Organization ID is required before initializing the widget.",
+          "danger",
+        );
+        return false;
+      }
+
+      async function copySnippet() {
+        const snippet = snippetPreview.textContent || "";
+
+        if (!snippet) return;
+
+        try {
+          await navigator.clipboard.writeText(snippet);
+          copySnippetButton.textContent = "Copied";
+          pushLog("Embed snippet copied to clipboard.", "success");
+          window.setTimeout(() => {
+            copySnippetButton.textContent = "Copy Snippet";
+          }, 1600);
+        } catch (error) {
+          console.error("Failed to copy snippet:", error);
+          pushLog("Clipboard copy failed in this browser session.", "warning");
+        }
+      }
+
+      async function initWidget() {
+        if (!requireOrganizationId()) return;
+
+        const config = getConfig();
+
+        try {
+          await ensureLoaderScript(config);
+        } catch (error) {
+          console.error("Failed to load the widget loader:", error);
+          pushLog(
+            "ScyllaWidget loader failed to load. Check the browser console.",
+            "danger",
+          );
+          return;
+        }
+
+        if (!window.ScyllaWidget?.init) {
+          pushLog(
+            "ScyllaWidget API is not ready yet. Wait for the loader to finish.",
+            "warning",
+          );
+          return;
+        }
+
+        window.ScyllaWidget.init(config);
+        pushLog(
+          `Widget initialized for ${config.organizationId} at ${formatPosition(config.position)}.`,
+          "success",
+        );
+
+        window.setTimeout(syncAll, SYNC_DELAYS.INIT);
+      }
+
+      function showWidget() {
+        const { mounted } = getRuntimeState();
+
+        if (!window.ScyllaWidget?.show || !mounted) {
+          pushLog(
+            "Widget is not mounted. Initialize it again before showing.",
+            "warning",
+          );
+          return;
+        }
+
+        window.ScyllaWidget.show();
+        pushLog("Widget opened.", "success");
+        window.setTimeout(syncAll, SYNC_DELAYS.SHOW);
+      }
+
+      function hideWidget() {
+        const { mounted, visible } = getRuntimeState();
+
+        if (!window.ScyllaWidget?.hide || !mounted || !visible) {
+          pushLog("Widget is already hidden or not mounted.", "warning");
+          return;
+        }
+
+        window.ScyllaWidget.hide();
+        pushLog("Widget hidden.", "success");
+        window.setTimeout(syncAll, SYNC_DELAYS.HIDE);
+      }
+
+      function destroyWidget() {
+        const { mounted } = getRuntimeState();
+
+        if (!window.ScyllaWidget?.destroy || !mounted) {
+          pushLog(
+            "Nothing to destroy. The widget is not currently mounted.",
+            "warning",
+          );
+          return;
+        }
+
+        window.ScyllaWidget.destroy();
+        pushLog(
+          "Widget DOM destroyed. Use initialize to mount it again.",
+          "success",
+        );
+        window.setTimeout(syncAll, SYNC_DELAYS.DESTROY);
+      }
+
+      initButton.addEventListener("click", initWidget);
+      showButton.addEventListener("click", showWidget);
+      hideButton.addEventListener("click", hideWidget);
+      destroyButton.addEventListener("click", destroyWidget);
+      copySnippetButton.addEventListener("click", copySnippet);
+      orgInput.addEventListener("input", updateSnippetPreview);
+
+      positionTrigger.addEventListener("click", () => {
+        const isOpen = positionSelect.dataset.open === "true";
+        setSelectOpen(!isOpen);
+      });
+
+      for (const option of positionOptions) {
+        option.addEventListener("click", () => {
+          setPosition(option.dataset.value);
+          positionTrigger.focus();
+        });
+      }
+
+      function getNextOptionIndex(currentIndex, direction) {
+        if (positionOptions.length === 0) return -1;
+
+        return direction === "down"
+          ? (currentIndex + 1) % positionOptions.length
+          : (currentIndex - 1 + positionOptions.length) %
+              positionOptions.length;
+      }
+
+      positionTrigger.addEventListener("keydown", (event) => {
+        const currentIndex = positionOptions.findIndex(
+          (option) => option.dataset.value === positionInput.value,
+        );
+
+        switch (event.key) {
+          case "ArrowDown": {
+            event.preventDefault();
+            setSelectOpen(true);
+            positionOptions[getNextOptionIndex(currentIndex, "down")]?.focus();
+            break;
+          }
+          case "ArrowUp": {
+            event.preventDefault();
+            setSelectOpen(true);
+            positionOptions[getNextOptionIndex(currentIndex, "up")]?.focus();
+            break;
+          }
+          case "Enter":
+          case " ": {
+            event.preventDefault();
+            setSelectOpen(positionSelect.dataset.open !== "true");
+            break;
+          }
+          case "Escape": {
+            setSelectOpen(false);
+            break;
+          }
+        }
+      });
+
+      positionMenu.addEventListener("keydown", (event) => {
+        const currentIndex = positionOptions.findIndex(
+          (option) => option === document.activeElement,
+        );
+
+        switch (event.key) {
+          case "ArrowDown": {
+            event.preventDefault();
+            positionOptions[getNextOptionIndex(currentIndex, "down")]?.focus();
+            break;
+          }
+          case "ArrowUp": {
+            event.preventDefault();
+            positionOptions[getNextOptionIndex(currentIndex, "up")]?.focus();
+            break;
+          }
+          case "Enter":
+          case " ": {
+            event.preventDefault();
+            if (currentIndex >= 0) {
+              setPosition(positionOptions[currentIndex].dataset.value);
+              positionTrigger.focus();
+            }
+            break;
+          }
+          case "Escape": {
+            event.preventDefault();
+            setSelectOpen(false);
+            positionTrigger.focus();
+            break;
+          }
+          case "Tab": {
+            setSelectOpen(false);
+            break;
+          }
+        }
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!positionSelect.contains(event.target)) {
+          setSelectOpen(false);
+        }
+      });
+
+      let runtimeObserverTimeout = 0;
+      const scheduleRuntimeSync = () => {
+        window.clearTimeout(runtimeObserverTimeout);
+        runtimeObserverTimeout = window.setTimeout(() => {
+          syncAll();
+          observeRuntimeElements();
+        }, SYNC_DELAYS.OBSERVER);
+      };
+
+      const runtimeObserver = new MutationObserver(() => {
+        scheduleRuntimeSync();
+      });
+
+      const runtimeElementObserver = new MutationObserver(() => {
+        scheduleRuntimeSync();
+      });
+
+      function observeRuntimeElements() {
+        runtimeElementObserver.disconnect();
+
+        const button = document.getElementById("scylla-widget-button");
+        const container = document.getElementById("scylla-widget-container");
+
+        if (button) {
+          runtimeElementObserver.observe(button, {
+            attributes: true,
+            attributeFilter: ["style"],
+          });
+        }
+
+        if (container) {
+          runtimeElementObserver.observe(container, {
+            attributes: true,
+            attributeFilter: ["style"],
+          });
+        }
+      }
+
+      runtimeObserver.observe(document.body, {
+        subtree: true,
+        childList: true,
+      });
+
+      pushLog(
+        defaultOrganizationId
+          ? "Demo page loaded. Waiting for the widget loader to mount."
+          : "Demo page loaded. Enter an organization ID and initialize the widget to mount it.",
+        "info",
+      );
+      syncAll();
+      observeRuntimeElements();
+
+      if (defaultOrganizationId) {
+        ensureLoaderScript({
+          organizationId: defaultOrganizationId,
+          position: defaultPosition,
+        })
+          .then(() => {
+            window.setTimeout(() => {
+              syncAll();
+
+              const { mounted } = getRuntimeState();
+              if (mounted) {
+                pushLog(
+                  "Widget auto-initialized from the loader script.",
+                  "success",
+                );
+              } else {
+                pushLog(
+                  "Widget has not mounted yet. Check the embed loader output.",
+                  "warning",
+                );
+              }
+            }, SYNC_DELAYS.MOUNT_CHECK);
+          })
+          .catch((error) => {
+            console.error("Failed to preload the widget loader:", error);
+            pushLog(
+              "Widget loader failed to preload. Initialize again after checking the console.",
+              "danger",
+            );
+          });
+      }
+    </script>
+  </body>
+</html>

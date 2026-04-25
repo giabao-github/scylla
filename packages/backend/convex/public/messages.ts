@@ -5,7 +5,12 @@ import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { components, internal } from "@workspace/backend/_generated/api";
-import { action, query } from "@workspace/backend/_generated/server";
+import {
+  action,
+  internalAction,
+  query,
+} from "@workspace/backend/_generated/server";
+import type { ActionCtx } from "@workspace/backend/_generated/server";
 import {
   MAX_PROMPT_LENGTH,
   MAX_REQUEST_IDS,
@@ -65,6 +70,31 @@ const agentForModel = (modelId: string | undefined, status: string) => {
       });
 
   return base;
+};
+
+const markRequestErrorAndRethrow = async (
+  ctx: ActionCtx,
+  requestId: string,
+  error: unknown,
+): Promise<never> => {
+  try {
+    await ctx.runMutation(internal.system.messageRequests.updateStatus, {
+      requestId,
+      status: "error",
+    });
+  } catch (updateErr) {
+    console.error(
+      `Failed to update error status for request [${requestId}]:`,
+      updateErr,
+    );
+  }
+
+  console.error("[AI] generation failed", {
+    requestId,
+    error,
+  });
+
+  throw error;
 };
 
 export const create = action({
@@ -188,115 +218,178 @@ export const create = action({
       }
 
       if (conversation.status === CONVERSATION_STATUS.UNRESOLVED) {
-        const agent = agentForModel(modelId, conversation.status);
-        const { thread } = await agent.continueThread(ctx, { threadId });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.public.messages.processAssistantResponse,
+          {
+            requestId,
+            threadId,
+            modelId,
+            userMessageAt,
+            aiResponseSaved,
+            lastMessageSynced:
+              result.status === "retry" ? result.lastMessageSynced : false,
+          },
+        );
+        return;
+      }
 
-        if (
-          result.status === "retry" &&
-          result.aiResponseSaved &&
-          !result.lastMessageSynced
+      await ctx.runMutation(internal.system.messageRequests.updateStatus, {
+        requestId,
+        status: "completed",
+      });
+    } catch (err) {
+      await markRequestErrorAndRethrow(ctx, requestId, err);
+    }
+  },
+});
+
+export const processAssistantResponse = internalAction({
+  args: {
+    requestId: v.string(),
+    threadId: v.string(),
+    modelId: v.optional(v.string()),
+    userMessageAt: v.number(),
+    aiResponseSaved: v.boolean(),
+    lastMessageSynced: v.boolean(),
+  },
+  handler: async (
+    ctx,
+    {
+      requestId,
+      threadId,
+      modelId,
+      userMessageAt,
+      aiResponseSaved,
+      lastMessageSynced,
+    },
+  ): Promise<void> => {
+    try {
+      const conversation = await ctx.runQuery(
+        internal.system.conversations.getByThreadId,
+        { threadId },
+      );
+
+      if (!conversation) {
+        throw new ConvexError({
+          code: "NOT_FOUND",
+          message: "Conversation not found",
+        });
+      }
+
+      if (conversation.status !== CONVERSATION_STATUS.UNRESOLVED) {
+        await ctx.runMutation(internal.system.messageRequests.updateStatus, {
+          requestId,
+          status: "completed",
+        });
+        return;
+      }
+
+      const agent = agentForModel(modelId, conversation.status);
+      const { thread } = await agent.continueThread(ctx, { threadId });
+
+      if (aiResponseSaved && !lastMessageSynced) {
+        const lastMsg = await ctx.runQuery(
+          internal.system.conversations.getLastAssistantMessage,
+          { threadId },
+        );
+        if (lastMsg?.text) {
+          await ctx.runMutation(
+            internal.system.conversations.updateLastMessage,
+            {
+              threadId,
+              lastMessage: { text: lastMsg.text, role: "assistant" },
+              messageAt: lastMsg._creationTime,
+            },
+          );
+          await ctx.runMutation(
+            internal.system.messageRequests.markLastMessageSynced,
+            { requestId },
+          );
+        } else {
+          console.warn("[retry] No assistant message found to resync", {
+            requestId,
+            threadId,
+          });
+          throw new ConvexError({
+            code: "SYNC_FAILED",
+            message: "Could not find assistant message to resync",
+          });
+        }
+      }
+
+      if (!aiResponseSaved) {
+        let aiResponse = await thread.generateText({});
+        let steps = 0;
+        while (
+          aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
+            ?.finishReason === "tool-calls" &&
+          steps < MAX_TOOL_CALL_ITERATIONS
         ) {
-          try {
-            const lastMsg = await ctx.runQuery(
-              internal.system.conversations.getLastAssistantMessage,
-              { threadId },
-            );
-            if (lastMsg?.text) {
-              await ctx.runMutation(
-                internal.system.conversations.updateLastMessage,
-                {
-                  threadId,
-                  lastMessage: { text: lastMsg.text, role: "assistant" },
-                  messageAt: lastMsg._creationTime,
-                },
-              );
-              await ctx.runMutation(
-                internal.system.messageRequests.markLastMessageSynced,
-                { requestId },
-              );
-            } else {
-              console.warn("[retry] No assistant message found to resync", {
-                requestId,
+          if (aiResponse.text?.trim()) {
+            const ts = Math.max(Date.now(), userMessageAt + 1);
+            await ctx.runMutation(
+              internal.system.conversations.updateLastMessage,
+              {
                 threadId,
-              });
-            }
-          } catch (err) {
-            console.error(
-              "[retry] Failed to resync last assistant message",
-              err,
+                lastMessage: {
+                  role: "assistant",
+                  text: aiResponse.text.trim(),
+                },
+                messageAt: ts,
+              },
             );
           }
+
+          aiResponse = await thread.generateText({});
+          steps++;
         }
 
-        if (!aiResponseSaved) {
-          let aiResponse = await thread.generateText({});
-          let steps = 0;
-          while (
-            aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
-              ?.finishReason === "tool-calls" &&
-            steps < MAX_TOOL_CALL_ITERATIONS
-          ) {
-            if (aiResponse.text?.trim()) {
-              const ts = Math.max(Date.now(), userMessageAt + 1);
-              await ctx.runMutation(
-                internal.system.conversations.updateLastMessage,
-                {
-                  threadId,
-                  lastMessage: {
-                    role: "assistant",
-                    text: aiResponse.text.trim(),
-                  },
-                  messageAt: ts,
-                },
-              );
-            }
+        if (
+          aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
+            ?.finishReason === "tool-calls"
+        ) {
+          console.warn("[AI] Tool call chain truncated", {
+            requestId,
+            steps,
+          });
+          throw new ConvexError({
+            code: "AI_TOOL_LOOP_LIMIT",
+            message: `Assistant did not finish after ${MAX_TOOL_CALL_ITERATIONS} tool rounds`,
+          });
+        }
 
-            aiResponse = await thread.generateText({});
-            steps++;
-          }
+        const finalResponseText = aiResponse.text?.trim();
 
-          if (
-            aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
-              ?.finishReason === "tool-calls"
-          ) {
-            console.warn("[AI] Tool call chain truncated", {
-              requestId,
-              steps,
-            });
-            throw new ConvexError({
-              code: "AI_TOOL_LOOP_LIMIT",
-              message: `Assistant did not finish after ${MAX_TOOL_CALL_ITERATIONS} tool rounds`,
-            });
-          }
-
+        if (finalResponseText) {
           const aiMessageAt = Math.max(Date.now(), userMessageAt + 1);
-
-          if (aiResponse.text) {
-            await ctx.runMutation(
-              internal.system.messageRequests.markAiResponseSaved,
-              { requestId },
-            );
-
-            try {
-              await ctx.runMutation(
-                internal.system.conversations.updateLastMessage,
-                {
-                  threadId,
-                  lastMessage: { text: aiResponse.text, role: "assistant" },
-                  messageAt: aiMessageAt,
-                },
-              );
-              await ctx.runMutation(
-                internal.system.messageRequests.markLastMessageSynced,
-                { requestId },
-              );
-            } catch (err) {
-              console.error(
-                "Failed to sync last message after AI generation",
-                err,
-              );
-            }
-          }
+          await ctx.runMutation(
+            internal.system.messageRequests.markAiResponseSaved,
+            { requestId },
+          );
+          await ctx.runMutation(
+            internal.system.conversations.updateLastMessage,
+            {
+              threadId,
+              lastMessage: { text: finalResponseText, role: "assistant" },
+              messageAt: aiMessageAt,
+            },
+          );
+          await ctx.runMutation(
+            internal.system.messageRequests.markLastMessageSynced,
+            { requestId },
+          );
+        } else {
+          console.warn("[AI] Empty assistant response", {
+            requestId,
+            finishReason:
+              aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
+                ?.finishReason,
+          });
+          throw new ConvexError({
+            code: "AI_EMPTY_RESPONSE",
+            message: "Assistant produced no content",
+          });
         }
       }
 
@@ -305,22 +398,7 @@ export const create = action({
         status: "completed",
       });
     } catch (err) {
-      try {
-        await ctx.runMutation(internal.system.messageRequests.updateStatus, {
-          requestId,
-          status: "error",
-        });
-      } catch (updateErr) {
-        console.error(
-          `Failed to update error status for request [${requestId}]:`,
-          updateErr,
-        );
-      }
-      console.error("[AI] generation failed", {
-        requestId,
-        error: err,
-      });
-      throw err;
+      await markRequestErrorAndRethrow(ctx, requestId, err);
     }
   },
 });

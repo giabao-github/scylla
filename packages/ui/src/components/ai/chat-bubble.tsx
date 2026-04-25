@@ -11,11 +11,13 @@ import { cn } from "@workspace/ui/lib/utils";
 interface ChatBubbleProps {
   text: string;
   variant: "user" | "agent";
-  status?: "generating" | "sending" | "failed" | "sent";
+  status?: "generating" | "sending" | "failed" | "sent" | "seen";
   error?: string;
   avatarSeed?: string;
   isRetrying?: boolean;
   onRetry?: () => void;
+  onClick?: () => void;
+  showStatus?: boolean;
 }
 
 const linkButtonBase = [
@@ -34,10 +36,21 @@ export const ChatBubble = ({
   avatarSeed,
   isRetrying = false,
   onRetry,
+  onClick,
+  showStatus = true,
 }: ChatBubbleProps) => {
+  const statusLabels: Record<string, string> = {
+    sending: "Sending...",
+    sent: "Sent",
+    seen: "Seen",
+  };
+  const userStatusLabel = statusLabels[status] ?? null;
+
   const isUser = variant === "user";
   const isAIGenerating = status === "generating";
   const isFailed = status === "failed";
+  const shouldShowStatusContent =
+    showStatus && (isFailed || (isUser && userStatusLabel));
 
   const gradient = isUser
     ? "linear-gradient(135deg, #a855f7 0%, #b17bea 100%)"
@@ -58,17 +71,29 @@ export const ChatBubble = ({
 
       <div
         className={cn(
-          "flex flex-col gap-1.5",
+          "inline-flex max-w-full flex-col gap-1.5",
           isUser ? "items-end" : "items-start",
         )}
       >
         <MessageContent
           className={cn(
             "relative px-3 py-2 md:px-4 md:py-2.5 text-xs leading-relaxed rounded-xl transform-gpu transition-all md:text-sm",
+            onClick &&
+              "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
             isFailed && !isUser
               ? "bg-destructive/10 border border-destructive/30 shadow-none"
               : "",
           )}
+          onClick={onClick}
+          onKeyDown={(event) => {
+            if (!onClick) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onClick();
+            }
+          }}
+          role={onClick ? "button" : undefined}
+          tabIndex={onClick ? 0 : undefined}
           style={
             !isFailed || isUser
               ? { background: gradient, boxShadow: shadows }
@@ -116,29 +141,59 @@ export const ChatBubble = ({
           </div>
         </MessageContent>
 
-        {isFailed && (
-          <div className="flex gap-2 items-center px-1 mt-2">
-            <span className="text-[10px] font-medium text-rose-500 tracking-wide">
-              {error || "Failed"}
-            </span>
-            {onRetry && (
-              <button
-                type="button"
-                disabled={isRetrying}
-                aria-label={
-                  isRetrying ? "Retrying message" : "Retry sending message"
-                }
-                onClick={onRetry}
-                className="text-[10px] text-rose-400 hover:text-primary flex items-center gap-1 transition-colors disabled:opacity-50"
-              >
-                <RefreshCwIcon
-                  className={cn("size-2.5", isRetrying && "animate-spin")}
-                />
-                Retry
-              </button>
-            )}
+        <div
+          aria-hidden={!shouldShowStatusContent}
+          className={cn(
+            "grid px-2 transition-[grid-template-rows,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            shouldShowStatusContent
+              ? "grid-rows-[1fr] translate-y-0 opacity-100"
+              : "grid-rows-[0fr] -translate-y-1 opacity-0 pointer-events-none",
+          )}
+        >
+          <div className="overflow-hidden min-h-0">
+            <div
+              className={cn(
+                "flex items-center gap-2 pt-0.5 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                shouldShowStatusContent
+                  ? "translate-y-0 scale-100 opacity-100"
+                  : "-translate-y-1 scale-95 opacity-0",
+              )}
+            >
+              {isFailed ? (
+                <>
+                  <span className="text-[10px] font-medium text-rose-500 tracking-wide">
+                    {error || "Failed"}
+                  </span>
+                  {onRetry && (
+                    <button
+                      type="button"
+                      disabled={isRetrying}
+                      aria-label={
+                        isRetrying
+                          ? "Retrying message"
+                          : "Retry sending message"
+                      }
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onRetry();
+                      }}
+                      className="text-[10px] text-rose-400 hover:text-primary flex items-center gap-1 transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCwIcon
+                        className={cn("size-2.5", isRetrying && "animate-spin")}
+                      />
+                      Retry
+                    </button>
+                  )}
+                </>
+              ) : (
+                <span className="text-[10px] font-medium tracking-wide text-muted-foreground">
+                  {userStatusLabel}
+                </span>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
