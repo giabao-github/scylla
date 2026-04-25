@@ -196,10 +196,13 @@ export const ConversationIdView = ({
       latestClientMessageAt &&
       latestClientMessageAt > latestMarkedSeenAtRef.current
     ) {
+      const previousMarkedSeenAt = latestMarkedSeenAtRef.current;
       latestMarkedSeenAtRef.current = latestClientMessageAt;
       void markSeen({
         conversationId: conversationId as Id<"conversations">,
         seenAt: latestClientMessageAt,
+      }).catch(() => {
+        latestMarkedSeenAtRef.current = previousMarkedSeenAt;
       });
     }
   }, [conversation, latestClientMessageAt, markSeen, conversationId]);
@@ -374,7 +377,10 @@ export const ConversationIdView = ({
   }, [conversationId, form]);
 
   useEffect(() => {
-    latestMarkedSeenAtRef.current = conversation?.lastSeenByAgentAt ?? 0;
+    const persistedSeenCutoff = conversation?.lastSeenByAgentAt ?? 0;
+    if (persistedSeenCutoff > latestMarkedSeenAtRef.current) {
+      latestMarkedSeenAtRef.current = persistedSeenCutoff;
+    }
   }, [conversation?.lastSeenByAgentAt]);
 
   useEffect(() => {
@@ -387,10 +393,13 @@ export const ConversationIdView = ({
       return;
     }
 
+    const previousMarkedSeenAt = latestMarkedSeenAtRef.current;
     latestMarkedSeenAtRef.current = latestClientMessageAt;
     void markSeen({
       conversationId: conversationId as Id<"conversations">,
       seenAt: latestClientMessageAt,
+    }).catch(() => {
+      latestMarkedSeenAtRef.current = previousMarkedSeenAt;
     });
   }, [conversation, latestClientMessageAt, markSeen, conversationId]);
 

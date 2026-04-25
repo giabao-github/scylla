@@ -71,6 +71,36 @@ const agentForModel = (modelId: string | undefined, status: string) => {
   return base;
 };
 
+const markRequestErrorAndRethrow = async (
+  ctx: {
+    runMutation: (
+      mutation: typeof internal.system.messageRequests.updateStatus,
+      args: { requestId: string; status: "error" },
+    ) => Promise<unknown>;
+  },
+  requestId: string,
+  error: unknown,
+): Promise<never> => {
+  try {
+    await ctx.runMutation(internal.system.messageRequests.updateStatus, {
+      requestId,
+      status: "error",
+    });
+  } catch (updateErr) {
+    console.error(
+      `Failed to update error status for request [${requestId}]:`,
+      updateErr,
+    );
+  }
+
+  console.error("[AI] generation failed", {
+    requestId,
+    error,
+  });
+
+  throw error;
+};
+
 export const create = action({
   args: {
     prompt: v.string(),
@@ -213,22 +243,7 @@ export const create = action({
         status: "completed",
       });
     } catch (err) {
-      try {
-        await ctx.runMutation(internal.system.messageRequests.updateStatus, {
-          requestId,
-          status: "error",
-        });
-      } catch (updateErr) {
-        console.error(
-          `Failed to update error status for request [${requestId}]:`,
-          updateErr,
-        );
-      }
-      console.error("[AI] generation failed", {
-        requestId,
-        error: err,
-      });
-      throw err;
+      await markRequestErrorAndRethrow(ctx, requestId, err);
     }
   },
 });
@@ -348,9 +363,10 @@ export const processAssistantResponse = internalAction({
           });
         }
 
-        const aiMessageAt = Math.max(Date.now(), userMessageAt + 1);
+        const finalResponseText = aiResponse.text?.trim();
 
-        if (aiResponse.text) {
+        if (finalResponseText) {
+          const aiMessageAt = Math.max(Date.now(), userMessageAt + 1);
           await ctx.runMutation(
             internal.system.messageRequests.markAiResponseSaved,
             { requestId },
@@ -361,7 +377,7 @@ export const processAssistantResponse = internalAction({
               internal.system.conversations.updateLastMessage,
               {
                 threadId,
-                lastMessage: { text: aiResponse.text, role: "assistant" },
+                lastMessage: { text: finalResponseText, role: "assistant" },
                 messageAt: aiMessageAt,
               },
             );
@@ -375,6 +391,17 @@ export const processAssistantResponse = internalAction({
               err,
             );
           }
+        } else {
+          console.warn("[AI] Empty assistant response", {
+            requestId,
+            finishReason:
+              aiResponse.savedMessages[aiResponse.savedMessages.length - 1]
+                ?.finishReason,
+          });
+          throw new ConvexError({
+            code: "AI_EMPTY_RESPONSE",
+            message: "Assistant produced no content",
+          });
         }
       }
 
@@ -383,22 +410,7 @@ export const processAssistantResponse = internalAction({
         status: "completed",
       });
     } catch (err) {
-      try {
-        await ctx.runMutation(internal.system.messageRequests.updateStatus, {
-          requestId,
-          status: "error",
-        });
-      } catch (updateErr) {
-        console.error(
-          `Failed to update error status for request [${requestId}]:`,
-          updateErr,
-        );
-      }
-      console.error("[AI] generation failed", {
-        requestId,
-        error: err,
-      });
-      throw err;
+      await markRequestErrorAndRethrow(ctx, requestId, err);
     }
   },
 });

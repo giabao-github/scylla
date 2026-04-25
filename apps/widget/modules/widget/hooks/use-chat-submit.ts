@@ -27,32 +27,37 @@ export type PendingSlot = {
 
 const getConfirmedUserMessageId = (
   slot: PendingSlot,
-  messages: UIMessage[],
+  userMessages: UIMessage[],
+  messageById: ReadonlyMap<string, UIMessage>,
   confirmedId?: string,
 ): string | undefined => {
   if (confirmedId) {
-    return messages.find(
-      (message) =>
-        !slot.snapshotIds.has(message.id) &&
-        message.role === "user" &&
-        message.id === confirmedId,
-    )?.id;
+    const confirmedMessage = messageById.get(confirmedId);
+
+    return confirmedMessage &&
+      confirmedMessage.role === "user" &&
+      !slot.snapshotIds.has(confirmedMessage.id)
+      ? confirmedMessage.id
+      : undefined;
   }
 
-  return messages.find(
+  const heuristicMatches = userMessages.filter(
     (message) =>
-      message.role === "user" &&
       message.text === slot.userText &&
       message._creationTime >= slot.submittedAt &&
       !slot.snapshotIds.has(message.id),
-  )?.id;
+  );
+
+  return heuristicMatches.length === 1 ? heuristicMatches[0]?.id : undefined;
 };
 
 const isUserMessageConfirmed = (
   slot: PendingSlot,
-  messages: UIMessage[],
+  userMessages: UIMessage[],
+  messageById: ReadonlyMap<string, UIMessage>,
   confirmedId?: string,
-): boolean => !!getConfirmedUserMessageId(slot, messages, confirmedId);
+): boolean =>
+  !!getConfirmedUserMessageId(slot, userMessages, messageById, confirmedId);
 
 interface UseChatSubmitParams {
   conversation: { threadId: string } | null | undefined;
@@ -92,6 +97,14 @@ export const useChatSubmit = ({
       ? { requestIds: pendingRequestIds, contactSessionId }
       : "skip",
   );
+  const visibleUserMessages = useMemo(
+    () => visibleMessages.filter((message) => message.role === "user"),
+    [visibleMessages],
+  );
+  const visibleMessagesById = useMemo(
+    () => new Map(visibleMessages.map((message) => [message.id, message])),
+    [visibleMessages],
+  );
 
   const isGenerating = pendingSlots.some(
     (slot) => slot.status === "generating",
@@ -102,7 +115,8 @@ export const useChatSubmit = ({
         pendingSlots.flatMap((slot) => {
           const confirmedUserMessageId = getConfirmedUserMessageId(
             slot,
-            visibleMessages,
+            visibleUserMessages,
+            visibleMessagesById,
             messageIdsByRequestId?.[slot.localId],
           );
 
@@ -111,7 +125,12 @@ export const useChatSubmit = ({
             : [];
         }),
       ),
-    [pendingSlots, visibleMessages, messageIdsByRequestId],
+    [
+      pendingSlots,
+      visibleUserMessages,
+      visibleMessagesById,
+      messageIdsByRequestId,
+    ],
   );
   const sendMessage = async (
     localId: string,
@@ -236,7 +255,8 @@ export const useChatSubmit = ({
     const freshSnapshotIds = new Set(visibleMessages.map((m) => m.id));
     const userMessageConfirmed = isUserMessageConfirmed(
       slot,
-      visibleMessages,
+      visibleUserMessages,
+      visibleMessagesById,
       messageIdsByRequestId?.[slot.localId],
     );
 
@@ -277,7 +297,8 @@ export const useChatSubmit = ({
       const next = prev.map((slot) => {
         const userConfirmed = isUserMessageConfirmed(
           slot,
-          visibleMessages,
+          visibleUserMessages,
+          visibleMessagesById,
           messageIdsByRequestId?.[slot.localId],
         );
 
@@ -291,7 +312,7 @@ export const useChatSubmit = ({
 
       return hasChanges ? next : prev;
     });
-  }, [visibleMessages, messageIdsByRequestId]);
+  }, [visibleUserMessages, visibleMessagesById, messageIdsByRequestId]);
 
   return {
     pendingSlots,

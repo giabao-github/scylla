@@ -18,27 +18,90 @@ const monthDayYearFormatter = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
 });
 
+const SUNDAY_FIRST_REGIONS = new Set([
+  "CA",
+  "JP",
+  "PH",
+  "TW",
+  "US",
+]);
+
+const SATURDAY_FIRST_REGIONS = new Set(["AF", "IR"]);
+
+interface LocaleWeekInfo {
+  firstDay?: number;
+}
+
+interface WeekInfoLocale extends Intl.Locale {
+  getWeekInfo?: () => LocaleWeekInfo;
+  weekInfo?: LocaleWeekInfo;
+}
+
 const isSameDay = (left: Date, right: Date) =>
   left.getFullYear() === right.getFullYear() &&
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
 
+const getDefaultLocale = () => weekdayFormatter.resolvedOptions().locale;
+
+const getRegionForLocale = (locale: string) => {
+  try {
+    const localeInfo = new Intl.Locale(locale);
+
+    return localeInfo.region ?? localeInfo.maximize().region ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const getFirstDayOfWeek = () => {
+  const locale = getDefaultLocale();
+
+  try {
+    const localeInfo = new Intl.Locale(locale) as WeekInfoLocale;
+    const weekInfo =
+      typeof localeInfo.getWeekInfo === "function"
+        ? localeInfo.getWeekInfo()
+        : localeInfo.weekInfo;
+    const firstDay = weekInfo?.firstDay;
+
+    if (typeof firstDay === "number" && firstDay >= 1 && firstDay <= 7) {
+      return firstDay % 7;
+    }
+  } catch {
+    // Fall back to region-based defaults below.
+  }
+
+  const region = getRegionForLocale(locale);
+
+  if (region && SATURDAY_FIRST_REGIONS.has(region)) {
+    return 6;
+  }
+
+  if (region && SUNDAY_FIRST_REGIONS.has(region)) {
+    return 0;
+  }
+
+  return 1;
+};
+
 const getStartOfWeek = (value: Date) => {
   const startOfWeek = new Date(value);
   const dayOfWeek = value.getDay();
-  const diffToMonday = (dayOfWeek + 6) % 7;
+  const firstDayOfWeek = getFirstDayOfWeek();
+  const diffToWeekStart = (dayOfWeek - firstDayOfWeek + 7) % 7;
 
-  startOfWeek.setDate(value.getDate() - diffToMonday);
+  startOfWeek.setDate(value.getDate() - diffToWeekStart);
   startOfWeek.setHours(0, 0, 0, 0);
 
   return startOfWeek;
 };
 
 export const formatChatTimestamp = (timestamp: number) => {
-  const messageDate = new Date(timestamp);
-  if (isNaN(messageDate.getTime())) {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) {
     return "";
   }
+  const messageDate = new Date(timestamp);
   const now = new Date();
 
   if (isSameDay(messageDate, now)) {

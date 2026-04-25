@@ -88,12 +88,18 @@ import Script from "next/script";
 
 type ScyllaWidgetWindow = Window & {
   ScyllaWidget?: {
+    init: (config: { organizationId?: string; position?: string }) => void;
     destroy: () => void;
   };
 };
 
 export function ScyllaWidgetScript() {
   useEffect(() => {
+    (window as ScyllaWidgetWindow).ScyllaWidget?.init({
+      organizationId: "{{ORGANIZATION_ID}}",
+      position: "${WIDGET_DEFAULT_POSITION}",
+    });
+
     return () => {
       (window as ScyllaWidgetWindow).ScyllaWidget?.destroy();
     };
@@ -118,4 +124,4 @@ script.async = true;
 script.dataset.scyllaWidget = "true";
 script.dataset.organizationId = "{{ORGANIZATION_ID}}";
 script.dataset.position = "${WIDGET_DEFAULT_POSITION}";
-document.body.appendChild(script);`;
+(document.body ?? document.documentElement).appendChild(script);`;

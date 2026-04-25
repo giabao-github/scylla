@@ -130,7 +130,7 @@ export const WidgetChatScreen = () => {
   const {
     scrollRef,
     handleScroll: baseHandleScroll,
-    isAtBottomRef,
+    getIsAtBottom,
   } = useChatScroll(lastVisibleId, pendingSlots.length, conversationId);
 
   useEffect(() => {
@@ -174,22 +174,29 @@ export const WidgetChatScreen = () => {
       ),
     [pendingSlots, staleCheckTimestamp],
   );
+  const visibleMessagesById = useMemo(
+    () => new Map(visibleMessages.map((message) => [message.id, message])),
+    [visibleMessages],
+  );
+  const assistantMessages = useMemo(
+    () => visibleMessages.filter((message) => message.role === "assistant"),
+    [visibleMessages],
+  );
 
   const assistantConfirmedLocalIds = useMemo(
     () =>
       new Set(
         pendingSlots.flatMap((slot) => {
-          const assistantConfirmed = visibleMessages.some(
+          const assistantConfirmed = assistantMessages.some(
             (message) =>
               !slot.snapshotIds.has(message.id) &&
-              message.role === "assistant" &&
               message._creationTime >= slot.submittedAt,
           );
 
           return assistantConfirmed ? [slot.localId] : [];
         }),
       ),
-    [pendingSlots, visibleMessages],
+    [pendingSlots, assistantMessages],
   );
 
   const hasActivePendingSlots = pendingSlots.some((slot) => {
@@ -236,41 +243,8 @@ export const WidgetChatScreen = () => {
   const readReceiptCutoff = conversation?.lastSeenByAgentAt ?? 0;
   const contactReadReceiptCutoff = conversation?.lastSeenByContactAt ?? 0;
   const latestOperatorMessageAt = useMemo(
-    () =>
-      visibleMessages.filter((message) => message.role === "assistant").at(-1)
-        ?._creationTime,
-    [visibleMessages],
-  );
-  const userMessageStatusById = useMemo(
-    () =>
-      Object.fromEntries(
-        pendingSlots.flatMap((slot) => {
-          const confirmedUserMessageId =
-            confirmedUserMessageIdsByLocalId[slot.localId];
-
-          if (!confirmedUserMessageId) {
-            return [];
-          }
-
-          const confirmedUserMessage = visibleMessages.find(
-            (message) => message.id === confirmedUserMessageId,
-          );
-
-          const deliveryStatus =
-            confirmedUserMessage &&
-            confirmedUserMessage._creationTime <= readReceiptCutoff
-              ? ("seen" as const)
-              : ("sent" as const);
-
-          return [[confirmedUserMessageId, deliveryStatus]];
-        }),
-      ),
-    [
-      pendingSlots,
-      confirmedUserMessageIdsByLocalId,
-      visibleMessages,
-      readReceiptCutoff,
-    ],
+    () => assistantMessages.at(-1)?._creationTime,
+    [assistantMessages],
   );
 
   const hiddenConfirmedUserMessageIds = useMemo(
@@ -307,7 +281,7 @@ export const WidgetChatScreen = () => {
       !contactSessionId ||
       !conversation ||
       !latestOperatorMessageAt ||
-      !isAtBottomRef.current ||
+      !getIsAtBottom() ||
       latestOperatorMessageAt <= latestMarkedSeenAtRef.current
     ) {
       return;
@@ -323,10 +297,10 @@ export const WidgetChatScreen = () => {
       latestMarkedSeenAtRef.current = previousMarkedSeenAt;
     });
   }, [
-    !!conversation,
+    conversation,
     conversationId,
     contactSessionId,
-    isAtBottomRef,
+    getIsAtBottom,
     latestOperatorMessageAt,
     markSeenByContact,
   ]);
@@ -368,9 +342,7 @@ export const WidgetChatScreen = () => {
             confirmedUserMessageIdsByLocalId[s.localId];
           const assistantConfirmed = assistantConfirmedLocalIds.has(s.localId);
           const confirmedUserMessage = confirmedUserMessageId
-            ? visibleMessages.find(
-                (message) => message.id === confirmedUserMessageId,
-              )
+            ? visibleMessagesById.get(confirmedUserMessageId)
             : undefined;
           const userDisplayStatus = !confirmedUserMessageId
             ? s.status === "failed" || hasTimedOut
@@ -411,7 +383,7 @@ export const WidgetChatScreen = () => {
       ].sort((a, b) => a.timestamp - b.timestamp),
     [
       displayedVisibleMessages,
-      visibleMessages,
+      visibleMessagesById,
       pendingSlots,
       isEscalated,
       timedOutPendingIds,
@@ -428,7 +400,9 @@ export const WidgetChatScreen = () => {
   }, [conversationId]);
 
   useEffect(() => {
-    latestMarkedSeenAtRef.current = contactReadReceiptCutoff;
+    if (contactReadReceiptCutoff > latestMarkedSeenAtRef.current) {
+      latestMarkedSeenAtRef.current = contactReadReceiptCutoff;
+    }
   }, [contactReadReceiptCutoff]);
 
   useEffect(() => {
@@ -547,8 +521,7 @@ export const WidgetChatScreen = () => {
                         text={msg.text}
                         status={
                           isUser
-                            ? (userMessageStatusById[msg.id] ??
-                              confirmedOutgoingStatusById[msg.id])
+                            ? confirmedOutgoingStatusById[msg.id]
                             : undefined
                         }
                         variant={isUser ? "user" : "agent"}

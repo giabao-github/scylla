@@ -158,27 +158,28 @@ export const markSeenByContact = mutation({
       });
     }
 
-    const maxSeenAt = Math.min(
-      Date.now(),
-      conversation.lastMessageAt ?? Number.POSITIVE_INFINITY,
-    );
-
-    if (args.seenAt < conversation.createdAt || args.seenAt > maxSeenAt) {
+    if (args.seenAt < conversation.createdAt) {
       throw new ConvexError({
         code: "BAD_REQUEST",
         message: "Invalid seen timestamp",
       });
     }
 
+    const maxSeenAt = Math.min(
+      Date.now(),
+      conversation.lastMessageAt ?? Number.POSITIVE_INFINITY,
+    );
+    const clampedSeenAt = Math.min(args.seenAt, maxSeenAt);
+
     if (
       conversation.lastSeenByContactAt &&
-      conversation.lastSeenByContactAt >= args.seenAt
+      conversation.lastSeenByContactAt >= clampedSeenAt
     ) {
       return;
     }
 
     await ctx.db.patch(args.conversationId, {
-      lastSeenByContactAt: args.seenAt,
+      lastSeenByContactAt: clampedSeenAt,
     });
   },
 });

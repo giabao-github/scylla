@@ -69,6 +69,7 @@ export const FileView = ({
     copyState,
     icon: StateIcon,
     label: copyLabel,
+    ariaLabel,
     iconClassName,
     handleCopy,
     reset,
@@ -175,7 +176,8 @@ export const FileView = ({
                       disabled={
                         loading || error || !content || copyState === "copied"
                       }
-                      title="Copy file content"
+                      aria-label={ariaLabel}
+                      aria-live="polite"
                       onClick={() => void handleCopy(content)}
                       variant="outline"
                       size="sm"
