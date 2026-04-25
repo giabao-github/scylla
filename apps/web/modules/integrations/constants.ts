@@ -51,9 +51,7 @@ export const createHtmlSnippet = (widgetScriptUrl: string) =>
 ></script>`;
 
 export const createReactSnippet = (widgetScriptUrl: string) =>
-  `"use client";
-
-import { useEffect } from "react";
+  `import { useEffect } from "react";
 
 type ScyllaWidgetWindow = Window & {
   ScyllaWidget?: {

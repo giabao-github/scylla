@@ -19,11 +19,19 @@ const monthDayYearFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 const SUNDAY_FIRST_REGIONS = new Set([
+  "BR",
   "CA",
+  "HK",
+  "IL",
+  "IN",
   "JP",
+  "KR",
+  "MX",
   "PH",
+  "SG",
   "TW",
   "US",
+  "ZA",
 ]);
 
 const SATURDAY_FIRST_REGIONS = new Set(["AF", "IR"]);

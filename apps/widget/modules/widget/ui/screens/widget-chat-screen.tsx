@@ -397,6 +397,7 @@ export const WidgetChatScreen = () => {
 
   useEffect(() => {
     setSelectedEntryKey(null);
+    latestMarkedSeenAtRef.current = 0;
   }, [conversationId]);
 
   useEffect(() => {

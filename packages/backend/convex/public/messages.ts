@@ -10,6 +10,7 @@ import {
   internalAction,
   query,
 } from "@workspace/backend/_generated/server";
+import type { ActionCtx } from "@workspace/backend/_generated/server";
 import {
   MAX_PROMPT_LENGTH,
   MAX_REQUEST_IDS,
@@ -72,12 +73,7 @@ const agentForModel = (modelId: string | undefined, status: string) => {
 };
 
 const markRequestErrorAndRethrow = async (
-  ctx: {
-    runMutation: (
-      mutation: typeof internal.system.messageRequests.updateStatus,
-      args: { requestId: string; status: "error" },
-    ) => Promise<unknown>;
-  },
+  ctx: ActionCtx,
   requestId: string,
   error: unknown,
 ): Promise<never> => {
@@ -293,32 +289,32 @@ export const processAssistantResponse = internalAction({
       const { thread } = await agent.continueThread(ctx, { threadId });
 
       if (aiResponseSaved && !lastMessageSynced) {
-        try {
-          const lastMsg = await ctx.runQuery(
-            internal.system.conversations.getLastAssistantMessage,
-            { threadId },
-          );
-          if (lastMsg?.text) {
-            await ctx.runMutation(
-              internal.system.conversations.updateLastMessage,
-              {
-                threadId,
-                lastMessage: { text: lastMsg.text, role: "assistant" },
-                messageAt: lastMsg._creationTime,
-              },
-            );
-            await ctx.runMutation(
-              internal.system.messageRequests.markLastMessageSynced,
-              { requestId },
-            );
-          } else {
-            console.warn("[retry] No assistant message found to resync", {
-              requestId,
+        const lastMsg = await ctx.runQuery(
+          internal.system.conversations.getLastAssistantMessage,
+          { threadId },
+        );
+        if (lastMsg?.text) {
+          await ctx.runMutation(
+            internal.system.conversations.updateLastMessage,
+            {
               threadId,
-            });
-          }
-        } catch (err) {
-          console.error("[retry] Failed to resync last assistant message", err);
+              lastMessage: { text: lastMsg.text, role: "assistant" },
+              messageAt: lastMsg._creationTime,
+            },
+          );
+          await ctx.runMutation(
+            internal.system.messageRequests.markLastMessageSynced,
+            { requestId },
+          );
+        } else {
+          console.warn("[retry] No assistant message found to resync", {
+            requestId,
+            threadId,
+          });
+          throw new ConvexError({
+            code: "SYNC_FAILED",
+            message: "Could not find assistant message to resync",
+          });
         }
       }
 
@@ -371,26 +367,18 @@ export const processAssistantResponse = internalAction({
             internal.system.messageRequests.markAiResponseSaved,
             { requestId },
           );
-
-          try {
-            await ctx.runMutation(
-              internal.system.conversations.updateLastMessage,
-              {
-                threadId,
-                lastMessage: { text: finalResponseText, role: "assistant" },
-                messageAt: aiMessageAt,
-              },
-            );
-            await ctx.runMutation(
-              internal.system.messageRequests.markLastMessageSynced,
-              { requestId },
-            );
-          } catch (err) {
-            console.error(
-              "Failed to sync last message after AI generation",
-              err,
-            );
-          }
+          await ctx.runMutation(
+            internal.system.conversations.updateLastMessage,
+            {
+              threadId,
+              lastMessage: { text: finalResponseText, role: "assistant" },
+              messageAt: aiMessageAt,
+            },
+          );
+          await ctx.runMutation(
+            internal.system.messageRequests.markLastMessageSynced,
+            { requestId },
+          );
         } else {
           console.warn("[AI] Empty assistant response", {
             requestId,
