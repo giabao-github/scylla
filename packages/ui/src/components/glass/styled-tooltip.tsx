@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import { hexToRgba } from "@workspace/shared/lib/utils";
-
 import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
 import { cn } from "@workspace/ui/lib/utils";
 

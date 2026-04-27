@@ -4,6 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { Loader2Icon } from "lucide-react";
+import z from "zod";
+
+import { useChatMessages } from "@/modules/widget/hooks/use-chat-messages";
+import { useChatScroll } from "@/modules/widget/hooks/use-chat-scroll";
+import {
+  PendingSlot,
+  useChatSubmit,
+} from "@/modules/widget/hooks/use-chat-submit";
+import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 import { api } from "@workspace/backend/_generated/api";
 import {
   contactSessionIdAtom,
@@ -34,18 +46,6 @@ import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { LiquidGlass } from "@workspace/ui/components/glass/liquid-glass";
 import { cn } from "@workspace/ui/lib/utils";
-import { useMutation, useQuery } from "convex/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { Loader2Icon } from "lucide-react";
-import z from "zod";
-
-import { useChatMessages } from "@/modules/widget/hooks/use-chat-messages";
-import { useChatScroll } from "@/modules/widget/hooks/use-chat-scroll";
-import {
-  PendingSlot,
-  useChatSubmit,
-} from "@/modules/widget/hooks/use-chat-submit";
-import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
 const AI_PLACEHOLDER_OFFSET_MS = 2000;
 const STALE_PENDING_TIMEOUT_MS = 35_000;

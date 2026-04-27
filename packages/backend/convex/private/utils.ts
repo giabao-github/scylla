@@ -17,7 +17,6 @@ import {
   parseSecretString,
 } from "@workspace/backend/lib/secrets";
 import rag from "@workspace/backend/system/ai/rag";
-
 import { isNotFoundError } from "@workspace/shared/lib/file";
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 

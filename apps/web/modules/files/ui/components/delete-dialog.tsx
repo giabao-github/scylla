@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 
+import { useMutation } from "convex/react";
+import { FileIcon } from "lucide-react";
+import { toast } from "sonner";
+
+import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
 import { api } from "@workspace/backend/_generated/api";
 import { PublicFile } from "@workspace/shared/types/file";
 import { Badge } from "@workspace/ui/components/badge";
@@ -14,11 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import { useMutation } from "convex/react";
-import { FileIcon } from "lucide-react";
-import { toast } from "sonner";
-
-import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
 
 interface DeleteDialogProps {
   open: boolean;

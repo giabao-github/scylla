@@ -24,7 +24,9 @@ export const getOne = query({
 
     const widgetSettings = await ctx.db
       .query("widgetSettings")
-      .withIndex("by_org_id", (q) => q.eq("organizationId", clerkOrganizationId))
+      .withIndex("by_org_id", (q) =>
+        q.eq("organizationId", clerkOrganizationId),
+      )
       .unique();
 
     return widgetSettings;
@@ -79,7 +81,9 @@ export const upsert = mutation({
 
     const existingWidgetSettings = await ctx.db
       .query("widgetSettings")
-      .withIndex("by_org_id", (q) => q.eq("organizationId", clerkOrganizationId))
+      .withIndex("by_org_id", (q) =>
+        q.eq("organizationId", clerkOrganizationId),
+      )
       .unique();
 
     if (existingWidgetSettings) {

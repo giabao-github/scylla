@@ -1,8 +1,7 @@
-import { EntryId, PublicFile } from "@workspace/shared/types/file";
-import { TableBody, TableCell, TableRow } from "@workspace/ui/components/table";
-
 import { FileTableRow } from "@/modules/files/ui/components/file-table-row";
 import { FILE_TABLE_COLUMN_COUNT } from "@/modules/files/ui/lib/constants";
+import { EntryId, PublicFile } from "@workspace/shared/types/file";
+import { TableBody, TableCell, TableRow } from "@workspace/ui/components/table";
 
 interface FileTableBodyProps {
   files: PublicFile[];

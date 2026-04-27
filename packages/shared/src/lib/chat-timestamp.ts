@@ -40,7 +40,7 @@ interface LocaleWeekInfo {
   firstDay?: number;
 }
 
-interface WeekInfoLocale extends Intl.Locale {
+interface LocaleWeekInfoSource {
   getWeekInfo?: () => LocaleWeekInfo;
   weekInfo?: LocaleWeekInfo;
 }
@@ -66,7 +66,8 @@ const getFirstDayOfWeek = () => {
   const locale = getDefaultLocale();
 
   try {
-    const localeInfo = new Intl.Locale(locale) as WeekInfoLocale;
+    const localeInfo = new Intl.Locale(locale) as Intl.Locale &
+      LocaleWeekInfoSource;
     const weekInfo =
       typeof localeInfo.getWeekInfo === "function"
         ? localeInfo.getWeekInfo()

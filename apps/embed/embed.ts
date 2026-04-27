@@ -1,11 +1,10 @@
+import { chatBubbleIcon, closeIcon } from "@/icons";
 import {
   WIDGET_BUTTON_ID,
   WIDGET_CONTAINER_ID,
   WIDGET_DEFAULT_POSITION,
   type WidgetPosition,
 } from "@workspace/shared/constants/widget";
-
-import { chatBubbleIcon, closeIcon } from "@/icons";
 
 declare global {
   interface Window {

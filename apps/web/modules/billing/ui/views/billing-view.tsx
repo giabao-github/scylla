@@ -2,6 +2,10 @@
 
 import { Suspense } from "react";
 
+import { AlertCircleIcon } from "lucide-react";
+
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
+import { PricingTable } from "@/modules/billing/ui/component/pricing-table";
 import type {
   InitialSubscriptionStatus,
   SubscriptionStatus,
@@ -13,10 +17,6 @@ import {
 } from "@workspace/ui/components/alert";
 import { Badge } from "@workspace/ui/components/badge";
 import { Skeleton } from "@workspace/ui/components/skeleton";
-import { AlertCircleIcon } from "lucide-react";
-
-import { useSubscription } from "@/modules/billing/hooks/use-subscription";
-import { PricingTable } from "@/modules/billing/ui/component/pricing-table";
 
 interface PlanBadge {
   label: string;

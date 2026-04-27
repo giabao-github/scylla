@@ -69,6 +69,8 @@ export const PricingTable = () => {
       subtree: true,
     } satisfies MutationObserverInit;
     let isObserving = false;
+    let syncScheduled = false;
+    let scheduledFrameId: number | null = null;
 
     if (!container) {
       return;
@@ -79,9 +81,22 @@ export const PricingTable = () => {
       setHasRenderedCards(hasCards);
     };
 
+    const scheduleSyncFreeCardStructure = () => {
+      if (syncScheduled) {
+        return;
+      }
+
+      syncScheduled = true;
+      scheduledFrameId = window.requestAnimationFrame(() => {
+        syncScheduled = false;
+        scheduledFrameId = null;
+        syncFreeCardStructure();
+      });
+    };
+
     const mutationObserver = new MutationObserver(() => {
       updateCardsReadyState();
-      syncFreeCardStructure();
+      scheduleSyncFreeCardStructure();
     });
 
     const observeMutations = () => {
@@ -164,17 +179,20 @@ export const PricingTable = () => {
     syncFreeCardStructure();
 
     const resizeObserver = new ResizeObserver(() => {
-      syncFreeCardStructure();
+      scheduleSyncFreeCardStructure();
     });
 
     resizeObserver.observe(container);
 
-    window.addEventListener("resize", syncFreeCardStructure);
+    window.addEventListener("resize", scheduleSyncFreeCardStructure);
 
     return () => {
+      if (scheduledFrameId !== null) {
+        window.cancelAnimationFrame(scheduledFrameId);
+      }
       mutationObserver.disconnect();
       resizeObserver.disconnect();
-      window.removeEventListener("resize", syncFreeCardStructure);
+      window.removeEventListener("resize", scheduleSyncFreeCardStructure);
     };
   }, []);
 

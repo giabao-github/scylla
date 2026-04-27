@@ -4,6 +4,17 @@ import { useCallback } from "react";
 
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import {
+  CreditCardIcon,
+  InboxIcon,
+  LayoutDashboardIcon,
+  LibraryBigIcon,
+  Mic,
+  PaletteIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -17,16 +28,6 @@ import {
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
 import { cn } from "@workspace/ui/lib/utils";
-import {
-  CreditCardIcon,
-  InboxIcon,
-  LayoutDashboardIcon,
-  LibraryBigIcon,
-  Mic,
-  PaletteIcon,
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 const customerSupportItems = [
   {

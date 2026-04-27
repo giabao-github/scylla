@@ -1,5 +1,13 @@
 import { UseFormReturn } from "react-hook-form";
 
+import { AlertTriangleIcon } from "lucide-react";
+
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
+import { FormSchema } from "@/modules/customization/types";
+import {
+  useVapiAssistants,
+  useVapiPhoneNumbers,
+} from "@/modules/plugins/hooks/use-vapi-data";
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
@@ -18,14 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import { AlertTriangleIcon } from "lucide-react";
-
-import { useSubscription } from "@/modules/billing/hooks/use-subscription";
-import { FormSchema } from "@/modules/customization/types";
-import {
-  useVapiAssistants,
-  useVapiPhoneNumbers,
-} from "@/modules/plugins/hooks/use-vapi-data";
 
 interface VapiFormFieldsProps {
   form: UseFormReturn<FormSchema>;

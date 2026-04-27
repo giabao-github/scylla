@@ -4,7 +4,6 @@ import { ConvexError, v } from "convex/values";
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import { mutation, query } from "@workspace/backend/_generated/server";
 import { getAuthenticatedOrganization } from "@workspace/backend/private/utils";
-
 import {
   CONVERSATION_STATUS,
   type ConversationStatus,

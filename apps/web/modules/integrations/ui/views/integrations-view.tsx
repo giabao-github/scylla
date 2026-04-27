@@ -3,17 +3,6 @@
 import { useEffect, useState } from "react";
 
 import { useOrganization } from "@clerk/nextjs";
-import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
-import { Button } from "@workspace/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog";
-import { GlassPanel } from "@workspace/ui/components/glass-panel";
-import { cn } from "@workspace/ui/lib/utils";
 import {
   ArrowRightIcon,
   BlocksIcon,
@@ -29,6 +18,17 @@ import {
   type IntegrationId,
 } from "@/modules/integrations/constants";
 import { createIntegrationSnippet } from "@/modules/integrations/utils";
+import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
+import { Button } from "@workspace/ui/components/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog";
+import { GlassPanel } from "@workspace/ui/components/glass-panel";
+import { cn } from "@workspace/ui/lib/utils";
 
 const INTEGRATION_DESCRIPTIONS = {
   html: "Drop in a plain script tag for static pages and CMS templates.",

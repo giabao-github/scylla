@@ -16,6 +16,18 @@ const blurClasses = {
   xl: "backdrop-blur-xl",
 } as const;
 
+const DEFAULT_HIGHLIGHT_COLOR = "255 255 255";
+
+const isValidSpaceSeparatedRgb = (value: string) => {
+  const channels = value.trim().split(/\s+/);
+  if (channels.length !== 3) return false;
+
+  return channels.every((channel) => {
+    const parsed = Number(channel);
+    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 255;
+  });
+};
+
 interface GlassPanelProps extends React.ComponentProps<"div"> {
   transparency?: keyof typeof transparencyLevels | number;
   blur?: keyof typeof blurClasses;
@@ -36,10 +48,23 @@ export const GlassPanel = ({
   blur = "lg",
   tintColor = "var(--card)",
   borderColor = "rgb(255 255 255 / 0.32)",
-  highlightColor = "255 255 255",
+  highlightColor = DEFAULT_HIGHLIGHT_COLOR,
   style,
   ...props
 }: GlassPanelProps) => {
+  const resolvedHighlightColor = isValidSpaceSeparatedRgb(highlightColor)
+    ? highlightColor
+    : DEFAULT_HIGHLIGHT_COLOR;
+
+  if (
+    process.env.NODE_ENV === "development" &&
+    !isValidSpaceSeparatedRgb(highlightColor)
+  ) {
+    console.warn(
+      `GlassPanel: highlightColor "${highlightColor}" must be space-separated RGB like "255 255 255". Falling back to default.`,
+    );
+  }
+
   const transparencyPercent =
     typeof transparency === "number"
       ? Number.isFinite(transparency)
@@ -66,13 +91,13 @@ export const GlassPanel = ({
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(135deg, rgb(${highlightColor} / ${sheenOpacity}), rgb(${highlightColor} / ${Math.max(sheenOpacity * 0.28, 0.04)}) 38%, transparent 72%)`,
+          backgroundImage: `linear-gradient(135deg, rgb(${resolvedHighlightColor} / ${sheenOpacity}), rgb(${resolvedHighlightColor} / ${Math.max(sheenOpacity * 0.28, 0.04)}) 38%, transparent 72%)`,
         }}
       />
       <div
         className="absolute inset-x-0 top-0 h-px pointer-events-none"
         style={{
-          backgroundColor: `rgb(${highlightColor} / ${Math.max(
+          backgroundColor: `rgb(${resolvedHighlightColor} / ${Math.max(
             sheenOpacity * 0.8,
             0.06,
           )})`,

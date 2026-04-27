@@ -12,13 +12,13 @@ export const createIntegrationSnippet = (
   organizationId: string,
 ): string => {
   const widgetScriptUrl = getWidgetScriptUrl();
-  const snippetMap: Record<IntegrationId, string> = {
-    html: createHtmlSnippet(widgetScriptUrl),
-    javascript: createJavascriptSnippet(widgetScriptUrl),
-    react: createReactSnippet(widgetScriptUrl),
-    nextjs: createNextjsSnippet(widgetScriptUrl),
+  const snippetFactories: Record<IntegrationId, (url: string) => string> = {
+    html: createHtmlSnippet,
+    javascript: createJavascriptSnippet,
+    react: createReactSnippet,
+    nextjs: createNextjsSnippet,
   };
 
-  const snippet = snippetMap[integrationId];
+  const snippet = snippetFactories[integrationId](widgetScriptUrl);
   return snippet.replace(/{{ORGANIZATION_ID}}/g, organizationId);
 };

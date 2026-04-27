@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useAction } from "convex/react";
+import { toast } from "sonner";
+
+import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
 import { api } from "@workspace/backend/_generated/api";
 import { PublicFile } from "@workspace/shared/types/file";
 import { Button } from "@workspace/ui/components/button";
@@ -16,10 +20,6 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { cn } from "@workspace/ui/lib/utils";
-import { useAction } from "convex/react";
-import { toast } from "sonner";
-
-import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
 
 interface EditDialogProps {
   open: boolean;

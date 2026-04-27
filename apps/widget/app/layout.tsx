@@ -1,9 +1,9 @@
-import { Toaster } from "@workspace/ui/components/sonner";
-import "@workspace/ui/globals.css";
 import { Metadata } from "next";
 import { Geist_Mono, Noto_Sans } from "next/font/google";
 
 import { Providers } from "@/components/providers";
+import { Toaster } from "@workspace/ui/components/sonner";
+import "@workspace/ui/globals.css";
 
 const fontSans = Noto_Sans({
   subsets: ["latin"],

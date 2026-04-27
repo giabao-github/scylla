@@ -2,7 +2,6 @@
 
 import React, {
   CSSProperties,
-  memo,
   useCallback,
   useEffect,
   useId,

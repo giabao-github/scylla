@@ -1,3 +1,5 @@
+import { FileIcon } from "lucide-react";
+
 import { EntryId, PublicFile } from "@workspace/shared/types/file";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
@@ -10,7 +12,6 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
-import { FileIcon } from "lucide-react";
 
 interface BulkDeleteDialogProps {
   open: boolean;

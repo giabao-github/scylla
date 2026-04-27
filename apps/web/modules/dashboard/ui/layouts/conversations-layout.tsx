@@ -2,15 +2,15 @@
 
 import type { ReactNode } from "react";
 
+import { usePathname } from "next/navigation";
+
+import { ConversationsPanel } from "@/modules/dashboard/ui/components/conversations-panel";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@workspace/ui/components/resizable";
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
-import { usePathname } from "next/navigation";
-
-import { ConversationsPanel } from "@/modules/dashboard/ui/components/conversations-panel";
 
 const CONVERSATIONS_LIST_PATH = "/conversations";
 

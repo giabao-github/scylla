@@ -13,7 +13,6 @@ import {
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import { OPERATOR_MESSAGE_ENHANCEMENT_PROMPT } from "@workspace/backend/system/ai/prompts";
 import { getConversationByThreadId } from "@workspace/backend/system/utils";
-
 import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 
 const ENHANCE_TIMEOUT_MS = 30_000;

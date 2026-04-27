@@ -3,11 +3,12 @@
 import { useEffect, useMemo } from "react";
 
 import { useAuth, useOrganization } from "@clerk/nextjs";
-import { api } from "@workspace/backend/_generated/api";
-import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
 import { useQueries } from "convex/react";
 import { type FunctionReference, type FunctionReturnType } from "convex/server";
 import { type Value } from "convex/values";
+
+import { api } from "@workspace/backend/_generated/api";
+import { type SubscriptionStatus } from "@workspace/shared/types/subscription";
 
 type SubscriptionResult = FunctionReturnType<
   typeof api.private.subscriptions.getByOrganizationId
@@ -47,7 +48,7 @@ export const useSubscription = (
     return {
       subscription: {
         query: api.private.subscriptions.getByOrganizationId,
-        args: { organizationId },
+        args: {},
       },
     };
   }, [organizationId]);

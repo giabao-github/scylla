@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 
+import { useAction, useConvex, useMutation } from "convex/react";
+import { toast } from "sonner";
+
+import {
+  Dropzone,
+  DropzoneContent,
+  DropzoneEmptyState,
+} from "@/modules/files/ui/components/dropzone";
+import { DuplicateDialog } from "@/modules/files/ui/components/duplicate-dialog";
+import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { computeFileHash } from "@workspace/shared/lib/file";
@@ -18,16 +28,6 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { cn } from "@workspace/ui/lib/utils";
-import { useAction, useConvex, useMutation } from "convex/react";
-import { toast } from "sonner";
-
-import {
-  Dropzone,
-  DropzoneContent,
-  DropzoneEmptyState,
-} from "@/modules/files/ui/components/dropzone";
-import { DuplicateDialog } from "@/modules/files/ui/components/duplicate-dialog";
-import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
 
 interface UploadDialogProps {
   open: boolean;

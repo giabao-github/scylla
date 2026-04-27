@@ -57,10 +57,10 @@ export const remove = mutation({
 
 export const getPluginByOrgAndServiceQuery = internalQuery({
   args: {
-    organizationId: v.string(),
+    clerkOrganizationId: v.string(),
     service: v.literal("vapi"),
   },
-  handler: async (ctx, { organizationId, service }) => {
-    return getPluginByOrgAndService(ctx, organizationId, service);
+  handler: async (ctx, { clerkOrganizationId, service }) => {
+    return getPluginByOrgAndService(ctx, clerkOrganizationId, service);
   },
 });

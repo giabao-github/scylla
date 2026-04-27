@@ -3,14 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { UIMessage } from "@convex-dev/agent/react";
+import { useAction, useQuery } from "convex/react";
+import { nanoid } from "nanoid";
+import { toast } from "sonner";
+
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { ModelId } from "@workspace/shared/constants/model-catalog";
 import { parseErrorMessage } from "@workspace/shared/lib/utils";
 import { PromptInputMessage } from "@workspace/ui/components/ai/prompt-input";
-import { useAction, useQuery } from "convex/react";
-import { nanoid } from "nanoid";
-import { toast } from "sonner";
 
 export type PendingSlot = {
   localId: string;

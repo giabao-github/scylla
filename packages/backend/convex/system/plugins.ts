@@ -24,8 +24,9 @@ export const upsert = internalMutation({
         secretName: args.secretName,
         lastConnectedAt: Date.now(),
       });
+      return existingPlugin._id;
     } else {
-      await ctx.db.insert("plugins", {
+      return await ctx.db.insert("plugins", {
         organizationId: args.organizationId,
         service: args.service,
         secretName: args.secretName,

@@ -1,9 +1,10 @@
 "use client";
 
+import { MessageCircleHeartIcon, ShieldCheckIcon } from "lucide-react";
+
 import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { MessageCircleHeartIcon, ShieldCheckIcon } from "lucide-react";
 
 export const UNKNOWN_ORGANIZATION_ID = "Unknown";
 

@@ -7,7 +7,6 @@ import { Id } from "@workspace/backend/_generated/dataModel";
 import { mutation, query } from "@workspace/backend/_generated/server";
 import { validateSession } from "@workspace/backend/public/utils";
 import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
-
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 

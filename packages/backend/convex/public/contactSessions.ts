@@ -2,7 +2,6 @@ import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "@workspace/backend/_generated/server";
 import { SESSION_DURATION_MS } from "@workspace/backend/constants";
-
 import {
   getCountryFromCode,
   normalizeCountryCode,

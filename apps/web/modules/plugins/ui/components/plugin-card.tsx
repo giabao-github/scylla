@@ -1,7 +1,8 @@
-import { Button } from "@workspace/ui/components/button";
-import { GlassPanel } from "@workspace/ui/components/glass-panel";
 import { ArrowLeftRightIcon, type LucideIcon, PlugIcon } from "lucide-react";
 import Image from "next/image";
+
+import { Button } from "@workspace/ui/components/button";
+import { GlassPanel } from "@workspace/ui/components/glass-panel";
 
 export interface Feature {
   id: number;

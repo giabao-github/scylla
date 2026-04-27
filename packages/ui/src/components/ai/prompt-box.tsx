@@ -29,7 +29,6 @@ import {
   ModelId,
   modelCatalog,
 } from "@workspace/shared/constants/model-catalog";
-
 import {
   Attachment,
   AttachmentPreview,

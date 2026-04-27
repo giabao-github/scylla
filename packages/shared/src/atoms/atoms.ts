@@ -3,7 +3,6 @@ import { atomFamily } from "jotai-family";
 import { atomWithStorage } from "jotai/utils";
 
 import type { Doc, Id } from "@workspace/backend/_generated/dataModel";
-
 import {
   CONTACT_SESSION_KEY,
   SELECTED_MODEL_KEY,

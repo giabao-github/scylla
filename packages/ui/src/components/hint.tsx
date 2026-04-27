@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactElement } from "react";
+
 import {
   Tooltip,
   TooltipContent,
@@ -7,7 +9,7 @@ import {
 } from "@workspace/ui/components/tooltip";
 
 interface HintProps {
-  children: React.ReactElement;
+  children: ReactElement;
   text: string;
   side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";

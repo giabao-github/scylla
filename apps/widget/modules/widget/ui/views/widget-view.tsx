@@ -2,6 +2,19 @@
 
 import { useCallback, useMemo } from "react";
 
+import { useQuery } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { ArrowLeftIcon, InboxIcon } from "lucide-react";
+
+import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
+import { WidgetAuthScreen } from "@/modules/widget/ui/screens/widget-auth-screen";
+import { WidgetChatScreen } from "@/modules/widget/ui/screens/widget-chat-screen";
+import { WidgetContactScreen } from "@/modules/widget/ui/screens/widget-contact-screen";
+import { WidgetErrorScreen } from "@/modules/widget/ui/screens/widget-error-screen";
+import { WidgetInboxScreen } from "@/modules/widget/ui/screens/widget-inbox-screen";
+import { WidgetLoadingScreen } from "@/modules/widget/ui/screens/widget-loading-screen";
+import { WidgetSelectionScreen } from "@/modules/widget/ui/screens/widget-selection-screen";
+import { WidgetVoiceScreen } from "@/modules/widget/ui/screens/widget-voice-screen";
 import { api } from "@workspace/backend/_generated/api";
 import {
   contactSessionIdAtom,
@@ -16,19 +29,6 @@ import { Button } from "@workspace/ui/components/button";
 import { ConversationStatusIcon } from "@workspace/ui/components/conversation-status-icon";
 import { FrostLens } from "@workspace/ui/components/glass/frost-lens";
 import { cn } from "@workspace/ui/lib/utils";
-import { useQuery } from "convex/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { ArrowLeftIcon, InboxIcon } from "lucide-react";
-
-import { WidgetHeader } from "@/modules/widget/ui/components/widget-header";
-import { WidgetAuthScreen } from "@/modules/widget/ui/screens/widget-auth-screen";
-import { WidgetChatScreen } from "@/modules/widget/ui/screens/widget-chat-screen";
-import { WidgetContactScreen } from "@/modules/widget/ui/screens/widget-contact-screen";
-import { WidgetErrorScreen } from "@/modules/widget/ui/screens/widget-error-screen";
-import { WidgetInboxScreen } from "@/modules/widget/ui/screens/widget-inbox-screen";
-import { WidgetLoadingScreen } from "@/modules/widget/ui/screens/widget-loading-screen";
-import { WidgetSelectionScreen } from "@/modules/widget/ui/screens/widget-selection-screen";
-import { WidgetVoiceScreen } from "@/modules/widget/ui/screens/widget-voice-screen";
 
 interface WidgetViewProps {
   organizationId: string;

@@ -37,13 +37,17 @@ export const createConversationTool = (options: {
       if (didTransition) {
         let savedMessage;
         try {
-          ({ message: savedMessage } = await saveMessage(ctx, components.agent, {
-            threadId: ctx.threadId,
-            message: {
-              role: "assistant",
-              content: options.confirmationMessage,
+          ({ message: savedMessage } = await saveMessage(
+            ctx,
+            components.agent,
+            {
+              threadId: ctx.threadId,
+              message: {
+                role: "assistant",
+                content: options.confirmationMessage,
+              },
             },
-          }));
+          ));
         } catch (err) {
           console.error(
             `[createConversationTool] Status updated but confirmation message failed for thread [${ctx.threadId}]:`,

@@ -2,14 +2,13 @@
 
 import { ReactNode } from "react";
 
+import { ContactPanel } from "@/modules/dashboard/ui/components/contact-panel";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@workspace/ui/components/resizable";
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
-
-import { ContactPanel } from "@/modules/dashboard/ui/components/contact-panel";
 
 export const ConversationIdLayout = ({ children }: { children: ReactNode }) => {
   const isMobile = useIsMobile();

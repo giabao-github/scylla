@@ -12,7 +12,6 @@ import {
   requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 import rag from "@workspace/backend/system/ai/rag";
-
 import { isNotFoundError } from "@workspace/shared/lib/file";
 import { EntryId } from "@workspace/shared/types/file";
 

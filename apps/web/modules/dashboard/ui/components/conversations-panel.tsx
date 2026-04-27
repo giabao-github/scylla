@@ -2,6 +2,20 @@
 
 import { useEffect, useMemo } from "react";
 
+import { usePaginatedQuery } from "convex/react";
+import { formatDistanceToNow } from "date-fns";
+import { useAtomValue, useSetAtom } from "jotai/react";
+import {
+  ArrowUpIcon,
+  BotIcon,
+  CheckIcon,
+  ClockIcon,
+  ListIcon,
+  UserIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 import { api } from "@workspace/backend/_generated/api";
 import { statusFilterAtom } from "@workspace/shared/atoms/atoms";
 import {
@@ -25,19 +39,6 @@ import {
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
-import { usePaginatedQuery } from "convex/react";
-import { formatDistanceToNow } from "date-fns";
-import { useAtomValue, useSetAtom } from "jotai/react";
-import {
-  ArrowUpIcon,
-  BotIcon,
-  CheckIcon,
-  ClockIcon,
-  ListIcon,
-  UserIcon,
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 const isValidStatusFilter = (
   value: string,

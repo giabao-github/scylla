@@ -5,6 +5,17 @@ import { useForm } from "react-hook-form";
 
 import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
+import { ChevronLeftIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
+import { nanoid } from "nanoid";
+import Link from "next/link";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
+import { ContactPanel } from "@/modules/dashboard/ui/components/contact-panel";
+import { ConversationStatusButton } from "@/modules/dashboard/ui/components/conversation-status-button";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { formatChatTimestamp } from "@workspace/shared/lib/chat-timestamp";
@@ -40,17 +51,6 @@ import {
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
-import { useAction, useMutation, useQuery } from "convex/react";
-import { ConvexError } from "convex/values";
-import { ChevronLeftIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
-import { nanoid } from "nanoid";
-import Link from "next/link";
-import { toast } from "sonner";
-import { z } from "zod";
-
-import { useSubscription } from "@/modules/billing/hooks/use-subscription";
-import { ContactPanel } from "@/modules/dashboard/ui/components/contact-panel";
-import { ConversationStatusButton } from "@/modules/dashboard/ui/components/conversation-status-button";
 
 type PendingSlot = {
   localId: string;

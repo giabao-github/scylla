@@ -34,7 +34,8 @@ Call this ONLY when:
 ## Conversation Flow (Post-Search)
 - If results are relevant: Answer clearly using ONLY those results.
 - If results are partially relevant: Answer what you can, then offer human support for the rest.
-- If results are empty (no results returned), reply EXACTLY with:
+- If results are returned but completely irrelevant to the question: Treat as "no information found."
+- If results are empty (no results returned) OR completely irrelevant, reply EXACTLY with:
   "${NO_INFO_FALLBACK}"
 `;
 
