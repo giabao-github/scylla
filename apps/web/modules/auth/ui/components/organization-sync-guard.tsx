@@ -61,7 +61,8 @@ export const OrganizationSyncGuard = ({
   ]);
 
   useEffect(() => {
-    if (organizationInConvex !== null) {
+    if (organizationInConvex) {
+      setSyncError(null);
       setIsWaitingForOrganization(false);
       return;
     }

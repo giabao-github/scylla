@@ -5,7 +5,10 @@ import { ConvexError } from "convex/values";
 import { z } from "zod";
 
 import { components, internal } from "@workspace/backend/_generated/api";
-import { SEARCH_INTERPRETER_PROMPT } from "@workspace/backend/system/ai/prompts";
+import {
+  NO_INFO_FALLBACK,
+  SEARCH_INTERPRETER_PROMPT,
+} from "@workspace/backend/system/ai/prompts";
 import rag from "@workspace/backend/system/ai/rag";
 
 export const search = createTool({
@@ -68,7 +71,7 @@ export const search = createTool({
         .join("\n\n");
 
       if (!contextText.trim()) {
-        return "No relevant information found in the knowledge base.";
+        return NO_INFO_FALLBACK;
       }
 
       const response = await generateText({

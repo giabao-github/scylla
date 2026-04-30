@@ -37,7 +37,7 @@ const formSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Name is required")
+    .min(2, "Name is required")
     .refine((value) => validateInput("name", value).valid, {
       message: "Invalid name",
     }),
@@ -205,7 +205,12 @@ export const WidgetAuthScreen = () => {
       setContactSessionId(contactSessionId);
       setScreen(WIDGET_SCREENS.SELECTION);
     } catch (error) {
-      console.error("Failed to create contact session:", error);
+      const safeErrorDetails =
+        error instanceof Error
+          ? { message: error.message, name: error.name }
+          : { message: "Unknown error" };
+
+      console.error("Failed to create contact session.", safeErrorDetails);
       toast.error("An error has occurred. Please try again!", {
         position: "top-center",
         style: {

@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useEffect } from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -52,18 +52,18 @@ export const GlassPanel = ({
   style,
   ...props
 }: GlassPanelProps) => {
-  const resolvedHighlightColor = isValidSpaceSeparatedRgb(highlightColor)
+  const isValidHighlightColor = isValidSpaceSeparatedRgb(highlightColor);
+  const resolvedHighlightColor = isValidHighlightColor
     ? highlightColor
     : DEFAULT_HIGHLIGHT_COLOR;
 
-  if (
-    process.env.NODE_ENV === "development" &&
-    !isValidSpaceSeparatedRgb(highlightColor)
-  ) {
-    console.warn(
-      `GlassPanel: highlightColor "${highlightColor}" must be space-separated RGB like "255 255 255". Falling back to default.`,
-    );
-  }
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development" && !isValidHighlightColor) {
+      console.warn(
+        `GlassPanel: highlightColor "${highlightColor}" must be space-separated RGB like "255 255 255". Falling back to default.`,
+      );
+    }
+  }, [highlightColor, isValidHighlightColor]);
 
   const transparencyPercent =
     typeof transparency === "number"

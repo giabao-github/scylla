@@ -3,7 +3,7 @@
   "importOrder": [
     "^react",
     "<THIRD_PARTY_MODULES>",
-    "^(@/|@workspace/)(.*)$",
+    "^(@/|@workspace/).*$",
     "^[./]"
   ],
   "importOrderSeparation": true,

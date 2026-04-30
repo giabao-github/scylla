@@ -29,6 +29,8 @@ declare global {
   // Intentionally high so the launcher stays above typical host app chrome.
   const WIDGET_BUTTON_Z_INDEX = 999999;
   const WIDGET_CONTAINER_Z_INDEX = 999998;
+  // Microphone is required for voice calls; clipboard-write supports copy actions.
+  const IFRAME_ALLOW_PERMISSIONS = "microphone; clipboard-write";
   let iframe: HTMLIFrameElement | null = null;
   let container: HTMLDivElement | null = null;
   let loadingOverlay: HTMLDivElement | null = null;
@@ -199,9 +201,14 @@ declare global {
       return;
     }
 
+    const iframeSrc = buildWidgetUrl();
+    if (!iframeSrc) {
+      return;
+    }
+
     hasRequestedIframeLoad = true;
     setLoadingOverlayVisible(true);
-    iframe.src = buildWidgetUrl();
+    iframe.src = iframeSrc;
   }
 
   function handleIframeLoad() {
@@ -330,8 +337,7 @@ declare global {
       height: 100%;
       border: none;
     `;
-    // Add permissions for microphone and clipboard
-    iframe.allow = "microphone; clipboard-read; clipboard-write";
+    iframe.allow = IFRAME_ALLOW_PERMISSIONS;
     iframe.sandbox =
       "allow-scripts allow-same-origin allow-forms allow-top-navigation-by-user-activation";
     iframe.title = "Chat widget";
@@ -346,10 +352,43 @@ declare global {
     window.addEventListener("message", handleMessage);
   }
 
-  function buildWidgetUrl(): string {
+  function buildWidgetUrl(): string | null {
+    if (!organizationId) {
+      console.error("Scylla Widget: missing organization ID");
+      return null;
+    }
+
     const url = new URL(widgetUrl.toString());
-    url.searchParams.set("organizationId", organizationId!);
+    url.searchParams.set("organizationId", organizationId);
     return url.toString();
+  }
+
+  function getResizeHeight(payload: unknown): number | null {
+    if (
+      typeof payload !== "object" ||
+      payload === null ||
+      !("height" in payload)
+    ) {
+      console.warn("Scylla Widget: invalid resize message payload");
+      return null;
+    }
+
+    const { height } = payload as { height: unknown };
+    if (typeof height !== "number" && typeof height !== "string") {
+      console.warn("Scylla Widget: invalid resize height type");
+      return null;
+    }
+
+    const parsedHeight = Number(height);
+    if (
+      !Number.isFinite(parsedHeight) ||
+      parsedHeight <= 0 ||
+      parsedHeight > MAX_WIDGET_HEIGHT_PX
+    ) {
+      return null;
+    }
+
+    return parsedHeight;
   }
 
   function handleMessage(event: MessageEvent) {
@@ -372,13 +411,8 @@ declare global {
         hide();
         break;
       case "resize": {
-        const height = Number(payload?.height);
-        if (
-          !container ||
-          !Number.isFinite(height) ||
-          height <= 0 ||
-          height > MAX_WIDGET_HEIGHT_PX
-        ) {
+        const height = getResizeHeight(payload);
+        if (!container || height === null) {
           break;
         }
         container.style.height = `${height}px`;

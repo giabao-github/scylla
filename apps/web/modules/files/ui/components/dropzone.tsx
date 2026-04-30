@@ -59,7 +59,14 @@ export const Dropzone = ({
           fileRejections.length > 1
             ? ` (and ${fileRejections.length - 1} more ${fileRejections.length - 1 === 1 ? "file" : "files"} rejected)`
             : "";
-        onError?.(new Error(message ? `${message}${suffix}` : "File rejected"));
+        onError?.(
+          new Error(
+            message
+              ? `${message.charAt(0).toUpperCase()}${message.slice(1)}${suffix}`
+              : `File rejected${suffix}`,
+          ),
+        );
+
         return;
       }
 
@@ -179,7 +186,7 @@ export const DropzoneEmptyState = ({
 
   let caption = "";
 
-  if (accept) {
+  if (accept && typeof accept === "object") {
     const extensions = Object.values(accept).flat();
     caption +=
       extensions.length > 0
@@ -187,15 +194,15 @@ export const DropzoneEmptyState = ({
         : "Accepts various file types";
   }
 
-  if (minSize && maxSize) {
+  if (minSize != null && maxSize != null) {
     caption += caption
       ? ` between ${formatFileSize(minSize)} and ${formatFileSize(maxSize)}`
       : `Size between ${formatFileSize(minSize)} and ${formatFileSize(maxSize)}`;
-  } else if (minSize) {
+  } else if (minSize != null) {
     caption += caption
       ? ` at least ${formatFileSize(minSize)}`
       : `Minimum size ${formatFileSize(minSize)}`;
-  } else if (maxSize) {
+  } else if (maxSize != null) {
     caption += caption
       ? ` less than ${formatFileSize(maxSize)}`
       : `Maximum size ${formatFileSize(maxSize)}`;

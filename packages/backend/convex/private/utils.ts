@@ -336,7 +336,7 @@ export const getVapiClient = async (ctx: ActionCtx): Promise<VapiClient> => {
   const plugin = await ctx.runQuery(
     internal.system.plugins.getByOrgIdAndService,
     {
-      organizationId: clerkOrganizationId,
+      clerkOrgId: clerkOrganizationId,
       service: "vapi",
     },
   );

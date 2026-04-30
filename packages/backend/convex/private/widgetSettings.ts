@@ -1,12 +1,26 @@
 import { ConvexError, v } from "convex/values";
 
-import { mutation, query } from "@workspace/backend/_generated/server";
+import {
+  type DatabaseReader,
+  mutation,
+  query,
+} from "@workspace/backend/_generated/server";
 import {
   getAuthenticatedOrganization,
   requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 
 const MAX_SUGGESTION_LENGTH = 200;
+
+const getWidgetSettingsByOrg = async (
+  db: DatabaseReader,
+  organizationId: string,
+) => {
+  return await db
+    .query("widgetSettings")
+    .withIndex("by_org_id", (q) => q.eq("organizationId", organizationId))
+    .unique();
+};
 
 const validateSuggestion = (suggestion: string | undefined, name: string) => {
   if (suggestion && suggestion.length > MAX_SUGGESTION_LENGTH) {
@@ -22,12 +36,10 @@ export const getOne = query({
   handler: async (ctx) => {
     const { clerkOrganizationId } = await getAuthenticatedOrganization(ctx);
 
-    const widgetSettings = await ctx.db
-      .query("widgetSettings")
-      .withIndex("by_org_id", (q) =>
-        q.eq("organizationId", clerkOrganizationId),
-      )
-      .unique();
+    const widgetSettings = await getWidgetSettingsByOrg(
+      ctx.db,
+      clerkOrganizationId,
+    );
 
     return widgetSettings;
   },
@@ -79,12 +91,10 @@ export const upsert = mutation({
       });
     }
 
-    const existingWidgetSettings = await ctx.db
-      .query("widgetSettings")
-      .withIndex("by_org_id", (q) =>
-        q.eq("organizationId", clerkOrganizationId),
-      )
-      .unique();
+    const existingWidgetSettings = await getWidgetSettingsByOrg(
+      ctx.db,
+      clerkOrganizationId,
+    );
 
     if (existingWidgetSettings) {
       await ctx.db.patch(existingWidgetSettings._id, {

@@ -47,7 +47,7 @@ export const remove = mutation({
     await ctx.db.delete(existingPlugin._id);
 
     await ctx.scheduler.runAfter(0, internal.system.secrets.deleteSecret, {
-      organizationId: clerkOrganizationId,
+      clerkOrgId: clerkOrganizationId,
       service: args.service,
       secretName: existingPlugin.secretName,
       connectedAt: existingPlugin.lastConnectedAt,
@@ -57,10 +57,10 @@ export const remove = mutation({
 
 export const getPluginByOrgAndServiceQuery = internalQuery({
   args: {
-    clerkOrganizationId: v.string(),
+    clerkOrgId: v.string(),
     service: v.literal("vapi"),
   },
-  handler: async (ctx, { clerkOrganizationId, service }) => {
-    return getPluginByOrgAndService(ctx, clerkOrganizationId, service);
+  handler: async (ctx, { clerkOrgId, service }) => {
+    return getPluginByOrgAndService(ctx, clerkOrgId, service);
   },
 });

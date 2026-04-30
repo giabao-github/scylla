@@ -30,29 +30,36 @@ export const createConversationTool = (options: {
         });
       }
 
+      const threadId = ctx.threadId;
+
       const didTransition = await ctx.runMutation(options.mutation, {
-        threadId: ctx.threadId,
+        threadId,
       });
 
       if (didTransition) {
-        let savedMessage;
-        try {
-          ({ message: savedMessage } = await saveMessage(
-            ctx,
-            components.agent,
-            {
-              threadId: ctx.threadId,
+        const saveConfirmationMessage = async () => {
+          try {
+            const { message } = await saveMessage(ctx, components.agent, {
+              threadId,
               message: {
                 role: "assistant",
                 content: options.confirmationMessage,
               },
-            },
-          ));
-        } catch (err) {
-          console.error(
-            `[createConversationTool] Status updated but confirmation message failed for thread [${ctx.threadId}]:`,
-            err,
-          );
+            });
+
+            return message;
+          } catch (err) {
+            console.error(
+              `[createConversationTool] Status updated but confirmation message failed for thread [${threadId}]:`,
+              err,
+            );
+            return null;
+          }
+        };
+
+        const savedMessage = await saveConfirmationMessage();
+
+        if (!savedMessage) {
           return options.confirmationMessage;
         }
 
@@ -60,7 +67,7 @@ export const createConversationTool = (options: {
           await ctx.runMutation(
             internal.system.conversations.updateLastMessage,
             {
-              threadId: ctx.threadId,
+              threadId,
               lastMessage: {
                 role: "assistant",
                 text: options.confirmationMessage,
@@ -70,7 +77,7 @@ export const createConversationTool = (options: {
           );
         } catch (err) {
           console.error(
-            `[createConversationTool] Confirmation message saved but lastMessage update failed for thread [${ctx.threadId}]:`,
+            `[createConversationTool] Confirmation message saved but lastMessage update failed for thread [${threadId}]:`,
             err,
           );
         }
