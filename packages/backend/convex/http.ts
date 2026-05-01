@@ -4,7 +4,6 @@ import { Webhook } from "svix";
 
 import { internal } from "@workspace/backend/_generated/api";
 import { httpAction } from "@workspace/backend/_generated/server";
-
 import { SubscriptionStatus } from "@workspace/shared/types/subscription";
 
 import { FREE_MAX_MEMBERS, PRO_MAX_MEMBERS } from "./constants";

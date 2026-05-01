@@ -16,7 +16,6 @@ import {
   requireSubscriptionFeatureAccess,
 } from "@workspace/backend/private/utils";
 import rag from "@workspace/backend/system/ai/rag";
-
 import { formatFileSize } from "@workspace/shared/lib/file";
 import { PublicFile } from "@workspace/shared/types/file";
 

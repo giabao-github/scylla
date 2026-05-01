@@ -2,6 +2,13 @@
 
 import React, { useMemo } from "react";
 
+import Bowser from "bowser";
+import { useQuery } from "convex/react";
+import { ClockIcon, GlobeIcon, MailIcon, MonitorIcon } from "lucide-react";
+import Image from "next/image";
+import { useParams } from "next/navigation";
+
+import { getBrowserIcon, getOsIcon } from "@/modules/dashboard/icons";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import {
@@ -16,13 +23,6 @@ import {
 } from "@workspace/ui/components/accordion";
 import { Button } from "@workspace/ui/components/button";
 import { DicebearAvatar } from "@workspace/ui/components/dicebear-avatar";
-import Bowser from "bowser";
-import { useQuery } from "convex/react";
-import { ClockIcon, GlobeIcon, MailIcon, MonitorIcon } from "lucide-react";
-import Image from "next/image";
-import { useParams } from "next/navigation";
-
-import { getBrowserIcon, getOsIcon } from "@/modules/dashboard/icons";
 
 type InfoItem = {
   label: string;

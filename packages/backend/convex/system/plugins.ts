@@ -7,7 +7,7 @@ import {
 
 export const upsert = internalMutation({
   args: {
-    organizationId: v.string(),
+    clerkOrgId: v.string(),
     service: v.union(v.literal("vapi")),
     secretName: v.string(),
   },
@@ -15,7 +15,7 @@ export const upsert = internalMutation({
     const existingPlugin = await ctx.db
       .query("plugins")
       .withIndex("by_org_id_and_service", (q) =>
-        q.eq("organizationId", args.organizationId).eq("service", args.service),
+        q.eq("organizationId", args.clerkOrgId).eq("service", args.service),
       )
       .unique();
 
@@ -24,9 +24,10 @@ export const upsert = internalMutation({
         secretName: args.secretName,
         lastConnectedAt: Date.now(),
       });
+      return existingPlugin._id;
     } else {
-      await ctx.db.insert("plugins", {
-        organizationId: args.organizationId,
+      return await ctx.db.insert("plugins", {
+        organizationId: args.clerkOrgId,
         service: args.service,
         secretName: args.secretName,
         lastConnectedAt: Date.now(),
@@ -37,14 +38,14 @@ export const upsert = internalMutation({
 
 export const getByOrgIdAndService = internalQuery({
   args: {
-    organizationId: v.string(),
+    clerkOrgId: v.string(),
     service: v.union(v.literal("vapi")),
   },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("plugins")
       .withIndex("by_org_id_and_service", (q) =>
-        q.eq("organizationId", args.organizationId).eq("service", args.service),
+        q.eq("organizationId", args.clerkOrgId).eq("service", args.service),
       )
       .unique();
   },

@@ -15,7 +15,7 @@
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@workspace/typescript-config": "workspace:*",
-    "typescript": "latest"
+    "typescript": "^6.0.3"
   },
   "dependencies": {
     "countries-and-timezones": "^3.8.0",
@@ -23,7 +23,7 @@
     "jotai-family": "^1.0.1"
   },
   "peerDependencies": {
-    "react": "^19.2.4",
-    "lucide-react": "^1.8.0"
+    "lucide-react": "^1.8.0",
+    "react": "^19.2.4"
   }
 }

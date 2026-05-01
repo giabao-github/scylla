@@ -21,7 +21,6 @@ import { escalateConversation } from "@workspace/backend/system/ai/tools/escalat
 import { resolveConversation } from "@workspace/backend/system/ai/tools/resolveConversation";
 import { search } from "@workspace/backend/system/ai/tools/search";
 import { getConversationByThreadId } from "@workspace/backend/system/utils";
-
 import { modelCatalog } from "@workspace/shared/constants/model-catalog";
 import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 

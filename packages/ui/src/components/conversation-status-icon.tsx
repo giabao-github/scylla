@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 
 import { type ConversationStatus } from "@workspace/shared/types/conversation";
-
 import { cn } from "@workspace/ui/lib/utils";
 
 interface ConversationStatusIconProps {

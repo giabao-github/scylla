@@ -2,8 +2,9 @@
 
 import { Component, ReactNode } from "react";
 
-import { Button } from "@workspace/ui/components/button";
 import Link from "next/link";
+
+import { Button } from "@workspace/ui/components/button";
 
 interface ConvexErrorWithCode extends Error {
   data?: { code?: string };

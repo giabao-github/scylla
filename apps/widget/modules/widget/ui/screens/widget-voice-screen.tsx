@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { useAction, useQuery } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { Loader2Icon, MicIcon, MicOffIcon } from "lucide-react";
+
+import { useChatScroll } from "@/modules/widget/hooks/use-chat-scroll";
+import { useVapi } from "@/modules/widget/hooks/use-vapi";
+import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 import { api } from "@workspace/backend/_generated/api";
 import {
   clerkOrganizationIdAtom,
@@ -16,13 +23,6 @@ import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { useAction, useQuery } from "convex/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { Loader2Icon, MicIcon, MicOffIcon } from "lucide-react";
-
-import { useChatScroll } from "@/modules/widget/hooks/use-chat-scroll";
-import { useVapi } from "@/modules/widget/hooks/use-vapi";
-import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
 export const WidgetVoiceScreen = () => {
   const [isLoadingSecrets, setIsLoadingSecrets] = useState(false);

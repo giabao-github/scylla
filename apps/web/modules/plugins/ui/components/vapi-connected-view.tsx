@@ -2,6 +2,19 @@
 
 import { useEffect, useState, useTransition } from "react";
 
+import {
+  BotIcon,
+  Loader2Icon,
+  PhoneIcon,
+  SettingsIcon,
+  UnplugIcon,
+} from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
+import { VapiAssistantsTab } from "@/modules/plugins/ui/components/vapi-assistants-tab";
+import { VapiPhoneNumbersTab } from "@/modules/plugins/ui/components/vapi-phone-numbers-tab";
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
@@ -18,19 +31,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@workspace/ui/components/tabs";
-import {
-  BotIcon,
-  Loader2Icon,
-  PhoneIcon,
-  SettingsIcon,
-  UnplugIcon,
-} from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-
-import { useSubscription } from "@/modules/billing/hooks/use-subscription";
-import { VapiAssistantsTab } from "@/modules/plugins/ui/components/vapi-assistants-tab";
-import { VapiPhoneNumbersTab } from "@/modules/plugins/ui/components/vapi-phone-numbers-tab";
 
 type VapiConnectedViewTab = "assistants" | "phone-numbers";
 

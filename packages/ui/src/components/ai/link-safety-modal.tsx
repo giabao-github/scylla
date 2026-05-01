@@ -6,7 +6,6 @@ import { createPortal } from "react-dom";
 import { ExternalLinkIcon, XIcon } from "lucide-react";
 
 import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
-
 import { Button } from "@workspace/ui/components/button";
 import {
   Tooltip,

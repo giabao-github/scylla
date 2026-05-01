@@ -1,5 +1,8 @@
 "use client";
 
+import { AlertTriangleIcon, BotIcon, Loader2Icon } from "lucide-react";
+
+import { useVapiAssistants } from "@/modules/plugins/hooks/use-vapi-data";
 import { api } from "@workspace/backend/_generated/api";
 import {
   Table,
@@ -9,9 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
-import { AlertTriangleIcon, BotIcon, Loader2Icon } from "lucide-react";
-
-import { useVapiAssistants } from "@/modules/plugins/hooks/use-vapi-data";
 
 type Assistants = typeof api.private.vapi.getAssistants._returnType;
 

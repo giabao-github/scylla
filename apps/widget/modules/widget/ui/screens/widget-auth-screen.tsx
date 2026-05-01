@@ -2,6 +2,14 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { ArrowBigRightIcon, MailIcon, UserIcon } from "lucide-react";
+import { toast } from "sonner";
+import z from "zod";
+
+import { Field } from "@/modules/widget/ui/components/field";
+import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 import { api } from "@workspace/backend/_generated/api";
 import { Doc, Id } from "@workspace/backend/_generated/dataModel";
 import {
@@ -24,20 +32,12 @@ import {
 import { Button } from "@workspace/ui/components/button";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { cn } from "@workspace/ui/lib/utils";
-import { useMutation } from "convex/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { ArrowBigRightIcon, MailIcon, UserIcon } from "lucide-react";
-import { toast } from "sonner";
-import z from "zod";
-
-import { Field } from "@/modules/widget/ui/components/field";
-import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 
 const formSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Name is required")
+    .min(2, "Name is required")
     .refine((value) => validateInput("name", value).valid, {
       message: "Invalid name",
     }),
@@ -205,7 +205,12 @@ export const WidgetAuthScreen = () => {
       setContactSessionId(contactSessionId);
       setScreen(WIDGET_SCREENS.SELECTION);
     } catch (error) {
-      console.error("Failed to create contact session:", error);
+      const safeErrorDetails =
+        error instanceof Error
+          ? { message: error.message, name: error.name }
+          : { message: "Unknown error" };
+
+      console.error("Failed to create contact session.", safeErrorDetails);
       toast.error("An error has occurred. Please try again!", {
         position: "top-center",
         style: {

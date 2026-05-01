@@ -2,6 +2,11 @@
 
 import { useCallback } from "react";
 
+import { useQuery } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { PhoneIcon } from "lucide-react";
+
+import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 import { api } from "@workspace/backend/_generated/api";
 import {
   contactSessionIdAtom,
@@ -12,11 +17,6 @@ import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { useQuery } from "convex/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { PhoneIcon } from "lucide-react";
-
-import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
 export const WidgetContactScreen = () => {
   const contactSessionId = useAtomValue(contactSessionIdAtom);

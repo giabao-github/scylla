@@ -375,8 +375,8 @@ export const parseErrorMessage = (err: unknown): string => {
   if (retryMatch?.[1]) return ensureTrailingPeriod(retryMatch[1]);
   const uncaughtMatch = raw.match(PATTERNS.errorUncaught);
   if (uncaughtMatch?.[1]) return ensureTrailingPeriod(uncaughtMatch[1]);
-  const convexMatch = raw.match(PATTERNS.errorServer);
-  if (convexMatch?.[1]) return ensureTrailingPeriod(convexMatch[1]);
+  const serverMatch = raw.match(PATTERNS.errorServer);
+  if (serverMatch?.[1]) return ensureTrailingPeriod(serverMatch[1]);
 
   return ensureTrailingPeriod(raw);
 };

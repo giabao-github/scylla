@@ -17,7 +17,7 @@ export const getByHash = internalQuery({
       .withIndex("by_org_id_and_hash", (q) =>
         q.eq("organizationId", organizationId).eq("contentHash", contentHash),
       )
-      .first();
+      .unique();
 
     if (!row || row.entryId === excludeEntryId) return null;
     return row;
@@ -36,7 +36,7 @@ export const upsert = internalMutation({
       .withIndex("by_org_id_and_hash", (q) =>
         q.eq("organizationId", organizationId).eq("contentHash", contentHash),
       )
-      .first();
+      .unique();
 
     if (existing) {
       await ctx.db.patch(existing._id, { entryId });

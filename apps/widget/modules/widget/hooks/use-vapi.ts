@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
 import Vapi from "@vapi-ai/web";
+import { useAtomValue } from "jotai";
+import { toast } from "sonner";
+
 import {
   vapiSecretsAtom,
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
-import { useAtomValue } from "jotai";
-import { toast } from "sonner";
 
 interface TranscriptMessage {
   role: "user" | "assistant";

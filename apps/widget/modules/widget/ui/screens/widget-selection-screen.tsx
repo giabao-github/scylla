@@ -2,21 +2,6 @@
 
 import { useMemo, useState } from "react";
 
-import { api } from "@workspace/backend/_generated/api";
-import {
-  clerkOrganizationIdAtom,
-  contactSessionIdAtom,
-  conversationIdAtom,
-  errorMessageAtom,
-  organizationIdAtom,
-  organizationProfileAtom,
-  widgetScreenAtom,
-  widgetSettingsAtom,
-} from "@workspace/shared/atoms/atoms";
-import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
-import { DicebearAvatar } from "@workspace/ui/components/dicebear-avatar";
-import { GlassButton } from "@workspace/ui/components/glass/glass-button";
-import { cn } from "@workspace/ui/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
@@ -33,6 +18,21 @@ import {
 } from "@/modules/widget/ui/components/organization-summary-cards";
 import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
 import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
+import { api } from "@workspace/backend/_generated/api";
+import {
+  clerkOrganizationIdAtom,
+  contactSessionIdAtom,
+  conversationIdAtom,
+  errorMessageAtom,
+  organizationIdAtom,
+  organizationProfileAtom,
+  widgetScreenAtom,
+  widgetSettingsAtom,
+} from "@workspace/shared/atoms/atoms";
+import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { DicebearAvatar } from "@workspace/ui/components/dicebear-avatar";
+import { GlassButton } from "@workspace/ui/components/glass/glass-button";
+import { cn } from "@workspace/ui/lib/utils";
 
 const buttonOptions = [
   {

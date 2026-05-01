@@ -2,8 +2,9 @@
 
 import { Component, type ReactNode } from "react";
 
-import { Button } from "@workspace/ui/components/button";
 import { AlertTriangleIcon } from "lucide-react";
+
+import { Button } from "@workspace/ui/components/button";
 
 export class CustomizationErrorBoundary extends Component<
   { children: ReactNode },

@@ -17,7 +17,6 @@ import {
   parseSecretString,
 } from "@workspace/backend/lib/secrets";
 import rag from "@workspace/backend/system/ai/rag";
-
 import { isNotFoundError } from "@workspace/shared/lib/file";
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 
@@ -337,7 +336,7 @@ export const getVapiClient = async (ctx: ActionCtx): Promise<VapiClient> => {
   const plugin = await ctx.runQuery(
     internal.system.plugins.getByOrgIdAndService,
     {
-      organizationId: clerkOrganizationId,
+      clerkOrgId: clerkOrganizationId,
       service: "vapi",
     },
   );

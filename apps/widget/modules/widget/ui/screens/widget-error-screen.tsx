@@ -1,8 +1,9 @@
 "use client";
 
-import { errorMessageAtom } from "@workspace/shared/atoms/atoms";
 import { useAtomValue } from "jotai";
 import { AlertTriangleIcon } from "lucide-react";
+
+import { errorMessageAtom } from "@workspace/shared/atoms/atoms";
 
 export const WidgetErrorScreen = () => {
   const errorMessage = useAtomValue(errorMessageAtom);

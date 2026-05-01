@@ -18,6 +18,8 @@ interface ChatBubbleProps {
   onRetry?: () => void;
   onClick?: () => void;
   showStatus?: boolean;
+  groupPosition?: "single" | "first" | "middle" | "last";
+  showAvatar?: boolean;
 }
 
 const linkButtonBase = [
@@ -38,6 +40,8 @@ export const ChatBubble = ({
   onRetry,
   onClick,
   showStatus = true,
+  groupPosition = "single",
+  showAvatar = true,
 }: ChatBubbleProps) => {
   const statusLabels: Record<string, string> = {
     sending: "Sending...",
@@ -47,8 +51,8 @@ export const ChatBubble = ({
   const userStatusLabel = statusLabels[status] ?? null;
 
   const isUser = variant === "user";
-  const isAIGenerating = status === "generating";
   const isFailed = status === "failed";
+  const isAIThinking = !isUser && !isFailed && status === "generating";
   const shouldShowStatusContent =
     showStatus && (isFailed || (isUser && userStatusLabel));
 
@@ -60,6 +64,20 @@ export const ChatBubble = ({
     ? "inset 0 1px 1px hsla(0, 0%, 100%, 0.25), inset 0 0 0 1px hsla(0, 0%, 100%, 0.12), 0 4px 16px rgba(168, 85, 247, 0.2), 0 4px 8px rgba(0,0,0,0.08)"
     : "inset 0 1px 1px hsla(0, 0%, 100%, 0.25), inset 0 0 0 1px hsla(0, 0%, 100%, 0.12), 0 4px 16px rgba(59, 130, 246, 0.2), 0 4px 8px rgba(0,0,0,0.08)";
 
+  const bubbleBorderRadius = isUser
+    ? {
+        single: "20px",
+        first: "16px 16px 9px 16px",
+        middle: "16px 9px 9px 16px",
+        last: "16px 9px 16px 16px",
+      }[groupPosition]
+    : {
+        single: "20px",
+        first: "16px 16px 16px 9px",
+        middle: "9px 16px 16px 9px",
+        last: "9px 16px 16px 16px",
+      }[groupPosition];
+
   return (
     <div
       className={cn(
@@ -67,7 +85,12 @@ export const ChatBubble = ({
         isUser && "flex-row-reverse",
       )}
     >
-      {!isUser && <AgentAvatar isThinking={isAIGenerating} seed={avatarSeed} />}
+      {!isUser &&
+        (showAvatar ? (
+          <AgentAvatar isThinking={isAIThinking} seed={avatarSeed} />
+        ) : (
+          <div aria-hidden="true" className="w-8 shrink-0" />
+        ))}
 
       <div
         className={cn(
@@ -77,9 +100,11 @@ export const ChatBubble = ({
       >
         <MessageContent
           className={cn(
-            "relative px-3 py-2 md:px-4 md:py-2.5 text-xs leading-relaxed rounded-xl transform-gpu transition-all md:text-sm",
+            "relative overflow-hidden px-3 py-2 md:px-4 md:py-2.5 text-xs leading-relaxed transform-gpu transition-[border-radius,background,box-shadow,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none md:text-sm",
             onClick &&
               "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
+            isAIThinking &&
+              "border border-border/60 bg-background/85 text-muted-foreground shadow-sm backdrop-blur-md",
             isFailed && !isUser
               ? "bg-destructive/10 border border-destructive/30 shadow-none"
               : "",
@@ -95,13 +120,22 @@ export const ChatBubble = ({
           role={onClick ? "button" : undefined}
           tabIndex={onClick ? 0 : undefined}
           style={
-            !isFailed || isUser
-              ? { background: gradient, boxShadow: shadows }
-              : {}
+            isAIThinking
+              ? { borderRadius: bubbleBorderRadius }
+              : !isFailed || isUser
+              ? {
+                  background: gradient,
+                  borderRadius: bubbleBorderRadius,
+                  boxShadow: shadows,
+                }
+              : { borderRadius: bubbleBorderRadius }
           }
         >
-          {(!isFailed || isUser) && (
-            <span className="absolute inset-0 rounded-xl pointer-events-none bg-white/10" />
+          {!isAIThinking && (!isFailed || isUser) && (
+            <span
+              className="absolute inset-0 pointer-events-none bg-white/10 transition-[border-radius] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+              style={{ borderRadius: bubbleBorderRadius }}
+            />
           )}
 
           <div
@@ -114,6 +148,8 @@ export const ChatBubble = ({
                     "[&_button[data-streamdown='link']]:hover:text-rose-300",
                     ...linkButtonBase,
                   ]
+                : isAIThinking
+                  ? "text-muted-foreground"
                 : [
                     "text-white",
                     "[&_button[data-streamdown='link']]:text-amber-200",
@@ -124,7 +160,7 @@ export const ChatBubble = ({
                   ],
             )}
           >
-            {isAIGenerating && !isUser ? (
+            {isAIThinking ? (
               <ThinkingEllipsis />
             ) : (
               <MessageResponse

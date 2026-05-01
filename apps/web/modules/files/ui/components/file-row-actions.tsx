@@ -1,3 +1,10 @@
+import {
+  EyeIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  TrashIcon,
+} from "lucide-react";
+
 import { PublicFile } from "@workspace/shared/types/file";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -7,12 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
-import {
-  EyeIcon,
-  MoreHorizontalIcon,
-  PencilIcon,
-  TrashIcon,
-} from "lucide-react";
 
 interface FileRowActionsProps {
   file: PublicFile;

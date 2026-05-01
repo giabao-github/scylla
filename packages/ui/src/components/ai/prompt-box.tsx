@@ -29,7 +29,6 @@ import {
   ModelId,
   modelCatalog,
 } from "@workspace/shared/constants/model-catalog";
-
 import {
   Attachment,
   AttachmentPreview,
@@ -237,7 +236,11 @@ export const PromptInputAttachmentsDisplay = () => {
 
 const uniqueChefs = [...new Set(modelCatalog.map((m) => m.chef))];
 
-export const PromptBoxModelSelector = () => {
+export const PromptBoxModelSelector = ({
+  disabled = false,
+}: {
+  disabled?: boolean;
+}) => {
   const {
     model,
     modelSelectorOpen,
@@ -247,15 +250,29 @@ export const PromptBoxModelSelector = () => {
   } = usePromptBox();
 
   return (
-    <ModelSelector onOpenChange={setModelSelectorOpen} open={modelSelectorOpen}>
+    <ModelSelector
+      onOpenChange={(open) => {
+        if (!disabled) {
+          setModelSelectorOpen(open);
+        }
+      }}
+      open={disabled ? false : modelSelectorOpen}
+    >
       <ModelSelectorTrigger asChild>
         <PromptInputButton
-          tooltip={{ content: "Select model", side: "top" }}
+          aria-disabled={disabled}
+          disabled={disabled}
+          tooltip={{
+            content: disabled
+              ? "Model selection is locked during human support"
+              : "Select model",
+            side: "top",
+          }}
           className={cn(
             "max-w-64 gap-1.5 px-2 h-7 rounded-full text-xs font-medium",
             "border border-border/60 bg-muted/40 text-muted-foreground",
             "hover:bg-muted hover:text-foreground hover:border-border",
-            "transition-colors",
+            "transition-colors disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-muted/40 disabled:hover:text-muted-foreground disabled:hover:border-border/60",
           )}
         >
           {selectedModelData?.chefSlug && (
@@ -269,7 +286,11 @@ export const PromptBoxModelSelector = () => {
               {selectedModelData.name}
             </ModelSelectorName>
           )}
-          <ChevronDownIcon className="opacity-50 size-3 shrink-0" />
+          {disabled ? (
+            <LockIcon className="opacity-60 size-3 shrink-0" />
+          ) : (
+            <ChevronDownIcon className="opacity-50 size-3 shrink-0" />
+          )}
         </PromptInputButton>
       </ModelSelectorTrigger>
       <ModelSelectorContent>
@@ -378,12 +399,14 @@ export const PromptBoxDefaultTools = ({
   tools,
   enhanceDisabled,
   enhanceText,
+  modelSelectorDisabled,
   showDivider,
   onEnhance,
 }: {
   tools?: PromptBoxToolsConfig;
   enhanceDisabled?: boolean;
   enhanceText?: string;
+  modelSelectorDisabled?: boolean;
   showDivider?: boolean;
   onEnhance?: () => void;
 }) => {
@@ -404,7 +427,9 @@ export const PromptBoxDefaultTools = ({
             className="self-center mx-1 w-px h-4 shrink-0 bg-border/50"
           />
         )}
-        {resolvedTools.modelSelector && <PromptBoxModelSelector />}
+        {resolvedTools.modelSelector && (
+          <PromptBoxModelSelector disabled={modelSelectorDisabled} />
+        )}
       </PromptInputTools>
     </TooltipProvider>
   );

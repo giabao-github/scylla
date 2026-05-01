@@ -2,6 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useQuery } from "convex/react";
+import {
+  DownloadIcon,
+  ExternalLinkIcon,
+  FileIcon,
+  FileTextIcon,
+} from "lucide-react";
+
 import { api } from "@workspace/backend/_generated/api";
 import { useCopyToClipboard } from "@workspace/shared/hooks/use-copy-to-clipboard";
 import { PublicFile } from "@workspace/shared/types/file";
@@ -14,13 +22,6 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog";
 import { cn } from "@workspace/ui/lib/utils";
-import { useQuery } from "convex/react";
-import {
-  DownloadIcon,
-  ExternalLinkIcon,
-  FileIcon,
-  FileTextIcon,
-} from "lucide-react";
 
 const DownloadButton = ({
   isDownloading,

@@ -5,9 +5,21 @@ import { useForm } from "react-hook-form";
 
 import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
+import { ChevronLeftIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
+import { nanoid } from "nanoid";
+import Link from "next/link";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
+import { ContactPanel } from "@/modules/dashboard/ui/components/contact-panel";
+import { ConversationStatusButton } from "@/modules/dashboard/ui/components/conversation-status-button";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { formatChatTimestamp } from "@workspace/shared/lib/chat-timestamp";
+import { isConversationSystemMessage } from "@workspace/shared/lib/conversation-system-message";
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
 import {
   CONVERSATION_STATUS,
@@ -40,17 +52,6 @@ import {
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
-import { useAction, useMutation, useQuery } from "convex/react";
-import { ConvexError } from "convex/values";
-import { ChevronLeftIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
-import { nanoid } from "nanoid";
-import Link from "next/link";
-import { toast } from "sonner";
-import { z } from "zod";
-
-import { useSubscription } from "@/modules/billing/hooks/use-subscription";
-import { ContactPanel } from "@/modules/dashboard/ui/components/contact-panel";
-import { ConversationStatusButton } from "@/modules/dashboard/ui/components/conversation-status-button";
 
 type PendingSlot = {
   localId: string;
@@ -413,12 +414,22 @@ export const ConversationIdView = ({
   const timeline = useMemo(
     () =>
       [
-        ...baseMessages.map((message) => ({
-          entryKey: `confirmed:${message.id}`,
-          type: "confirmed" as const,
-          timestamp: message._creationTime,
-          data: message,
-        })),
+        ...baseMessages.map((message) =>
+          message.role === "assistant" &&
+          isConversationSystemMessage(message.text)
+            ? {
+                entryKey: `status:${message.id}`,
+                type: "status" as const,
+                timestamp: message._creationTime,
+                text: message.text ?? "",
+              }
+            : {
+                entryKey: `confirmed:${message.id}`,
+                type: "confirmed" as const,
+                timestamp: message._creationTime,
+                data: message,
+              },
+        ),
         ...pendingSlots.map((slot) => ({
           entryKey: `pending:${slot.localId}`,
           type: "pending" as const,
@@ -428,6 +439,43 @@ export const ConversationIdView = ({
       ].sort((left, right) => left.timestamp - right.timestamp),
     [baseMessages, pendingSlots],
   );
+
+  const groupedTimeline = useMemo(() => {
+    const getEntrySide = (entry: (typeof timeline)[number] | undefined) => {
+      if (!entry) return null;
+      if (entry.type === "status") return null;
+      if (entry.type === "pending") return "operator";
+      return entry.data.role === "user" ? "client" : "operator";
+    };
+
+    return timeline.map((entry, index) => {
+      const side = getEntrySide(entry);
+      const next = timeline[index + 1];
+      const previousSide = getEntrySide(timeline[index - 1]);
+      const nextSide = getEntrySide(next);
+      const isSeparatedFromPrevious = selectedEntryKey === entry.entryKey;
+      const isSeparatedFromNext = next?.entryKey === selectedEntryKey;
+      const hasPreviousInGroup =
+        side !== null && previousSide === side && !isSeparatedFromPrevious;
+      const hasNextInGroup =
+        side !== null && nextSide === side && !isSeparatedFromNext;
+      const groupPosition =
+        !hasPreviousInGroup && !hasNextInGroup
+          ? ("single" as const)
+          : !hasPreviousInGroup
+            ? ("first" as const)
+            : !hasNextInGroup
+              ? ("last" as const)
+              : ("middle" as const);
+
+      return {
+        ...entry,
+        groupPosition,
+        isGroupedWithPrevious: hasPreviousInGroup,
+        isLastInGroup: !hasNextInGroup,
+      };
+    });
+  }, [timeline, selectedEntryKey]);
 
   useEffect(() => {
     if (!selectedEntryKey) {
@@ -450,6 +498,17 @@ export const ConversationIdView = ({
         ? "grid-rows-[1fr] translate-y-0 opacity-100"
         : "grid-rows-[0fr] -translate-y-1 opacity-0 pointer-events-none",
     );
+
+  const renderSelectedTimestamp = (isSelected: boolean, timestamp: number) =>
+    isSelected ? (
+      <div aria-hidden={!isSelected} className={timestampClasses(isSelected)}>
+        <div className="overflow-hidden min-h-0">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+            {formatChatTimestamp(timestamp)}
+          </p>
+        </div>
+      </div>
+    ) : null;
 
   if (conversation === undefined || messages.status === "LoadingFirstPage") {
     return <ConversationIdViewSkeleton />;
@@ -538,7 +597,7 @@ export const ConversationIdView = ({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-y-auto flex-col gap-4 px-4 pt-4 pb-4 h-full scrollbar-themed md:gap-5 md:pb-8 md:pt-6"
+        className="flex overflow-y-auto flex-col gap-0 px-4 pt-4 pb-4 h-full scrollbar-themed md:pb-8 md:pt-6"
         style={{ maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT }}
       >
         <div>
@@ -560,27 +619,36 @@ export const ConversationIdView = ({
           <div ref={topElementRef} className="h-px" />
         </div>
 
-        {timeline.map((entry) => {
+        {groupedTimeline.map((entry) => {
           const isSelected = selectedEntryKey === entry.entryKey;
+          const messageWrapperClassName = cn(
+            entry.isGroupedWithPrevious ? "mt-1" : "mt-4",
+            "space-y-1.5 transition-[margin] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
+          );
+          const messageClassName = "max-w-4/5 md:max-w-1/2";
+
+          if (entry.type === "status") {
+            return (
+              <div
+                key={entry.entryKey}
+                className="flex justify-center px-2 mt-4"
+              >
+                <p className="text-xs font-medium tracking-wide text-center text-muted-foreground/80 md:text-[13px]">
+                  {entry.text}
+                </p>
+              </div>
+            );
+          }
 
           if (entry.type === "confirmed") {
             const message = entry.data;
             const isFromClient = message.role === "user";
             return (
-              <div key={entry.entryKey} className="mt-2 space-y-6">
-                <div
-                  aria-hidden={!isSelected}
-                  className={timestampClasses(isSelected)}
-                >
-                  <div className="overflow-hidden min-h-0">
-                    <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                      {formatChatTimestamp(entry.timestamp)}
-                    </p>
-                  </div>
-                </div>
+              <div key={entry.entryKey} className={messageWrapperClassName}>
+                {renderSelectedTimestamp(isSelected, entry.timestamp)}
                 <Message
                   from={isFromClient ? "assistant" : "user"}
-                  className="max-w-4/5 md:max-w-1/2"
+                  className={messageClassName}
                 >
                   <ChatBubble
                     text={message.text ?? ""}
@@ -599,6 +667,8 @@ export const ConversationIdView = ({
                     showStatus={
                       !isFromClient && entry.entryKey === selectedEntryKey
                     }
+                    groupPosition={entry.groupPosition}
+                    showAvatar={isFromClient && entry.isLastInGroup}
                   />
                 </Message>
               </div>
@@ -607,18 +677,9 @@ export const ConversationIdView = ({
 
           const slot = entry.data;
           return (
-            <div key={entry.entryKey} className="mt-2 space-y-6">
-              <div
-                aria-hidden={!isSelected}
-                className={timestampClasses(isSelected)}
-              >
-                <div className="overflow-hidden min-h-0">
-                  <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                    {formatChatTimestamp(entry.timestamp)}
-                  </p>
-                </div>
-              </div>
-              <Message from="user" className="max-w-4/5 md:max-w-1/2">
+            <div key={entry.entryKey} className={messageWrapperClassName}>
+              {renderSelectedTimestamp(isSelected, entry.timestamp)}
+              <Message from="user" className={messageClassName}>
                 <ChatBubble
                   text={slot.text}
                   variant="user"
@@ -631,6 +692,7 @@ export const ConversationIdView = ({
                   }
                   onClick={() => handleEntrySelect(entry.entryKey)}
                   showStatus={entry.entryKey === selectedEntryKey}
+                  groupPosition={entry.groupPosition}
                 />
               </Message>
             </div>
@@ -701,7 +763,7 @@ export const ConversationIdView = ({
       )}
 
       {isResolved && (
-        <div className="flex justify-center items-center cursor-default shrink-0">
+        <div className="flex flex-1 justify-center items-center cursor-default shrink-0">
           <p className="text-sm text-muted-foreground/80">
             This conversation has been resolved
           </p>

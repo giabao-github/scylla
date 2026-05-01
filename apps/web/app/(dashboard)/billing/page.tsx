@@ -1,6 +1,6 @@
-import { getSubscriptionStatus } from "@/modules/billing/lib/subscription";
 import { Metadata } from "next";
 
+import { getSubscriptionStatus } from "@/modules/billing/lib/subscription";
 import { BillingView } from "@/modules/billing/ui/views/billing-view";
 
 export const metadata: Metadata = {

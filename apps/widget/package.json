@@ -12,12 +12,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/provider-utils": "^4.0.19",
+    "@ai-sdk/provider-utils": "^4.0.23",
     "@convex-dev/agent": "^0.6.1",
-    "@hookform/resolvers": "^5.2.2",
+    "@hookform/resolvers": "5.2.2",
     "@vapi-ai/web": "^2.5.2",
     "@workspace/backend": "workspace:*",
-    "@workspace/math": "workspace:*",
     "@workspace/shared": "workspace:*",
     "@workspace/ui": "workspace:*",
     "convex": "^1.35.1",
@@ -32,17 +31,16 @@
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.71.1",
     "sonner": "^2.0.7",
-    "zod": "^4.3.4"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
-    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
-    "@types/node": "^25.2.3",
+    "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@workspace/eslint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "^9.39.2",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   }
 }

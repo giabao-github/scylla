@@ -1,5 +1,11 @@
 "use client";
 
+import { usePaginatedQuery, useQuery } from "convex/react";
+import { formatDistanceToNow } from "date-fns";
+import { useAtomValue, useSetAtom } from "jotai";
+
+import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
+import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 import { api } from "@workspace/backend/_generated/api";
 import {
   contactSessionIdAtom,
@@ -11,12 +17,6 @@ import { AnimatedList } from "@workspace/ui/components/animated-list";
 import { ConversationStatusIcon } from "@workspace/ui/components/conversation-status-icon";
 import { GlassButton } from "@workspace/ui/components/glass/glass-button";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
-import { usePaginatedQuery, useQuery } from "convex/react";
-import { formatDistanceToNow } from "date-fns";
-import { useAtomValue, useSetAtom } from "jotai";
-
-import { WidgetFooter } from "@/modules/widget/ui/components/widget-footer";
-import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
 const chatButtonProps = {
   idleAlpha: 0.06,

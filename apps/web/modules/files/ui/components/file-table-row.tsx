@@ -1,11 +1,11 @@
+import { FileIcon } from "lucide-react";
+
+import { FileRowActions } from "@/modules/files/ui/components/file-row-actions";
 import { EntryId, PublicFile } from "@workspace/shared/types/file";
 import { Badge } from "@workspace/ui/components/badge";
 import { Checkbox } from "@workspace/ui/components/checkbox";
 import { TableCell, TableRow } from "@workspace/ui/components/table";
 import { cn } from "@workspace/ui/lib/utils";
-import { FileIcon } from "lucide-react";
-
-import { FileRowActions } from "@/modules/files/ui/components/file-row-actions";
 
 interface FileTableRowProps {
   file: PublicFile;

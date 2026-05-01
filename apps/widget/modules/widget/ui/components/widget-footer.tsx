@@ -1,9 +1,10 @@
+import { useAtomValue, useSetAtom } from "jotai";
+import { HomeIcon, InboxIcon, LibraryBigIcon, MailIcon } from "lucide-react";
+
 import { widgetScreenAtom } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { useAtomValue, useSetAtom } from "jotai";
-import { HomeIcon, InboxIcon, LibraryBigIcon, MailIcon } from "lucide-react";
 
 const footerItems = [
   { icon: HomeIcon, itemScreen: WIDGET_SCREENS.SELECTION, label: "Home" },

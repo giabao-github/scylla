@@ -7,18 +7,19 @@ import {
   getWidgetScriptUrl,
 } from "@/modules/integrations/constants";
 
+const snippetFactories: Record<IntegrationId, (url: string) => string> = {
+  html: createHtmlSnippet,
+  javascript: createJavascriptSnippet,
+  react: createReactSnippet,
+  nextjs: createNextjsSnippet,
+};
+
 export const createIntegrationSnippet = (
   integrationId: IntegrationId,
   organizationId: string,
 ): string => {
   const widgetScriptUrl = getWidgetScriptUrl();
-  const snippetMap: Record<IntegrationId, string> = {
-    html: createHtmlSnippet(widgetScriptUrl),
-    javascript: createJavascriptSnippet(widgetScriptUrl),
-    react: createReactSnippet(widgetScriptUrl),
-    nextjs: createNextjsSnippet(widgetScriptUrl),
-  };
 
-  const snippet = snippetMap[integrationId];
+  const snippet = snippetFactories[integrationId](widgetScriptUrl);
   return snippet.replace(/{{ORGANIZATION_ID}}/g, organizationId);
 };

@@ -28,7 +28,7 @@ export const upsert = action({
     }
 
     await ctx.runAction(internal.system.secrets.upsert, {
-      organizationId: clerkOrganizationId,
+      clerkOrgId: clerkOrganizationId,
       service: args.service,
       value: trimmedValue,
     });

@@ -4,6 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAction, useMutation, useQuery } from "convex/react";
+import {
+  GlobeIcon,
+  PhoneCallIcon,
+  PhoneIcon,
+  WorkflowIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
+import z from "zod";
+
+import {
+  Feature,
+  PluginCard,
+} from "@/modules/plugins/ui/components/plugin-card";
+import { VapiConnectedView } from "@/modules/plugins/ui/components/vapi-connected-view";
 import { api } from "@workspace/backend/_generated/api";
 import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
 import { Button } from "@workspace/ui/components/button";
@@ -24,22 +40,6 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
-import { useAction, useMutation, useQuery } from "convex/react";
-import {
-  GlobeIcon,
-  PhoneCallIcon,
-  PhoneIcon,
-  WorkflowIcon,
-} from "lucide-react";
-import Link from "next/link";
-import { toast } from "sonner";
-import z from "zod";
-
-import {
-  Feature,
-  PluginCard,
-} from "@/modules/plugins/ui/components/plugin-card";
-import { VapiConnectedView } from "@/modules/plugins/ui/components/vapi-connected-view";
 
 const vapiFeatures: Feature[] = [
   {

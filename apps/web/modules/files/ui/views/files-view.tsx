@@ -2,6 +2,18 @@
 
 import { useEffect, useState } from "react";
 
+import { useMutation, usePaginatedQuery } from "convex/react";
+import { PlusIcon, TrashIcon } from "lucide-react";
+import { toast } from "sonner";
+
+import { BulkDeleteDialog } from "@/modules/files/ui/components/bulk-delete-dialog";
+import { DeleteDialog } from "@/modules/files/ui/components/delete-dialog";
+import { EditDialog } from "@/modules/files/ui/components/edit-dialog";
+import { FileTableBody } from "@/modules/files/ui/components/file-table-body";
+import { UploadDialog } from "@/modules/files/ui/components/upload-dialog";
+import { FILE_TABLE_COLUMNS } from "@/modules/files/ui/lib/constants";
+import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
+import { FileView } from "@/modules/files/ui/views/file-view";
 import { api } from "@workspace/backend/_generated/api";
 import { EntryId, PublicFile } from "@workspace/shared/types/file";
 import { Button } from "@workspace/ui/components/button";
@@ -15,18 +27,6 @@ import {
 } from "@workspace/ui/components/table";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
-import { useMutation, usePaginatedQuery } from "convex/react";
-import { PlusIcon, TrashIcon } from "lucide-react";
-import { toast } from "sonner";
-
-import { BulkDeleteDialog } from "@/modules/files/ui/components/bulk-delete-dialog";
-import { DeleteDialog } from "@/modules/files/ui/components/delete-dialog";
-import { EditDialog } from "@/modules/files/ui/components/edit-dialog";
-import { FileTableBody } from "@/modules/files/ui/components/file-table-body";
-import { UploadDialog } from "@/modules/files/ui/components/upload-dialog";
-import { FILE_TABLE_COLUMNS } from "@/modules/files/ui/lib/constants";
-import { extractErrorMessage } from "@/modules/files/ui/lib/utils";
-import { FileView } from "@/modules/files/ui/views/file-view";
 
 export const FilesView = () => {
   const files = usePaginatedQuery(

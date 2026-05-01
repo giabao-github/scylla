@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  AlertTriangleIcon,
+  CheckCircleIcon,
+  Loader2Icon,
+  PhoneIcon,
+  XCircleIcon,
+} from "lucide-react";
+
+import { useVapiPhoneNumbers } from "@/modules/plugins/hooks/use-vapi-data";
 import { api } from "@workspace/backend/_generated/api";
 import { Badge } from "@workspace/ui/components/badge";
 import {
@@ -10,15 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
-import {
-  AlertTriangleIcon,
-  CheckCircleIcon,
-  Loader2Icon,
-  PhoneIcon,
-  XCircleIcon,
-} from "lucide-react";
-
-import { useVapiPhoneNumbers } from "@/modules/plugins/hooks/use-vapi-data";
 
 type PhoneNumbers = typeof api.private.vapi.getPhoneNumbers._returnType;
 

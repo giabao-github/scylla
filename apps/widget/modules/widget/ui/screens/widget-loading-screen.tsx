@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+import { useAction, useConvex, useQuery } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
+
 import { api } from "@workspace/backend/_generated/api";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 import {
@@ -15,8 +18,6 @@ import {
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
-import { useAction, useConvex, useQuery } from "convex/react";
-import { useAtomValue, useSetAtom } from "jotai";
 
 type InitStep = "organization" | "session" | "settings" | "done";
 

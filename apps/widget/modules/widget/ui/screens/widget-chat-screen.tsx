@@ -4,6 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery } from "convex/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { Loader2Icon } from "lucide-react";
+import z from "zod";
+
+import { useChatMessages } from "@/modules/widget/hooks/use-chat-messages";
+import { useChatScroll } from "@/modules/widget/hooks/use-chat-scroll";
+import {
+  PendingSlot,
+  useChatSubmit,
+} from "@/modules/widget/hooks/use-chat-submit";
+import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 import { api } from "@workspace/backend/_generated/api";
 import {
   contactSessionIdAtom,
@@ -14,6 +26,7 @@ import {
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { formatChatTimestamp } from "@workspace/shared/lib/chat-timestamp";
+import { isConversationSystemMessage } from "@workspace/shared/lib/conversation-system-message";
 import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
@@ -34,18 +47,6 @@ import { CTAModal } from "@workspace/ui/components/cta-modal";
 import { Form, FormField } from "@workspace/ui/components/form";
 import { LiquidGlass } from "@workspace/ui/components/glass/liquid-glass";
 import { cn } from "@workspace/ui/lib/utils";
-import { useMutation, useQuery } from "convex/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { Loader2Icon } from "lucide-react";
-import z from "zod";
-
-import { useChatMessages } from "@/modules/widget/hooks/use-chat-messages";
-import { useChatScroll } from "@/modules/widget/hooks/use-chat-scroll";
-import {
-  PendingSlot,
-  useChatSubmit,
-} from "@/modules/widget/hooks/use-chat-submit";
-import { WidgetSessionGuard } from "@/modules/widget/ui/components/widget-session-guard";
 
 const AI_PLACEHOLDER_OFFSET_MS = 2000;
 const STALE_PENDING_TIMEOUT_MS = 35_000;
@@ -62,7 +63,13 @@ export const WidgetChatScreen = () => {
   const [staleCheckTimestamp, setStaleCheckTimestamp] = useState(() =>
     Date.now(),
   );
-  const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
+  const [selectedTimestampEntryKey, setSelectedTimestampEntryKey] = useState<
+    string | null
+  >(null);
+  const [statusDisplayEntryKey, setStatusDisplayEntryKey] = useState<
+    string | null
+  >(null);
+  const latestSubmissionKeyRef = useRef<string | null>(null);
 
   const conversationId = useAtomValue(conversationIdAtom);
   const widgetSettings = useAtomValue(widgetSettingsAtom);
@@ -308,12 +315,21 @@ export const WidgetChatScreen = () => {
   const timeline = useMemo(
     () =>
       [
-        ...displayedVisibleMessages.map((m) => ({
-          entryKey: `confirmed:${m.id}`,
-          type: "confirmed" as const,
-          timestamp: m._creationTime,
-          data: m,
-        })),
+        ...displayedVisibleMessages.map((m) =>
+          m.role === "assistant" && isConversationSystemMessage(m.text)
+            ? {
+                entryKey: `status:${m.id}`,
+                type: "status" as const,
+                timestamp: m._creationTime,
+                text: m.text,
+              }
+            : {
+                entryKey: `confirmed:${m.id}`,
+                type: "confirmed" as const,
+                timestamp: m._creationTime,
+                data: m,
+              },
+        ),
         ...pendingSlots.flatMap((s) => {
           const items: {
             entryKey: string;
@@ -374,7 +390,8 @@ export const WidgetChatScreen = () => {
                 ...s,
                 canRetry,
                 displayError,
-                displayStatus,
+                displayStatus:
+                  displayStatus === "sent" ? "generating" : displayStatus,
               },
             });
           }
@@ -393,12 +410,76 @@ export const WidgetChatScreen = () => {
     ],
   );
 
-  const statusDisplayEntryKey = selectedEntryKey;
+  const groupedTimeline = useMemo(() => {
+    const getEntryRole = (entry: (typeof timeline)[number] | undefined) => {
+      if (!entry) return null;
+      if (entry.type === "status") return null;
+      if (entry.type === "confirmed") return entry.data.role;
+      return entry.type === "pending-user" ? "user" : "assistant";
+    };
+
+    return timeline.map((entry, index) => {
+      const role = getEntryRole(entry);
+      const next = timeline[index + 1];
+      const previousRole = getEntryRole(timeline[index - 1]);
+      const nextRole = getEntryRole(next);
+      const isSeparatedFromPrevious =
+        selectedTimestampEntryKey === entry.entryKey;
+      const isSeparatedFromNext = next?.entryKey === selectedTimestampEntryKey;
+      const hasPreviousInGroup =
+        role !== null && previousRole === role && !isSeparatedFromPrevious;
+      const hasNextInGroup =
+        role !== null && nextRole === role && !isSeparatedFromNext;
+      const groupPosition =
+        !hasPreviousInGroup && !hasNextInGroup
+          ? ("single" as const)
+          : !hasPreviousInGroup
+            ? ("first" as const)
+            : !hasNextInGroup
+              ? ("last" as const)
+              : ("middle" as const);
+
+      return {
+        ...entry,
+        groupPosition,
+        isGroupedWithPrevious: hasPreviousInGroup,
+        isLastInGroup: !hasNextInGroup,
+      };
+    });
+  }, [timeline, selectedTimestampEntryKey]);
+
+  const latestSubmittedSlot = useMemo(
+    () =>
+      pendingSlots.reduce<PendingSlot | null>(
+        (latest, slot) =>
+          !latest || slot.submittedAt > latest.submittedAt ? slot : latest,
+        null,
+      ),
+    [pendingSlots],
+  );
 
   useEffect(() => {
-    setSelectedEntryKey(null);
+    setSelectedTimestampEntryKey(null);
+    setStatusDisplayEntryKey(null);
+    latestSubmissionKeyRef.current = null;
     latestMarkedSeenAtRef.current = 0;
   }, [conversationId]);
+
+  useEffect(() => {
+    if (!latestSubmittedSlot) {
+      latestSubmissionKeyRef.current = null;
+      return;
+    }
+
+    const submissionKey = `${latestSubmittedSlot.localId}:${latestSubmittedSlot.submittedAt}`;
+
+    if (latestSubmissionKeyRef.current === submissionKey) {
+      return;
+    }
+
+    latestSubmissionKeyRef.current = submissionKey;
+    setStatusDisplayEntryKey(`pending-user:${latestSubmittedSlot.localId}`);
+  }, [latestSubmittedSlot]);
 
   useEffect(() => {
     if (contactReadReceiptCutoff > latestMarkedSeenAtRef.current) {
@@ -407,14 +488,19 @@ export const WidgetChatScreen = () => {
   }, [contactReadReceiptCutoff]);
 
   useEffect(() => {
-    if (!selectedEntryKey) {
-      return;
+    const entryKeys = new Set(timeline.map((entry) => entry.entryKey));
+
+    if (
+      selectedTimestampEntryKey &&
+      !entryKeys.has(selectedTimestampEntryKey)
+    ) {
+      setSelectedTimestampEntryKey(null);
     }
 
-    if (!timeline.some((entry) => entry.entryKey === selectedEntryKey)) {
-      setSelectedEntryKey(null);
+    if (statusDisplayEntryKey && !entryKeys.has(statusDisplayEntryKey)) {
+      setStatusDisplayEntryKey(null);
     }
-  }, [timeline, selectedEntryKey]);
+  }, [timeline, selectedTimestampEntryKey, statusDisplayEntryKey]);
 
   const modalConfig = useMemo(() => {
     if (isInvalidConversation)
@@ -445,7 +531,17 @@ export const WidgetChatScreen = () => {
   }, [baseHandleScroll, syncSeenByContact]);
 
   const handleEntrySelect = (entryKey: string) => {
-    setSelectedEntryKey((current) => (current === entryKey ? null : entryKey));
+    if (
+      selectedTimestampEntryKey === entryKey &&
+      statusDisplayEntryKey === entryKey
+    ) {
+      setSelectedTimestampEntryKey(null);
+      setStatusDisplayEntryKey(null);
+      return;
+    }
+
+    setSelectedTimestampEntryKey(entryKey);
+    setStatusDisplayEntryKey(entryKey);
   };
 
   const timestampClasses = (isSelected: boolean) =>
@@ -455,6 +551,17 @@ export const WidgetChatScreen = () => {
         ? "grid-rows-[1fr] translate-y-0 opacity-100"
         : "grid-rows-[0fr] -translate-y-1 opacity-0 pointer-events-none",
     );
+
+  const renderSelectedTimestamp = (isSelected: boolean, timestamp: number) =>
+    isSelected ? (
+      <div aria-hidden={!isSelected} className={timestampClasses(isSelected)}>
+        <div className="overflow-hidden min-h-0">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+            {formatChatTimestamp(timestamp)}
+          </p>
+        </div>
+      </div>
+    ) : null;
 
   useEffect(() => {
     syncSeenByContact();
@@ -475,7 +582,7 @@ export const WidgetChatScreen = () => {
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="flex overflow-y-auto flex-col flex-1 gap-4 px-3 py-4 scrollbar-themed md:gap-5 md:px-4 md:py-6"
+            className="flex overflow-y-auto flex-col flex-1 gap-0 px-3 py-4 scrollbar-themed md:px-4 md:py-6"
           >
             <div>
               {isLoadingMore && (
@@ -496,27 +603,36 @@ export const WidgetChatScreen = () => {
 
             <div ref={topElementRef} className="h-px" />
 
-            {timeline.map((entry) => {
-              const isSelected = selectedEntryKey === entry.entryKey;
+            {groupedTimeline.map((entry) => {
+              const isSelected = selectedTimestampEntryKey === entry.entryKey;
+              const messageWrapperClassName = cn(
+                entry.isGroupedWithPrevious ? "mt-1" : "mt-4",
+                "space-y-1.5 transition-[margin] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
+              );
+              const messageClassName = "max-w-[88%] md:max-w-[50%]";
+
+              if (entry.type === "status") {
+                return (
+                  <div
+                    key={entry.entryKey}
+                    className="flex justify-center px-2 mt-4"
+                  >
+                    <p className="text-xs font-medium tracking-wide text-center text-muted-foreground/80 md:text-[13px]">
+                      {entry.text}
+                    </p>
+                  </div>
+                );
+              }
 
               if (entry.type === "confirmed") {
                 const msg = entry.data;
                 const isUser = msg.role === "user";
                 return (
-                  <div key={entry.entryKey} className="mt-2 space-y-6">
-                    <div
-                      aria-hidden={!isSelected}
-                      className={timestampClasses(isSelected)}
-                    >
-                      <div className="overflow-hidden min-h-0">
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                          {formatChatTimestamp(entry.timestamp)}
-                        </p>
-                      </div>
-                    </div>
+                  <div key={entry.entryKey} className={messageWrapperClassName}>
+                    {renderSelectedTimestamp(isSelected, entry.timestamp)}
                     <Message
                       from={isUser ? "user" : "assistant"}
-                      className="max-w-[88%] md:max-w-[50%]"
+                      className={messageClassName}
                     >
                       <ChatBubble
                         text={msg.text}
@@ -530,6 +646,8 @@ export const WidgetChatScreen = () => {
                         showStatus={
                           isUser && entry.entryKey === statusDisplayEntryKey
                         }
+                        groupPosition={entry.groupPosition}
+                        showAvatar={!isUser && entry.isLastInGroup}
                       />
                     </Message>
                   </div>
@@ -539,18 +657,9 @@ export const WidgetChatScreen = () => {
               if (entry.type === "pending-user") {
                 const slot = entry.data;
                 return (
-                  <div key={entry.entryKey} className="mt-2 space-y-6">
-                    <div
-                      aria-hidden={!isSelected}
-                      className={timestampClasses(isSelected)}
-                    >
-                      <div className="overflow-hidden min-h-0">
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                          {formatChatTimestamp(entry.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                    <Message from="user" className="max-w-[88%] md:max-w-[50%]">
+                  <div key={entry.entryKey} className={messageWrapperClassName}>
+                    {renderSelectedTimestamp(isSelected, entry.timestamp)}
+                    <Message from="user" className={messageClassName}>
                       <ChatBubble
                         text={slot.userText}
                         variant="user"
@@ -567,6 +676,7 @@ export const WidgetChatScreen = () => {
                         }
                         onClick={() => handleEntrySelect(entry.entryKey)}
                         showStatus={entry.entryKey === statusDisplayEntryKey}
+                        groupPosition={entry.groupPosition}
                       />
                     </Message>
                   </div>
@@ -575,21 +685,9 @@ export const WidgetChatScreen = () => {
 
               const slot = entry.data;
               return (
-                <div key={entry.entryKey} className="mt-2 space-y-6">
-                  <div
-                    aria-hidden={!isSelected}
-                    className={timestampClasses(isSelected)}
-                  >
-                    <div className="overflow-hidden min-h-0">
-                      <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                        {formatChatTimestamp(entry.timestamp)}
-                      </p>
-                    </div>
-                  </div>
-                  <Message
-                    from="assistant"
-                    className="max-w-[88%] md:max-w-[50%]"
-                  >
+                <div key={entry.entryKey} className={messageWrapperClassName}>
+                  {renderSelectedTimestamp(isSelected, entry.timestamp)}
+                  <Message from="assistant" className={messageClassName}>
                     <ChatBubble
                       text=""
                       variant="agent"
@@ -602,6 +700,8 @@ export const WidgetChatScreen = () => {
                       }
                       onClick={() => handleEntrySelect(entry.entryKey)}
                       showStatus={false}
+                      groupPosition={entry.groupPosition}
+                      showAvatar={entry.isLastInGroup}
                     />
                   </Message>
                 </div>
@@ -680,7 +780,9 @@ export const WidgetChatScreen = () => {
                       />
                     </PromptInputBody>
                     <PromptInputFooter>
-                      <PromptBoxDefaultTools />
+                      <PromptBoxDefaultTools
+                        modelSelectorDisabled={isEscalated}
+                      />
                       <PromptInputSubmit
                         disabled={submitDisabled}
                         status={submitStatus}

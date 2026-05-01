@@ -1,5 +1,4 @@
 import { getSubscriptionStatus } from "@/modules/billing/lib/subscription";
-
 import { ConversationErrorBoundary } from "@/modules/dashboard/ui/components/conversation-error-boundary";
 import { ConversationIdView } from "@/modules/dashboard/ui/views/conversation-id-view";
 

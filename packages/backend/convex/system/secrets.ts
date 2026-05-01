@@ -12,7 +12,7 @@ import {
 
 export const upsert = internalAction({
   args: {
-    organizationId: v.string(),
+    clerkOrgId: v.string(),
     service: v.literal("vapi"),
     value: v.object({
       publicApiKey: v.string(),
@@ -20,7 +20,7 @@ export const upsert = internalAction({
     }),
   },
   handler: async (ctx, args) => {
-    if (!ORG_ID_PATTERN.test(args.organizationId)) {
+    if (!ORG_ID_PATTERN.test(args.clerkOrgId)) {
       throw new ConvexError({
         code: "INVALID_ORG_ID",
         message: "Invalid organization ID",
@@ -39,7 +39,7 @@ export const upsert = internalAction({
       });
     }
 
-    const secretName = `tenant/${args.organizationId}/${args.service}`;
+    const secretName = `tenant/${args.clerkOrgId}/${args.service}`;
 
     await upsertSecretValue(secretName, value).catch((error) => {
       console.error(`Failed to upsert secret ${secretName}:`, error);
@@ -53,7 +53,7 @@ export const upsert = internalAction({
 
     const existingPlugin = await ctx.runQuery(
       internal.system.plugins.getByOrgIdAndService,
-      { organizationId: args.organizationId, service: args.service },
+      { clerkOrgId: args.clerkOrgId, service: args.service },
     );
 
     if (existingPlugin?.secretName === secretName) {
@@ -62,7 +62,7 @@ export const upsert = internalAction({
 
     await ctx
       .runMutation(internal.system.plugins.upsert, {
-        organizationId: args.organizationId,
+        clerkOrgId: args.clerkOrgId,
         service: args.service,
         secretName,
       })
@@ -71,7 +71,7 @@ export const upsert = internalAction({
 
         const currentPlugin = await ctx.runQuery(
           internal.system.plugins.getByOrgIdAndService,
-          { organizationId: args.organizationId, service: args.service },
+          { clerkOrgId: args.clerkOrgId, service: args.service },
         );
 
         if (!currentPlugin) {
@@ -98,23 +98,27 @@ export const upsert = internalAction({
 
 export const deleteSecret = internalAction({
   args: {
-    organizationId: v.string(),
+    clerkOrgId: v.string(),
     service: v.literal("vapi"),
     secretName: v.string(),
     connectedAt: v.number(),
   },
-  handler: async (
-    ctx,
-    { organizationId, service, secretName, connectedAt },
-  ) => {
+  handler: async (ctx, { clerkOrgId, service, secretName, connectedAt }) => {
+    if (!ORG_ID_PATTERN.test(clerkOrgId)) {
+      throw new ConvexError({
+        code: "INVALID_ORG_ID",
+        message: "Invalid organization ID",
+      });
+    }
+
     const currentPlugin = await ctx.runQuery(
       internal.private.plugins.getPluginByOrgAndServiceQuery,
-      { organizationId, service },
+      { clerkOrgId, service },
     );
 
     if (currentPlugin && currentPlugin.lastConnectedAt !== connectedAt) {
       console.info(
-        `[deleteSecret] Plugin for [${organizationId}/${service}] ` +
+        `[deleteSecret] Plugin for [${clerkOrgId}/${service}] ` +
           `was reconnected (connectedAt mismatch) — skipping secret deletion.`,
       );
       return;

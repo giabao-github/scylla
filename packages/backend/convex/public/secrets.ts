@@ -56,7 +56,7 @@ export const getVapiSecrets = action({
     const plugin = await ctx.runQuery(
       internal.system.plugins.getByOrgIdAndService,
       {
-        organizationId: args.organizationId,
+        clerkOrgId: args.organizationId,
         service: "vapi",
       },
     );

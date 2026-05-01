@@ -2,6 +2,17 @@ import { type KeyboardEvent, useEffect } from "react";
 import { type Path, useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "convex/react";
+import { BotMessageSquareIcon, Loader2Icon, MicIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+
+import { useSubscription } from "@/modules/billing/hooks/use-subscription";
+import {
+  FormSchema,
+  widgetSettingsSchema,
+} from "@/modules/customization/types";
+import { VapiFormFields } from "@/modules/customization/ui/components/vapi-form-fields";
 import { api } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import { hasSubscriptionFeatureAccess } from "@workspace/shared/lib/subscription";
@@ -26,17 +37,6 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Separator } from "@workspace/ui/components/separator";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { useMutation } from "convex/react";
-import { BotMessageSquareIcon, Loader2Icon, MicIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-
-import { useSubscription } from "@/modules/billing/hooks/use-subscription";
-import {
-  FormSchema,
-  widgetSettingsSchema,
-} from "@/modules/customization/types";
-import { VapiFormFields } from "@/modules/customization/ui/components/vapi-form-fields";
 
 type WidgetSettings = Doc<"widgetSettings">;
 
