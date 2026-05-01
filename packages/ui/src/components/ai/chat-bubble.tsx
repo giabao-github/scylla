@@ -52,8 +52,7 @@ export const ChatBubble = ({
 
   const isUser = variant === "user";
   const isFailed = status === "failed";
-  const isAIThinking =
-    !isUser && !isFailed && (status === "generating" || !text.trim());
+  const isAIThinking = !isUser && !isFailed && status === "generating";
   const shouldShowStatusContent =
     showStatus && (isFailed || (isUser && userStatusLabel));
 

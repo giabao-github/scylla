@@ -49,6 +49,19 @@ const assertValidTransition = (
   }
 };
 
+const buildLastMessagePatch = (
+  conversation: { lastMessageAt?: number },
+  lastMessage: { role: "assistant"; text: string },
+  incomingMessageAt: number,
+  now: number,
+) => {
+  const messageAt = Math.min(incomingMessageAt, now);
+  if (!conversation.lastMessageAt || messageAt > conversation.lastMessageAt) {
+    return { lastMessage, lastMessageAt: messageAt };
+  }
+  return {};
+};
+
 export const getByThreadId = internalQuery({
   args: { threadId: v.string() },
   handler: async (ctx, args) => getConversationByThreadId(ctx, args.threadId),
@@ -147,14 +160,12 @@ export const resolve = internalMutation({
     assertValidTransition(conversation.status, CONVERSATION_STATUS.RESOLVED);
 
     const now = Date.now();
-    const messageAt = Math.min(args.messageAt, now);
-    const previewPatch =
-      !conversation.lastMessageAt || messageAt > conversation.lastMessageAt
-        ? {
-            lastMessage: args.lastMessage,
-            lastMessageAt: messageAt,
-          }
-        : {};
+    const previewPatch = buildLastMessagePatch(
+      conversation,
+      args.lastMessage,
+      args.messageAt,
+      now,
+    );
 
     await ctx.db.patch(conversation._id, {
       ...previewPatch,
@@ -187,14 +198,12 @@ export const escalate = internalMutation({
     assertValidTransition(conversation.status, CONVERSATION_STATUS.ESCALATED);
 
     const now = Date.now();
-    const messageAt = Math.min(args.messageAt, now);
-    const previewPatch =
-      !conversation.lastMessageAt || messageAt > conversation.lastMessageAt
-        ? {
-            lastMessage: args.lastMessage,
-            lastMessageAt: messageAt,
-          }
-        : {};
+    const previewPatch = buildLastMessagePatch(
+      conversation,
+      args.lastMessage,
+      args.messageAt,
+      now,
+    );
 
     await ctx.db.patch(conversation._id, {
       ...previewPatch,

@@ -499,6 +499,17 @@ export const ConversationIdView = ({
         : "grid-rows-[0fr] -translate-y-1 opacity-0 pointer-events-none",
     );
 
+  const renderSelectedTimestamp = (isSelected: boolean, timestamp: number) =>
+    isSelected ? (
+      <div aria-hidden={!isSelected} className={timestampClasses(isSelected)}>
+        <div className="overflow-hidden min-h-0">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+            {formatChatTimestamp(timestamp)}
+          </p>
+        </div>
+      </div>
+    ) : null;
+
   if (conversation === undefined || messages.status === "LoadingFirstPage") {
     return <ConversationIdViewSkeleton />;
   }
@@ -634,18 +645,7 @@ export const ConversationIdView = ({
             const isFromClient = message.role === "user";
             return (
               <div key={entry.entryKey} className={messageWrapperClassName}>
-                {isSelected && (
-                  <div
-                    aria-hidden={!isSelected}
-                    className={timestampClasses(isSelected)}
-                  >
-                    <div className="overflow-hidden min-h-0">
-                      <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                        {formatChatTimestamp(entry.timestamp)}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                {renderSelectedTimestamp(isSelected, entry.timestamp)}
                 <Message
                   from={isFromClient ? "assistant" : "user"}
                   className={messageClassName}
@@ -678,18 +678,7 @@ export const ConversationIdView = ({
           const slot = entry.data;
           return (
             <div key={entry.entryKey} className={messageWrapperClassName}>
-              {isSelected && (
-                <div
-                  aria-hidden={!isSelected}
-                  className={timestampClasses(isSelected)}
-                >
-                  <div className="overflow-hidden min-h-0">
-                    <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                      {formatChatTimestamp(entry.timestamp)}
-                    </p>
-                  </div>
-                </div>
-              )}
+              {renderSelectedTimestamp(isSelected, entry.timestamp)}
               <Message from="user" className={messageClassName}>
                 <ChatBubble
                   text={slot.text}
