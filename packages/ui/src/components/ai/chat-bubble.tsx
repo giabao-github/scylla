@@ -51,8 +51,9 @@ export const ChatBubble = ({
   const userStatusLabel = statusLabels[status] ?? null;
 
   const isUser = variant === "user";
-  const isAIGenerating = status === "generating";
   const isFailed = status === "failed";
+  const isAIThinking =
+    !isUser && !isFailed && (status === "generating" || !text.trim());
   const shouldShowStatusContent =
     showStatus && (isFailed || (isUser && userStatusLabel));
 
@@ -87,7 +88,7 @@ export const ChatBubble = ({
     >
       {!isUser &&
         (showAvatar ? (
-          <AgentAvatar isThinking={isAIGenerating} seed={avatarSeed} />
+          <AgentAvatar isThinking={isAIThinking} seed={avatarSeed} />
         ) : (
           <div aria-hidden="true" className="w-8 shrink-0" />
         ))}
@@ -103,6 +104,8 @@ export const ChatBubble = ({
             "relative overflow-hidden px-3 py-2 md:px-4 md:py-2.5 text-xs leading-relaxed transform-gpu transition-[border-radius,background,box-shadow,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none md:text-sm",
             onClick &&
               "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
+            isAIThinking &&
+              "border border-border/60 bg-background/85 text-muted-foreground shadow-sm backdrop-blur-md",
             isFailed && !isUser
               ? "bg-destructive/10 border border-destructive/30 shadow-none"
               : "",
@@ -118,7 +121,9 @@ export const ChatBubble = ({
           role={onClick ? "button" : undefined}
           tabIndex={onClick ? 0 : undefined}
           style={
-            !isFailed || isUser
+            isAIThinking
+              ? { borderRadius: bubbleBorderRadius }
+              : !isFailed || isUser
               ? {
                   background: gradient,
                   borderRadius: bubbleBorderRadius,
@@ -127,7 +132,7 @@ export const ChatBubble = ({
               : { borderRadius: bubbleBorderRadius }
           }
         >
-          {(!isFailed || isUser) && (
+          {!isAIThinking && (!isFailed || isUser) && (
             <span
               className="absolute inset-0 pointer-events-none bg-white/10 transition-[border-radius] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
               style={{ borderRadius: bubbleBorderRadius }}
@@ -144,6 +149,8 @@ export const ChatBubble = ({
                     "[&_button[data-streamdown='link']]:hover:text-rose-300",
                     ...linkButtonBase,
                   ]
+                : isAIThinking
+                  ? "text-muted-foreground"
                 : [
                     "text-white",
                     "[&_button[data-streamdown='link']]:text-amber-200",
@@ -154,7 +161,7 @@ export const ChatBubble = ({
                   ],
             )}
           >
-            {isAIGenerating && !isUser ? (
+            {isAIThinking ? (
               <ThinkingEllipsis />
             ) : (
               <MessageResponse

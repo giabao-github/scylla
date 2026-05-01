@@ -129,6 +129,11 @@ export const getLastAssistantMessage = internalQuery({
 export const resolve = internalMutation({
   args: {
     threadId: v.string(),
+    lastMessage: v.object({
+      text: v.string(),
+      role: v.literal("assistant"),
+    }),
+    messageAt: v.number(),
   },
   handler: async (ctx, args) => {
     const conversation = await requireConversationByThreadId(
@@ -141,9 +146,20 @@ export const resolve = internalMutation({
     }
     assertValidTransition(conversation.status, CONVERSATION_STATUS.RESOLVED);
 
+    const now = Date.now();
+    const messageAt = Math.min(args.messageAt, now);
+    const previewPatch =
+      !conversation.lastMessageAt || messageAt > conversation.lastMessageAt
+        ? {
+            lastMessage: args.lastMessage,
+            lastMessageAt: messageAt,
+          }
+        : {};
+
     await ctx.db.patch(conversation._id, {
+      ...previewPatch,
       status: CONVERSATION_STATUS.RESOLVED,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
 
     return true;
@@ -153,6 +169,11 @@ export const resolve = internalMutation({
 export const escalate = internalMutation({
   args: {
     threadId: v.string(),
+    lastMessage: v.object({
+      text: v.string(),
+      role: v.literal("assistant"),
+    }),
+    messageAt: v.number(),
   },
   handler: async (ctx, args) => {
     const conversation = await requireConversationByThreadId(
@@ -165,9 +186,20 @@ export const escalate = internalMutation({
     }
     assertValidTransition(conversation.status, CONVERSATION_STATUS.ESCALATED);
 
+    const now = Date.now();
+    const messageAt = Math.min(args.messageAt, now);
+    const previewPatch =
+      !conversation.lastMessageAt || messageAt > conversation.lastMessageAt
+        ? {
+            lastMessage: args.lastMessage,
+            lastMessageAt: messageAt,
+          }
+        : {};
+
     await ctx.db.patch(conversation._id, {
+      ...previewPatch,
       status: CONVERSATION_STATUS.ESCALATED,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
 
     return true;

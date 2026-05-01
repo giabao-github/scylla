@@ -26,6 +26,7 @@ import {
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
 import { formatChatTimestamp } from "@workspace/shared/lib/chat-timestamp";
+import { isConversationSystemMessage } from "@workspace/shared/lib/conversation-system-message";
 import { CONVERSATION_STATUS } from "@workspace/shared/types/conversation";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
@@ -314,12 +315,21 @@ export const WidgetChatScreen = () => {
   const timeline = useMemo(
     () =>
       [
-        ...displayedVisibleMessages.map((m) => ({
-          entryKey: `confirmed:${m.id}`,
-          type: "confirmed" as const,
-          timestamp: m._creationTime,
-          data: m,
-        })),
+        ...displayedVisibleMessages.map((m) =>
+          m.role === "assistant" && isConversationSystemMessage(m.text)
+            ? {
+                entryKey: `status:${m.id}`,
+                type: "status" as const,
+                timestamp: m._creationTime,
+                text: m.text,
+              }
+            : {
+                entryKey: `confirmed:${m.id}`,
+                type: "confirmed" as const,
+                timestamp: m._creationTime,
+                data: m,
+              },
+        ),
         ...pendingSlots.flatMap((s) => {
           const items: {
             entryKey: string;
@@ -380,7 +390,8 @@ export const WidgetChatScreen = () => {
                 ...s,
                 canRetry,
                 displayError,
-                displayStatus,
+                displayStatus:
+                  displayStatus === "sent" ? "generating" : displayStatus,
               },
             });
           }
@@ -399,27 +410,28 @@ export const WidgetChatScreen = () => {
     ],
   );
 
-  const groupedTimeline = useMemo(
-    () => {
-      const getEntryRole = (entry: (typeof timeline)[number] | undefined) => {
-        if (!entry) return null;
-        if (entry.type === "confirmed") return entry.data.role;
-        return entry.type === "pending-user" ? "user" : "assistant";
-      };
+  const groupedTimeline = useMemo(() => {
+    const getEntryRole = (entry: (typeof timeline)[number] | undefined) => {
+      if (!entry) return null;
+      if (entry.type === "status") return null;
+      if (entry.type === "confirmed") return entry.data.role;
+      return entry.type === "pending-user" ? "user" : "assistant";
+    };
 
-      return timeline.map((entry, index) => {
-        const role = getEntryRole(entry);
-        const next = timeline[index + 1];
-        const previousRole = getEntryRole(timeline[index - 1]);
-        const nextRole = getEntryRole(next);
-        const isSeparatedFromPrevious =
-          selectedTimestampEntryKey === entry.entryKey;
-        const isSeparatedFromNext =
-          next?.entryKey === selectedTimestampEntryKey;
-        const hasPreviousInGroup =
-          previousRole === role && !isSeparatedFromPrevious;
-        const hasNextInGroup = nextRole === role && !isSeparatedFromNext;
-        const groupPosition = !hasPreviousInGroup && !hasNextInGroup
+    return timeline.map((entry, index) => {
+      const role = getEntryRole(entry);
+      const next = timeline[index + 1];
+      const previousRole = getEntryRole(timeline[index - 1]);
+      const nextRole = getEntryRole(next);
+      const isSeparatedFromPrevious =
+        selectedTimestampEntryKey === entry.entryKey;
+      const isSeparatedFromNext = next?.entryKey === selectedTimestampEntryKey;
+      const hasPreviousInGroup =
+        role !== null && previousRole === role && !isSeparatedFromPrevious;
+      const hasNextInGroup =
+        role !== null && nextRole === role && !isSeparatedFromNext;
+      const groupPosition =
+        !hasPreviousInGroup && !hasNextInGroup
           ? ("single" as const)
           : !hasPreviousInGroup
             ? ("first" as const)
@@ -427,16 +439,14 @@ export const WidgetChatScreen = () => {
               ? ("last" as const)
               : ("middle" as const);
 
-        return {
-          ...entry,
-          groupPosition,
-          isGroupedWithPrevious: hasPreviousInGroup,
-          isLastInGroup: !hasNextInGroup,
-        };
-      });
-    },
-    [timeline, selectedTimestampEntryKey],
-  );
+      return {
+        ...entry,
+        groupPosition,
+        isGroupedWithPrevious: hasPreviousInGroup,
+        isLastInGroup: !hasNextInGroup,
+      };
+    });
+  }, [timeline, selectedTimestampEntryKey]);
 
   const latestSubmittedSlot = useMemo(
     () =>
@@ -590,6 +600,19 @@ export const WidgetChatScreen = () => {
               );
               const messageClassName = "max-w-[88%] md:max-w-[50%]";
 
+              if (entry.type === "status") {
+                return (
+                  <div
+                    key={entry.entryKey}
+                    className="flex justify-center px-2 mt-4"
+                  >
+                    <p className="text-xs font-medium tracking-wide text-center text-muted-foreground/80 md:text-[13px]">
+                      {entry.text}
+                    </p>
+                  </div>
+                );
+              }
+
               if (entry.type === "confirmed") {
                 const msg = entry.data;
                 const isUser = msg.role === "user";
@@ -686,10 +709,7 @@ export const WidgetChatScreen = () => {
                       </div>
                     </div>
                   )}
-                  <Message
-                    from="assistant"
-                    className={messageClassName}
-                  >
+                  <Message from="assistant" className={messageClassName}>
                     <ChatBubble
                       text=""
                       variant="agent"
