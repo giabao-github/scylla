@@ -62,7 +62,13 @@ export const WidgetChatScreen = () => {
   const [staleCheckTimestamp, setStaleCheckTimestamp] = useState(() =>
     Date.now(),
   );
-  const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
+  const [selectedTimestampEntryKey, setSelectedTimestampEntryKey] = useState<
+    string | null
+  >(null);
+  const [statusDisplayEntryKey, setStatusDisplayEntryKey] = useState<
+    string | null
+  >(null);
+  const latestSubmissionKeyRef = useRef<string | null>(null);
 
   const conversationId = useAtomValue(conversationIdAtom);
   const widgetSettings = useAtomValue(widgetSettingsAtom);
@@ -393,12 +399,77 @@ export const WidgetChatScreen = () => {
     ],
   );
 
-  const statusDisplayEntryKey = selectedEntryKey;
+  const groupedTimeline = useMemo(
+    () => {
+      const getEntryRole = (entry: (typeof timeline)[number] | undefined) => {
+        if (!entry) return null;
+        if (entry.type === "confirmed") return entry.data.role;
+        return entry.type === "pending-user" ? "user" : "assistant";
+      };
+
+      return timeline.map((entry, index) => {
+        const role = getEntryRole(entry);
+        const next = timeline[index + 1];
+        const previousRole = getEntryRole(timeline[index - 1]);
+        const nextRole = getEntryRole(next);
+        const isSeparatedFromPrevious =
+          selectedTimestampEntryKey === entry.entryKey;
+        const isSeparatedFromNext =
+          next?.entryKey === selectedTimestampEntryKey;
+        const hasPreviousInGroup =
+          previousRole === role && !isSeparatedFromPrevious;
+        const hasNextInGroup = nextRole === role && !isSeparatedFromNext;
+        const groupPosition = !hasPreviousInGroup && !hasNextInGroup
+          ? ("single" as const)
+          : !hasPreviousInGroup
+            ? ("first" as const)
+            : !hasNextInGroup
+              ? ("last" as const)
+              : ("middle" as const);
+
+        return {
+          ...entry,
+          groupPosition,
+          isGroupedWithPrevious: hasPreviousInGroup,
+          isLastInGroup: !hasNextInGroup,
+        };
+      });
+    },
+    [timeline, selectedTimestampEntryKey],
+  );
+
+  const latestSubmittedSlot = useMemo(
+    () =>
+      pendingSlots.reduce<PendingSlot | null>(
+        (latest, slot) =>
+          !latest || slot.submittedAt > latest.submittedAt ? slot : latest,
+        null,
+      ),
+    [pendingSlots],
+  );
 
   useEffect(() => {
-    setSelectedEntryKey(null);
+    setSelectedTimestampEntryKey(null);
+    setStatusDisplayEntryKey(null);
+    latestSubmissionKeyRef.current = null;
     latestMarkedSeenAtRef.current = 0;
   }, [conversationId]);
+
+  useEffect(() => {
+    if (!latestSubmittedSlot) {
+      latestSubmissionKeyRef.current = null;
+      return;
+    }
+
+    const submissionKey = `${latestSubmittedSlot.localId}:${latestSubmittedSlot.submittedAt}`;
+
+    if (latestSubmissionKeyRef.current === submissionKey) {
+      return;
+    }
+
+    latestSubmissionKeyRef.current = submissionKey;
+    setStatusDisplayEntryKey(`pending-user:${latestSubmittedSlot.localId}`);
+  }, [latestSubmittedSlot]);
 
   useEffect(() => {
     if (contactReadReceiptCutoff > latestMarkedSeenAtRef.current) {
@@ -407,14 +478,19 @@ export const WidgetChatScreen = () => {
   }, [contactReadReceiptCutoff]);
 
   useEffect(() => {
-    if (!selectedEntryKey) {
-      return;
+    const entryKeys = new Set(timeline.map((entry) => entry.entryKey));
+
+    if (
+      selectedTimestampEntryKey &&
+      !entryKeys.has(selectedTimestampEntryKey)
+    ) {
+      setSelectedTimestampEntryKey(null);
     }
 
-    if (!timeline.some((entry) => entry.entryKey === selectedEntryKey)) {
-      setSelectedEntryKey(null);
+    if (statusDisplayEntryKey && !entryKeys.has(statusDisplayEntryKey)) {
+      setStatusDisplayEntryKey(null);
     }
-  }, [timeline, selectedEntryKey]);
+  }, [timeline, selectedTimestampEntryKey, statusDisplayEntryKey]);
 
   const modalConfig = useMemo(() => {
     if (isInvalidConversation)
@@ -445,7 +521,17 @@ export const WidgetChatScreen = () => {
   }, [baseHandleScroll, syncSeenByContact]);
 
   const handleEntrySelect = (entryKey: string) => {
-    setSelectedEntryKey((current) => (current === entryKey ? null : entryKey));
+    if (
+      selectedTimestampEntryKey === entryKey &&
+      statusDisplayEntryKey === entryKey
+    ) {
+      setSelectedTimestampEntryKey(null);
+      setStatusDisplayEntryKey(null);
+      return;
+    }
+
+    setSelectedTimestampEntryKey(entryKey);
+    setStatusDisplayEntryKey(entryKey);
   };
 
   const timestampClasses = (isSelected: boolean) =>
@@ -475,7 +561,7 @@ export const WidgetChatScreen = () => {
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="flex overflow-y-auto flex-col flex-1 gap-4 px-3 py-4 scrollbar-themed md:gap-5 md:px-4 md:py-6"
+            className="flex overflow-y-auto flex-col flex-1 gap-0 px-3 py-4 scrollbar-themed md:px-4 md:py-6"
           >
             <div>
               {isLoadingMore && (
@@ -496,27 +582,34 @@ export const WidgetChatScreen = () => {
 
             <div ref={topElementRef} className="h-px" />
 
-            {timeline.map((entry) => {
-              const isSelected = selectedEntryKey === entry.entryKey;
+            {groupedTimeline.map((entry) => {
+              const isSelected = selectedTimestampEntryKey === entry.entryKey;
+              const messageWrapperClassName = cn(
+                entry.isGroupedWithPrevious ? "mt-1" : "mt-4",
+                "space-y-1.5 transition-[margin] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
+              );
+              const messageClassName = "max-w-[88%] md:max-w-[50%]";
 
               if (entry.type === "confirmed") {
                 const msg = entry.data;
                 const isUser = msg.role === "user";
                 return (
-                  <div key={entry.entryKey} className="mt-2 space-y-6">
-                    <div
-                      aria-hidden={!isSelected}
-                      className={timestampClasses(isSelected)}
-                    >
-                      <div className="overflow-hidden min-h-0">
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                          {formatChatTimestamp(entry.timestamp)}
-                        </p>
+                  <div key={entry.entryKey} className={messageWrapperClassName}>
+                    {isSelected && (
+                      <div
+                        aria-hidden={!isSelected}
+                        className={timestampClasses(isSelected)}
+                      >
+                        <div className="overflow-hidden min-h-0">
+                          <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                            {formatChatTimestamp(entry.timestamp)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <Message
                       from={isUser ? "user" : "assistant"}
-                      className="max-w-[88%] md:max-w-[50%]"
+                      className={messageClassName}
                     >
                       <ChatBubble
                         text={msg.text}
@@ -530,6 +623,8 @@ export const WidgetChatScreen = () => {
                         showStatus={
                           isUser && entry.entryKey === statusDisplayEntryKey
                         }
+                        groupPosition={entry.groupPosition}
+                        showAvatar={!isUser && entry.isLastInGroup}
                       />
                     </Message>
                   </div>
@@ -539,18 +634,20 @@ export const WidgetChatScreen = () => {
               if (entry.type === "pending-user") {
                 const slot = entry.data;
                 return (
-                  <div key={entry.entryKey} className="mt-2 space-y-6">
-                    <div
-                      aria-hidden={!isSelected}
-                      className={timestampClasses(isSelected)}
-                    >
-                      <div className="overflow-hidden min-h-0">
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                          {formatChatTimestamp(entry.timestamp)}
-                        </p>
+                  <div key={entry.entryKey} className={messageWrapperClassName}>
+                    {isSelected && (
+                      <div
+                        aria-hidden={!isSelected}
+                        className={timestampClasses(isSelected)}
+                      >
+                        <div className="overflow-hidden min-h-0">
+                          <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                            {formatChatTimestamp(entry.timestamp)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <Message from="user" className="max-w-[88%] md:max-w-[50%]">
+                    )}
+                    <Message from="user" className={messageClassName}>
                       <ChatBubble
                         text={slot.userText}
                         variant="user"
@@ -567,6 +664,7 @@ export const WidgetChatScreen = () => {
                         }
                         onClick={() => handleEntrySelect(entry.entryKey)}
                         showStatus={entry.entryKey === statusDisplayEntryKey}
+                        groupPosition={entry.groupPosition}
                       />
                     </Message>
                   </div>
@@ -575,20 +673,22 @@ export const WidgetChatScreen = () => {
 
               const slot = entry.data;
               return (
-                <div key={entry.entryKey} className="mt-2 space-y-6">
-                  <div
-                    aria-hidden={!isSelected}
-                    className={timestampClasses(isSelected)}
-                  >
-                    <div className="overflow-hidden min-h-0">
-                      <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                        {formatChatTimestamp(entry.timestamp)}
-                      </p>
+                <div key={entry.entryKey} className={messageWrapperClassName}>
+                  {isSelected && (
+                    <div
+                      aria-hidden={!isSelected}
+                      className={timestampClasses(isSelected)}
+                    >
+                      <div className="overflow-hidden min-h-0">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                          {formatChatTimestamp(entry.timestamp)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <Message
                     from="assistant"
-                    className="max-w-[88%] md:max-w-[50%]"
+                    className={messageClassName}
                   >
                     <ChatBubble
                       text=""
@@ -602,6 +702,8 @@ export const WidgetChatScreen = () => {
                       }
                       onClick={() => handleEntrySelect(entry.entryKey)}
                       showStatus={false}
+                      groupPosition={entry.groupPosition}
+                      showAvatar={entry.isLastInGroup}
                     />
                   </Message>
                 </div>
@@ -680,7 +782,9 @@ export const WidgetChatScreen = () => {
                       />
                     </PromptInputBody>
                     <PromptInputFooter>
-                      <PromptBoxDefaultTools />
+                      <PromptBoxDefaultTools
+                        modelSelectorDisabled={isEscalated}
+                      />
                       <PromptInputSubmit
                         disabled={submitDisabled}
                         status={submitStatus}

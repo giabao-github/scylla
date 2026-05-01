@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type ComponentProps, useEffect } from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -28,7 +28,7 @@ const isValidSpaceSeparatedRgb = (value: string) => {
   });
 };
 
-interface GlassPanelProps extends React.ComponentProps<"div"> {
+interface GlassPanelProps extends ComponentProps<"div"> {
   transparency?: keyof typeof transparencyLevels | number;
   blur?: keyof typeof blurClasses;
   tintColor?: string;

@@ -429,6 +429,43 @@ export const ConversationIdView = ({
     [baseMessages, pendingSlots],
   );
 
+  const groupedTimeline = useMemo(
+    () => {
+      const getEntrySide = (entry: (typeof timeline)[number] | undefined) => {
+        if (!entry) return null;
+        if (entry.type === "pending") return "operator";
+        return entry.data.role === "user" ? "client" : "operator";
+      };
+
+      return timeline.map((entry, index) => {
+        const side = getEntrySide(entry);
+        const next = timeline[index + 1];
+        const previousSide = getEntrySide(timeline[index - 1]);
+        const nextSide = getEntrySide(next);
+        const isSeparatedFromPrevious = selectedEntryKey === entry.entryKey;
+        const isSeparatedFromNext = next?.entryKey === selectedEntryKey;
+        const hasPreviousInGroup =
+          previousSide === side && !isSeparatedFromPrevious;
+        const hasNextInGroup = nextSide === side && !isSeparatedFromNext;
+        const groupPosition = !hasPreviousInGroup && !hasNextInGroup
+          ? ("single" as const)
+          : !hasPreviousInGroup
+            ? ("first" as const)
+            : !hasNextInGroup
+              ? ("last" as const)
+              : ("middle" as const);
+
+        return {
+          ...entry,
+          groupPosition,
+          isGroupedWithPrevious: hasPreviousInGroup,
+          isLastInGroup: !hasNextInGroup,
+        };
+      });
+    },
+    [timeline, selectedEntryKey],
+  );
+
   useEffect(() => {
     if (!selectedEntryKey) {
       return;
@@ -538,7 +575,7 @@ export const ConversationIdView = ({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-y-auto flex-col gap-4 px-4 pt-4 pb-4 h-full scrollbar-themed md:gap-5 md:pb-8 md:pt-6"
+        className="flex overflow-y-auto flex-col gap-0 px-4 pt-4 pb-4 h-full scrollbar-themed md:pb-8 md:pt-6"
         style={{ maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT }}
       >
         <div>
@@ -560,27 +597,34 @@ export const ConversationIdView = ({
           <div ref={topElementRef} className="h-px" />
         </div>
 
-        {timeline.map((entry) => {
+        {groupedTimeline.map((entry) => {
           const isSelected = selectedEntryKey === entry.entryKey;
+          const messageWrapperClassName = cn(
+            entry.isGroupedWithPrevious ? "mt-1" : "mt-4",
+            "space-y-1.5 transition-[margin] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
+          );
+          const messageClassName = "max-w-4/5 md:max-w-1/2";
 
           if (entry.type === "confirmed") {
             const message = entry.data;
             const isFromClient = message.role === "user";
             return (
-              <div key={entry.entryKey} className="mt-2 space-y-6">
-                <div
-                  aria-hidden={!isSelected}
-                  className={timestampClasses(isSelected)}
-                >
-                  <div className="overflow-hidden min-h-0">
-                    <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                      {formatChatTimestamp(entry.timestamp)}
-                    </p>
+              <div key={entry.entryKey} className={messageWrapperClassName}>
+                {isSelected && (
+                  <div
+                    aria-hidden={!isSelected}
+                    className={timestampClasses(isSelected)}
+                  >
+                    <div className="overflow-hidden min-h-0">
+                      <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                        {formatChatTimestamp(entry.timestamp)}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
                 <Message
                   from={isFromClient ? "assistant" : "user"}
-                  className="max-w-4/5 md:max-w-1/2"
+                  className={messageClassName}
                 >
                   <ChatBubble
                     text={message.text ?? ""}
@@ -599,6 +643,8 @@ export const ConversationIdView = ({
                     showStatus={
                       !isFromClient && entry.entryKey === selectedEntryKey
                     }
+                    groupPosition={entry.groupPosition}
+                    showAvatar={isFromClient && entry.isLastInGroup}
                   />
                 </Message>
               </div>
@@ -607,18 +653,20 @@ export const ConversationIdView = ({
 
           const slot = entry.data;
           return (
-            <div key={entry.entryKey} className="mt-2 space-y-6">
-              <div
-                aria-hidden={!isSelected}
-                className={timestampClasses(isSelected)}
-              >
-                <div className="overflow-hidden min-h-0">
-                  <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
-                    {formatChatTimestamp(entry.timestamp)}
-                  </p>
+            <div key={entry.entryKey} className={messageWrapperClassName}>
+              {isSelected && (
+                <div
+                  aria-hidden={!isSelected}
+                  className={timestampClasses(isSelected)}
+                >
+                  <div className="overflow-hidden min-h-0">
+                    <p className="text-xs font-medium tracking-wide text-muted-foreground/80 md:text-[13px]">
+                      {formatChatTimestamp(entry.timestamp)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <Message from="user" className="max-w-4/5 md:max-w-1/2">
+              )}
+              <Message from="user" className={messageClassName}>
                 <ChatBubble
                   text={slot.text}
                   variant="user"
@@ -631,6 +679,7 @@ export const ConversationIdView = ({
                   }
                   onClick={() => handleEntrySelect(entry.entryKey)}
                   showStatus={entry.entryKey === selectedEntryKey}
+                  groupPosition={entry.groupPosition}
                 />
               </Message>
             </div>

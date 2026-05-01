@@ -59,10 +59,6 @@ export const createConversationTool = (options: {
 
         const savedMessage = await saveConfirmationMessage();
 
-        if (!savedMessage) {
-          return options.confirmationMessage;
-        }
-
         try {
           await ctx.runMutation(
             internal.system.conversations.updateLastMessage,
@@ -72,7 +68,7 @@ export const createConversationTool = (options: {
                 role: "assistant",
                 text: options.confirmationMessage,
               },
-              messageAt: savedMessage._creationTime,
+              messageAt: savedMessage?._creationTime ?? Date.now(),
             },
           );
         } catch (err) {
