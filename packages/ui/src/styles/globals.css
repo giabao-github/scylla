@@ -33,13 +33,13 @@
   --chart-3: oklch(0.5413 0.2466 293.009);
   --chart-4: oklch(0.4907 0.2412 292.5809);
   --chart-5: oklch(0.432 0.2106 292.7591);
-  --sidebar: oklch(0.9073 0.053 306.0902);
+  --sidebar: oklch(0.9073 0.053 306.0902 / 0.55);
   --sidebar-foreground: oklch(0.3729 0.0306 259.7328);
   --sidebar-primary: oklch(0.709 0.1592 293.5412);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.9376 0.026 321.9388);
+  --sidebar-accent: oklch(0.9376 0.026 321.9388 / 0.6);
   --sidebar-accent-foreground: oklch(0.3729 0.0306 259.7328);
-  --sidebar-border: oklch(0.9073 0.053 306.0902);
+  --sidebar-border: oklch(0.9073 0.053 306.0902 / 0.4);
   --sidebar-ring: oklch(0.709 0.1592 293.5412);
   --font-sans: "Noto Sans", sans-serif;
   --font-serif: "Source Serif 4", serif;
@@ -67,6 +67,32 @@
   --tracking-normal: 0em;
   --spacing: 0.25rem;
   --scrollbar-thumb: oklch(0.81116 0.10139 293.557);
+
+  /* Base translucent surface — the primary card/panel material */
+  --glass-surface: rgba(255, 255, 255, 0.58);
+  /* Elevated surface (dialogs, popovers, sidebars) — slightly more opaque */
+  --glass-surface-elevated: rgba(255, 255, 255, 0.78);
+  /* Subtle surface — list item hover states, thin overlays */
+  --glass-surface-subtle: rgba(255, 255, 255, 0.3);
+  /* Border: catches the top-light and reads as glass edge */
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-border-subtle: rgba(255, 255, 255, 0.3);
+  /* Specular: top-edge highlight line on panels */
+  --glass-specular: rgba(255, 255, 255, 0.85);
+  /* Ambient page background — the canvas that makes glass visible */
+  --glass-bg-from: oklch(0.93 0.035 290);
+  --glass-bg-via: oklch(0.95 0.018 305);
+  --glass-bg-to: oklch(0.9 0.048 275);
+  /* Ambient orb colors */
+  --glass-orb-1: oklch(0.8 0.1 290 / 0.22);
+  --glass-orb-2: oklch(0.76 0.12 270 / 0.18);
+  --glass-orb-3: oklch(0.85 0.08 320 / 0.15);
+  /* Spring easing for elastic interactions */
+  --sidebar-active-start: var(--primary);
+  --sidebar-active-end: oklch(0.6 0.22 293);
+  --sidebar-active-shadow: 0 2px 12px -2px oklch(0.709 0.1592 293.5412 / 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .dark {
@@ -94,13 +120,14 @@
   --chart-3: oklch(0.6056 0.2189 292.7172);
   --chart-4: oklch(0.5413 0.2466 293.009);
   --chart-5: oklch(0.4907 0.2412 292.5809);
-  --sidebar: oklch(0.3416 0.0444 308.8496);
+  /* Sidebar dark — translucent dark surface */
+  --sidebar: oklch(0.3416 0.0444 308.8496 / 0.55);
   --sidebar-foreground: oklch(0.9299 0.0334 272.7879);
   --sidebar-primary: oklch(0.7874 0.1179 295.7538);
   --sidebar-primary-foreground: oklch(0.2161 0.0061 56.0434);
-  --sidebar-accent: oklch(0.3858 0.0509 304.6383);
+  --sidebar-accent: oklch(0.3858 0.0509 304.6383 / 0.6);
   --sidebar-accent-foreground: oklch(0.8717 0.0093 258.3382);
-  --sidebar-border: oklch(0.3416 0.0444 308.8496);
+  --sidebar-border: oklch(0.3416 0.0444 308.8496 / 0.4);
   --sidebar-ring: oklch(0.7874 0.1179 295.7538);
   --font-sans: "Noto Sans", sans-serif;
   --font-serif: "Source Serif 4", serif;
@@ -126,6 +153,25 @@
     0px 8px 16px -4px hsl(0 0% 0% / 0.08), 0px 8px 10px -5px hsl(0 0% 0% / 0.08);
   --shadow-2xl: 0px 8px 16px -4px hsl(0 0% 0% / 0.2);
   --scrollbar-thumb: oklch(0.6056 0.2189 292.7172);
+
+  --glass-surface: rgba(35, 25, 60, 0.52);
+  --glass-surface-elevated: rgba(50, 38, 80, 0.72);
+  --glass-surface-subtle: rgba(35, 25, 60, 0.28);
+  --glass-border: rgba(180, 160, 255, 0.18);
+  --glass-border-subtle: rgba(180, 160, 255, 0.1);
+  --glass-specular: rgba(200, 180, 255, 0.55);
+  /* Dark ambient canvas — deep indigo with violet undertones */
+  --glass-bg-from: oklch(0.14 0.06 285);
+  --glass-bg-via: oklch(0.12 0.04 295);
+  --glass-bg-to: oklch(0.11 0.07 270);
+  /* Dark ambient orbs — electric violet/indigo glows */
+  --glass-orb-1: oklch(0.55 0.18 280 / 0.25);
+  --glass-orb-2: oklch(0.5 0.2 260 / 0.2);
+  --glass-orb-3: oklch(0.6 0.14 300 / 0.18);
+  --sidebar-active-start: var(--primary);
+  --sidebar-active-end: oklch(0.55 0.2 295);
+  --sidebar-active-shadow: 0 4px 20px -4px oklch(0 0% 0% / 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 @theme inline {
@@ -161,6 +207,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Glass token registrations — makes Tailwind arbitrary-value classes work */
+  --color-glass-surface: var(--glass-surface);
+  --color-glass-surface-elevated: var(--glass-surface-elevated);
+  --color-glass-surface-subtle: var(--glass-surface-subtle);
+  --color-glass-border: var(--glass-border);
+  --color-glass-border-subtle: var(--glass-border-subtle);
+  --color-glass-specular: var(--glass-specular);
 
   --width-sidebar: var(--sidebar-width, 16rem);
   --width-sidebar-mobile: var(--sidebar-width-mobile, 18rem);
@@ -206,6 +260,72 @@
 }
 
 @layer components {
+  /* Core glass surface */
+  .glass-surface {
+    background: var(--glass-surface);
+    backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      0 1px 0 0 var(--glass-specular) inset,
+      0 24px 48px -12px rgba(0, 0, 0, 0.12),
+      0 4px 16px -4px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Elevated glass (dialogs, floating panels) */
+  .glass-elevated {
+    background: var(--glass-surface-elevated);
+    backdrop-filter: blur(32px) saturate(2);
+    -webkit-backdrop-filter: blur(32px) saturate(2);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      0 1px 0 0 var(--glass-specular) inset,
+      0 40px 80px -20px rgba(0, 0, 0, 0.18),
+      0 8px 24px -8px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Subtle glass for hover surfaces */
+  .glass-subtle {
+    background: var(--glass-surface-subtle);
+    backdrop-filter: blur(8px) saturate(1.4);
+    -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  }
+
+  /* Ambient background scene with floating orbs */
+  .glass-ambient-bg {
+    background: linear-gradient(
+      145deg,
+      var(--glass-bg-from),
+      var(--glass-bg-via) 45%,
+      var(--glass-bg-to)
+    );
+    position: relative;
+  }
+
+  .glass-ambient-bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        ellipse 60% 50% at 15% 15%,
+        var(--glass-orb-1),
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 55% 45% at 85% 10%,
+        var(--glass-orb-2),
+        transparent 65%
+      ),
+      radial-gradient(
+        ellipse 50% 55% at 50% 90%,
+        var(--glass-orb-3),
+        transparent 70%
+      );
+  }
+
+  /* Markdown content styles */
   .markdown-content {
     ul,
     ol {
@@ -461,7 +581,73 @@
   .dot-loader,
   .dino-runner,
   .dino-obstacle,
-  .dino-ground {
+  .dino-ground,
+  .animate-spring-in {
     animation: none;
+  }
+}
+
+@keyframes spring-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-spring-in {
+  animation: spring-in 0.45s var(--ease-spring) both;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-surface {
+    background: rgba(245, 243, 252, 0.97);
+    border-color: rgba(180, 170, 220, 0.55);
+    backdrop-filter: none;
+  }
+
+  .glass-elevated {
+    background: rgba(248, 246, 255, 0.98);
+    border-color: rgba(180, 170, 220, 0.55);
+    backdrop-filter: none;
+  }
+
+  .glass-subtle {
+    background: rgba(240, 238, 250, 0.9);
+    backdrop-filter: none;
+  }
+
+  .glass-ambient-bg {
+    background: oklch(0.93 0.035 290);
+  }
+
+  .glass-ambient-bg::before {
+    display: none;
+  }
+
+  /* Dark mode fallbacks */
+  .dark .glass-surface {
+    background: rgba(28, 20, 48, 0.97);
+    border-color: rgba(100, 80, 160, 0.4);
+  }
+
+  .dark .glass-elevated {
+    background: rgba(38, 28, 62, 0.98);
+    border-color: rgba(100, 80, 160, 0.4);
+  }
+
+  .dark .glass-subtle {
+    background: rgba(28, 20, 48, 0.88);
+  }
+
+  .dark .glass-ambient-bg {
+    background: oklch(0.14 0.06 285);
   }
 }

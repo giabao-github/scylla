@@ -87,16 +87,28 @@ export const IntegrationsView = () => {
         snippet={selectedSnippet}
         integrationName={selectedIntegration?.name}
       />
-      <div className="relative min-h-screen overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.96),rgba(241,245,249,0.94)_34%,rgba(226,232,240,0.88)_100%)] scrollbar-themed">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-16 -left-24 rounded-full blur-3xl size-72 bg-sky-200/40" />
-          <div className="absolute top-12 -right-20 rounded-full blur-3xl size-80 bg-indigo-200/30" />
-          <div className="absolute bottom-0 left-1/3 rounded-full blur-3xl size-96 bg-white/35" />
+      <div className="flex overflow-y-auto overflow-x-hidden relative flex-col flex-1 min-h-0 scrollbar-themed">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+        >
+          <div
+            className="absolute top-16 -left-24 rounded-full blur-3xl size-72"
+            style={{ background: "var(--glass-orb-1)" }}
+          />
+          <div
+            className="absolute top-12 -right-20 rounded-full blur-3xl size-80"
+            style={{ background: "var(--glass-orb-2)" }}
+          />
+          <div
+            className="absolute bottom-0 left-1/3 rounded-full blur-3xl size-96"
+            style={{ background: "var(--glass-orb-3)" }}
+          />
         </div>
 
         <div className="flex relative flex-col gap-8 px-4 py-6 mx-auto w-full max-w-6xl md:px-8 md:py-10">
           <header className="space-y-5">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600 shadow-sm backdrop-blur-md">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600 shadow-sm backdrop-blur-md mx-2 md:mx-0">
               <SparklesIcon
                 className="size-3.5 text-sky-600"
                 aria-hidden="true"
@@ -105,8 +117,8 @@ export const IntegrationsView = () => {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.8fr)]">
-              <div className="space-y-4">
-                <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+              <div className="mx-2 space-y-4 md:mx-0">
+                <h1 className="max-w-full text-3xl font-semibold tracking-tight text-slate-950 md:text-5xl">
                   Setup and Integrations
                 </h1>
                 <p className="max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
@@ -238,7 +250,7 @@ export const IntegrationsView = () => {
           </div>
 
           <section className="space-y-4">
-            <div className="space-y-2">
+            <div className="mx-2 space-y-2 md:mx-0">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
                 Integrations
               </p>
@@ -265,30 +277,60 @@ export const IntegrationsView = () => {
                     type="button"
                     disabled={!hasOrganization}
                     onClick={() => handleIntegrationSelect(integration.id)}
-                    className="group relative flex min-h-48 flex-col justify-between rounded-[1.75rem] border border-white/75 bg-white/60 p-5 text-left shadow-[0_20px_40px_rgba(148,163,184,0.12)] transition-all duration-200 hover:-translate-y-1 hover:border-sky-200 hover:bg-white/78 hover:shadow-[0_28px_55px_rgba(14,165,233,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/70 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
+                    className="group relative flex flex-row items-center gap-4 rounded-[1.75rem] border border-white/75 bg-white/60 p-4 text-left shadow-[0_20px_40px_rgba(148,163,184,0.12)] transition-all duration-200 hover:-translate-y-1 hover:border-sky-200 hover:bg-white/78 hover:shadow-[0_28px_55px_rgba(14,165,233,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/70 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 sm:min-h-48 sm:flex-col sm:justify-between sm:p-5"
                   >
                     <div className="absolute inset-0 rounded-[1.75rem] bg-linear-to-br from-white/40 via-transparent to-sky-100/30 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-                    <div className="flex relative gap-4 justify-between items-start">
-                      <div className="flex size-14 items-center justify-center rounded-[1.25rem] border border-white/80 bg-white/85 shadow-sm">
+
+                    {/* Mobile layout: icon + name + arrow in a single row */}
+                    <div
+                      className="flex relative gap-3 items-center w-full sm:hidden"
+                      aria-hidden="true"
+                    >
+                      <div className="flex justify-center items-center rounded-2xl border shadow-sm size-11 shrink-0 border-white/80 bg-white/85">
                         <Image
                           alt={integration.name}
-                          width={32}
-                          height={32}
+                          width={28}
+                          height={28}
                           src={integration.icon}
                         />
                       </div>
-                      <div className="flex justify-center items-center rounded-full border transition-colors size-9 border-slate-200/80 bg-white/80 text-slate-500 group-hover:border-sky-200 group-hover:text-sky-700">
-                        <ArrowRightIcon className="size-4" aria-hidden="true" />
+                      <p className="flex-1 text-base font-semibold text-slate-950">
+                        {integration.name}
+                      </p>
+                      <div className="flex justify-center items-center rounded-full border transition-colors size-8 shrink-0 border-slate-200/80 bg-white/80 text-slate-500 group-hover:border-sky-200 group-hover:text-sky-700">
+                        <ArrowRightIcon
+                          className="size-3.5"
+                          aria-hidden="true"
+                        />
                       </div>
                     </div>
 
-                    <div className="relative space-y-2">
-                      <p className="text-lg font-semibold text-slate-950">
-                        {integration.name}
-                      </p>
-                      <p className="text-sm leading-6 text-slate-600">
-                        {INTEGRATION_DESCRIPTIONS[integration.id]}
-                      </p>
+                    {/* Desktop layout: icon + arrow at top, text at bottom */}
+                    <div className="hidden relative w-full sm:flex sm:flex-col sm:justify-between sm:h-full">
+                      <div className="flex gap-4 justify-between items-start">
+                        <div className="flex size-14 items-center justify-center rounded-[1.25rem] border border-white/80 bg-white/85 shadow-sm">
+                          <Image
+                            alt={integration.name}
+                            width={32}
+                            height={32}
+                            src={integration.icon}
+                          />
+                        </div>
+                        <div className="flex justify-center items-center rounded-full border transition-colors size-9 border-slate-200/80 bg-white/80 text-slate-500 group-hover:border-sky-200 group-hover:text-sky-700">
+                          <ArrowRightIcon
+                            className="size-4"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <p className="text-lg font-semibold text-slate-950">
+                          {integration.name}
+                        </p>
+                        <p className="text-sm leading-6 text-slate-600">
+                          {INTEGRATION_DESCRIPTIONS[integration.id]}
+                        </p>
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -332,9 +374,9 @@ export const IntegrationDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden border-white/60 bg-white/78 p-0 shadow-[0_36px_120px_rgba(15,23,42,0.22)] backdrop-blur-2xl sm:max-w-3xl">
+      <DialogContent className="overflow-hidden max-h-[90dvh] flex flex-col border-white/60 bg-white/78 p-0 shadow-[0_36px_120px_rgba(15,23,42,0.22)] backdrop-blur-2xl sm:max-w-3xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.9),rgba(240,249,255,0.75)_46%,transparent_100%)]" />
-        <div className="relative">
+        <div className="overflow-y-auto relative scrollbar-themed">
           <DialogHeader className="px-6 py-6 border-b border-white/60">
             <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-white/75 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 shadow-sm">
               <SparklesIcon
@@ -375,7 +417,7 @@ export const IntegrationDialog = ({
                   </Button>
                 </div>
 
-                <pre className="max-h-[360px] overflow-x-auto overflow-y-auto whitespace-pre-wrap break-all rounded-[1.15rem] border border-slate-900/10 bg-slate-950 p-4 font-mono text-sm leading-6 text-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <pre className="scrollbar-themed max-h-[360px] overflow-x-auto overflow-y-auto whitespace-pre-wrap break-all rounded-[1.15rem] border border-slate-900/10 bg-slate-950 p-4 font-mono text-xs md:text-sm leading-6 text-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                   {snippet}
                 </pre>
               </div>

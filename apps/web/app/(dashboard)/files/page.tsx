@@ -5,7 +5,7 @@ import { SubscriptionGate } from "@/modules/billing/ui/component/subscription-ga
 import { FilesView } from "@/modules/files/ui/views/files-view";
 
 export const metadata: Metadata = {
-  title: "Knowledge Base - Scylla",
+  title: "Knowledge Base",
   description: "Manage your knowledge base",
 };
 

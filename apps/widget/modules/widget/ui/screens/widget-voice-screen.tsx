@@ -26,6 +26,7 @@ import { cn } from "@workspace/ui/lib/utils";
 
 export const WidgetVoiceScreen = () => {
   const [isLoadingSecrets, setIsLoadingSecrets] = useState(false);
+  const [localBlocked, setLocalBlocked] = useState(false);
   const [secretError, setSecretError] = useState<string | null>(null);
 
   const conversationId = useAtomValue(conversationIdAtom);
@@ -59,8 +60,22 @@ export const WidgetVoiceScreen = () => {
 
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
+  const serverBlockedAt = isValidSession ? validation.contactSession?.blockedAt : undefined;
+  const isContactBlocked =
+    localBlocked ||
+    (isValidSession && !!serverBlockedAt);
+
+  useEffect(() => {
+    if (isValidSession && !serverBlockedAt && localBlocked) {
+      setLocalBlocked(false);
+    }
+  }, [isValidSession, serverBlockedAt, localBlocked]);
   const isSessionBlocked =
-    isNew || isExpired || isSessionValidating || !isValidSession;
+    isNew ||
+    isExpired ||
+    isSessionValidating ||
+    !isValidSession ||
+    isContactBlocked;
   const assistantId = widgetSettings?.vapiSettings?.assistantId;
 
   const transcriptMessages = useMemo(
@@ -144,6 +159,21 @@ export const WidgetVoiceScreen = () => {
       })
       .catch((fetchError) => {
         if (cancelled) {
+          return;
+        }
+
+        const isBlockedError =
+          fetchError instanceof Error &&
+          "data" in fetchError &&
+          typeof fetchError.data === "object" &&
+          fetchError.data !== null &&
+          "code" in fetchError.data &&
+          fetchError.data.code === "BLOCKED";
+
+        if (isBlockedError) {
+          setLocalBlocked(true);
+          setVapiSecrets(null);
+          setSecretError(null);
           return;
         }
 
@@ -286,7 +316,12 @@ export const WidgetVoiceScreen = () => {
                   )}
                 </div>
 
-                {(secretError || error) && (
+                {isContactBlocked && (
+                  <p className="max-w-sm text-[13px] text-center text-destructive md:text-sm">
+                    Your access has been restricted. Please contact support.
+                  </p>
+                )}
+                {!isContactBlocked && (secretError || error) && (
                   <p className="max-w-sm text-[13px] text-center text-destructive md:text-sm">
                     {secretError ?? error}
                   </p>

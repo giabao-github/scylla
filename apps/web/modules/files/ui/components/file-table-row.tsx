@@ -24,12 +24,18 @@ export const FileTableRow = ({
   onEdit,
   onDelete,
 }: FileTableRowProps) => (
-  <TableRow className={cn("hover:bg-muted/50", isSelected && "bg-muted/30")}>
+  <TableRow
+    className={cn(
+      "hover:bg-white/10 dark:hover:bg-white/5 transition-colors duration-200",
+      isSelected && "bg-primary/10 dark:bg-primary/20",
+    )}
+  >
     <TableCell className="px-6 py-4">
       <Checkbox
         checked={isSelected}
         onCheckedChange={() => onToggleSelect(file.id)}
         aria-label={`Select ${file.name}`}
+        className="border-primary bg-white/20 dark:bg-white/10"
       />
     </TableCell>
     <TableCell className="px-6 py-4">

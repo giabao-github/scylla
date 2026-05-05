@@ -32,9 +32,9 @@ export const PluginCard = ({
       transparency={90}
       tintColor="rgb(192 170 253)"
       borderColor="rgb(192 170 253 / 0.1)"
-      className="p-8 w-full h-fit"
+      className="h-fit w-full p-4 sm:p-6 md:p-8"
     >
-      <div className="flex gap-6 justify-center items-center mb-6">
+      <div className="mb-6 flex items-center justify-center gap-4 sm:gap-6">
         <div className="flex flex-col items-center">
           <div className="flex justify-center items-center p-3 rounded-2xl border shadow-sm border-white/60 bg-white/65">
             <Image
@@ -72,11 +72,11 @@ export const PluginCard = ({
       </div>
 
       <div className="mb-6">
-        <ul className="space-y-4 list-none">
+        <ul className="space-y-3 list-none sm:space-y-4">
           {features.map((feature) => (
             <li
               key={feature.id}
-              className="flex gap-3 items-center px-3 py-2 rounded-2xl border border-primary/20 bg-white/50"
+              className="flex gap-3 items-center rounded-lg border border-primary/20 bg-white/50 px-3 py-2"
             >
               <div className="flex justify-center items-center rounded-full bg-secondary/50 size-9">
                 <feature.icon
@@ -100,7 +100,7 @@ export const PluginCard = ({
           variant="default"
           disabled={isDisabled}
           onClick={onConnect}
-          className="shadow-lg size-full shadow-primary/15"
+          className="w-full shadow-lg shadow-primary/15"
         >
           Connect
           <PlugIcon aria-hidden="true" />

@@ -271,10 +271,10 @@ export const UploadDialog = ({
           }
         }}
       >
-        <DialogContent className="flex flex-col gap-y-6 max-w-md md:max-w-lg">
+        <DialogContent className="flex flex-col gap-y-5 md:gap-y-6 max-w-[90dvw] md:max-w-lg p-5 md:p-6 rounded-xl overflow-y-auto max-h-[90dvh]">
           <DialogHeader>
             <DialogTitle>Upload Document</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Upload documents to your knowledge base for AI-powered search and
               retrieval
             </DialogDescription>
@@ -289,7 +289,7 @@ export const UploadDialog = ({
                 type="text"
                 placeholder="Documentation, Support, Product, etc."
                 className={cn(
-                  "w-full focus-visible:ring-1",
+                  "w-full text-sm focus-visible:ring-1",
                   uploadForm.category.length > 0 &&
                     "focus-visible:border-emerald-500 focus-visible:ring-emerald-500 border-emerald-500",
                 )}
@@ -315,7 +315,7 @@ export const UploadDialog = ({
                 type="text"
                 placeholder="My document"
                 className={cn(
-                  "w-full focus-visible:ring-1",
+                  "w-full text-sm focus-visible:ring-1",
                   uploadForm.filename.length > 0 &&
                     "focus-visible:border-emerald-500 focus-visible:ring-emerald-500 border-emerald-500",
                 )}

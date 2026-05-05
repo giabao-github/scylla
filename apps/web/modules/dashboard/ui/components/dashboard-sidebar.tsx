@@ -26,6 +26,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@workspace/ui/components/sidebar";
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -76,34 +77,60 @@ const SidebarNavGroup = ({
   label: string;
   items: typeof customerSupportItems;
   isActive: (url: string) => boolean;
-}) => (
-  <SidebarGroup>
-    <SidebarGroupLabel>{label}</SidebarGroupLabel>
-    <SidebarGroupContent>
-      <SidebarMenu>
-        {items.map((item) => (
-          <SidebarMenuItem key={item.url}>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive(item.url)}
-              className={cn(
-                "hover:bg-linear-to-b hover:from-sidebar-primary/30 hover:to-chart-2/20 ",
-                isActive(item.url) &&
-                  "bg-linear-to-b from-sidebar-primary to-chart-2! text-sidebar-primary-foreground! hover:from-sidebar-primary hover:to-chart-2!",
-              )}
-              tooltip={item.title}
-            >
-              <Link href={item.url}>
-                <item.icon className="size-4" />
-                {item.title}
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ))}
-      </SidebarMenu>
-    </SidebarGroupContent>
-  </SidebarGroup>
-);
+}) => {
+  const { setOpenMobile, isMobile } = useSidebar();
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest opacity-60">
+        {label}
+      </SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => {
+            const active = isActive(item.url);
+            return (
+              <SidebarMenuItem key={item.url}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={active}
+                  className={cn(
+                    // Base: subtle transition
+                    "transition-all duration-200 ease-out",
+                    // Active: glass pill with primary tint
+                    active && [
+                      "text-sidebar-primary-foreground! font-semibold",
+                    ],
+                  )}
+                  style={
+                    active
+                        ? {
+                            background:
+                              "linear-gradient(135deg, var(--sidebar-active-start) 0%, var(--sidebar-active-end) 100%)",
+                            boxShadow: "var(--sidebar-active-shadow)",
+                          }
+                      : undefined
+                  }
+                  tooltip={item.title}
+                  onClick={() => {
+                    if (isMobile) {
+                      setOpenMobile(false);
+                    }
+                  }}
+                >
+                  <Link href={item.url}>
+                    <item.icon className="size-4" />
+                    {item.title}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+};
 
 export const DashboardSidebar = () => {
   const pathname = usePathname();
@@ -132,7 +159,7 @@ export const DashboardSidebar = () => {
                     rootBox: "w-full! h-8!",
                     avatarBox: "size-6! rounded-sm!",
                     organizationSwitcherTrigger:
-                      "w-full! justify-start! hover:ring-1! hover:ring-sidebar-ring/30! group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2!",
+                      "w-full! justify-start! rounded-lg! transition-all! duration-200! hover:bg-white/15! dark:hover:bg-white/8! group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2!",
                     organizationPreview:
                       "group-data-[collapsible=icon]:justify-center! gap-2!",
                     organizationPreviewTextContainer:
@@ -175,7 +202,7 @@ export const DashboardSidebar = () => {
                 elements: {
                   rootBox: "w-full! h-8!",
                   userButtonTrigger:
-                    "w-full! px-2! py-5! hover:bg-sidebar-accent! hover:text-sidebar-accent-foreground! hover:ring-1! hover:ring-sidebar-ring/30! group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2!",
+                    "w-full! px-2! py-5! rounded-lg! transition-all! duration-200! hover:bg-white/15! dark:hover:bg-white/8! group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2!",
                   userButtonBox:
                     "w-full! flex-row-reverse! justify-end! gap-2! group-data-[collapsible=icon]:justify-center! text-sidebar-foreground!",
                   userButtonOuterIdentifier:
@@ -187,7 +214,7 @@ export const DashboardSidebar = () => {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      <SidebarRail className="border-r border-sidebar" />
+      <SidebarRail className="border-r-0" />
     </Sidebar>
   );
 };

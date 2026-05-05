@@ -292,7 +292,14 @@ export const ContactPanel = () => {
   }
 
   return (
-    <div className="flex flex-col w-full h-full bg-background text-foreground">
+    <div
+      className="flex flex-col w-full h-full text-foreground"
+      style={{
+        background: "var(--glass-surface-elevated)",
+        backdropFilter: "blur(24px) saturate(1.9)",
+        WebkitBackdropFilter: "blur(24px) saturate(1.9)",
+      }}
+    >
       <div className="flex flex-col gap-y-6 p-4">
         <div className="flex gap-x-2 items-center">
           <DicebearAvatar
@@ -329,7 +336,7 @@ export const ContactPanel = () => {
               value={section.id}
               className="rounded-none outline-none has-focus-visible:z-10 has-focus-visible:border-ring has-focus-visible:ring has-focus-visible:ring-ring/50"
             >
-              <AccordionTrigger className="flex flex-1 gap-4 justify-between items-start px-5 py-4 w-full text-sm font-medium text-left rounded-none transition-all outline-none bg-accent hover:no-underline disabled:pointer-events-none disabled:opacity-50">
+              <AccordionTrigger className="flex flex-1 gap-4 justify-between items-start px-5 py-4 w-full text-sm font-medium text-left rounded-none transition-all outline-none hover:bg-white/10 dark:hover:bg-white/6 hover:no-underline disabled:pointer-events-none disabled:opacity-50">
                 <div className="flex gap-4 items-center">
                   <section.icon className="mr-2 w-4 h-4" />
                   <span>{section.title}</span>

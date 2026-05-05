@@ -7,9 +7,17 @@ import { toUIMessages, useThreadMessages } from "@convex-dev/agent/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
-import { ChevronLeftIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
+import {
+  BanIcon,
+  ChevronLeftIcon,
+  Loader2Icon,
+  MoreHorizontalIcon,
+  ShieldCheckIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { nanoid } from "nanoid";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -40,7 +48,24 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@workspace/ui/components/ai/prompt-input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@workspace/ui/components/alert-dialog";
 import { Button } from "@workspace/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
 import { Form, FormField } from "@workspace/ui/components/form";
 import {
   Sheet,
@@ -49,6 +74,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@workspace/ui/components/sheet";
+import { SidebarTrigger } from "@workspace/ui/components/sidebar";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
@@ -85,6 +111,37 @@ const MESSAGES = [
 ] as const;
 const MESSAGE_CONTAINER_MAX_HEIGHT = "calc(100vh - 190px)";
 
+const ConversationActionsMenuContent = ({
+  isContactBlocked,
+  onBlockToggle,
+  onShowBlockDialog,
+  onShowDeleteDialog,
+}: {
+  isContactBlocked: boolean;
+  onBlockToggle: () => void;
+  onShowBlockDialog: () => void;
+  onShowDeleteDialog: () => void;
+}) => (
+  <>
+    {isContactBlocked ? (
+      <DropdownMenuItem onClick={onBlockToggle}>
+        <ShieldCheckIcon />
+        Unblock user
+      </DropdownMenuItem>
+    ) : (
+      <DropdownMenuItem variant="destructive" onClick={onShowBlockDialog}>
+        <BanIcon />
+        Block user
+      </DropdownMenuItem>
+    )}
+    <DropdownMenuSeparator />
+    <DropdownMenuItem variant="destructive" onClick={onShowDeleteDialog}>
+      <Trash2Icon />
+      Delete conversation
+    </DropdownMenuItem>
+  </>
+);
+
 export const ConversationIdView = ({
   conversationId,
   subscriptionStatus,
@@ -97,6 +154,14 @@ export const ConversationIdView = ({
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
+  const [statusDisplayEntryKey, setStatusDisplayEntryKey] = useState<
+    string | null
+  >(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isTogglingBlock, setIsTogglingBlock] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showBlockDialog, setShowBlockDialog] = useState(false);
+  const latestSubmissionKeyRef = useRef<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLastMessageIdRef = useRef<string | undefined>(undefined);
@@ -132,7 +197,13 @@ export const ConversationIdView = ({
   const createMessage = useMutation(api.private.messages.create);
   const markSeen = useMutation(api.private.conversations.markSeen);
   const updateStatus = useMutation(api.private.conversations.updateStatus);
+  const deleteConversation = useMutation(api.private.conversations.deleteOne);
+  const blockContact = useMutation(api.private.contactSessions.blockContact);
+  const unblockContact = useMutation(
+    api.private.contactSessions.unblockContact,
+  );
 
+  const router = useRouter();
   const enhanceResponse = useAction(api.private.messages.enhanceResponse);
 
   const { topElementRef, handleLoadMore, canLoadMore, isLoadingMore } =
@@ -146,6 +217,7 @@ export const ConversationIdView = ({
   const sendingSlot = pendingSlots.find((s) => s.status === "sending");
   const isSending = !!sendingSlot || isDispatchingMessage;
   const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
+  const isContactBlocked = !!conversation?.contactSession?.blockedAt;
   const isBlocked = !conversation || isResolved || isSending || isEnhancing;
   const submitDisabled =
     isBlocked || !form.formState.isValid || form.formState.isSubmitting;
@@ -232,6 +304,55 @@ export const ConversationIdView = ({
       toast.error("Failed to update status. Please try again.");
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (isDeleting) return;
+
+    if (isContactBlocked) {
+      setShowDeleteDialog(false);
+      toast.error("Unblock this user before deleting the conversation.");
+      return;
+    }
+
+    router.replace("/conversations");
+    setIsDeleting(true);
+    try {
+      await deleteConversation({
+        conversationId: conversationId as Id<"conversations">,
+      });
+      toast.success("Conversation deleted");
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+      toast.error("Failed to delete conversation. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBlockToggle = async () => {
+    if (isTogglingBlock) return;
+    setIsTogglingBlock(true);
+    try {
+      if (isContactBlocked) {
+        await unblockContact({
+          conversationId: conversationId as Id<"conversations">,
+        });
+        toast.success("User unblocked");
+      } else {
+        await blockContact({
+          conversationId: conversationId as Id<"conversations">,
+        });
+        toast.success("User blocked");
+      }
+    } catch (error) {
+      console.error("Failed to update block status:", error);
+      toast.error(
+        isContactBlocked ? "Failed to unblock user" : "Failed to block user",
+      );
+    } finally {
+      setIsTogglingBlock(false);
     }
   };
 
@@ -372,9 +493,11 @@ export const ConversationIdView = ({
     isAtBottomRef.current = true;
     sendLockRef.current = false;
     latestMarkedSeenAtRef.current = 0;
+    latestSubmissionKeyRef.current = null;
     setIsDispatchingMessage(false);
     setPendingSlots([]);
     setSelectedEntryKey(null);
+    setStatusDisplayEntryKey(null);
   }, [conversationId, form]);
 
   useEffect(() => {
@@ -478,17 +601,58 @@ export const ConversationIdView = ({
   }, [timeline, selectedEntryKey]);
 
   useEffect(() => {
-    if (!selectedEntryKey) {
+    const entryKeys = new Set(timeline.map((entry) => entry.entryKey));
+
+    if (selectedEntryKey && !entryKeys.has(selectedEntryKey)) {
+      setSelectedEntryKey(null);
+    }
+
+    if (statusDisplayEntryKey && !entryKeys.has(statusDisplayEntryKey)) {
+      const lastOperatorEntry = [...timeline]
+        .reverse()
+        .find(
+          (entry) =>
+            entry.type === "confirmed" && entry.data.role === "assistant",
+        );
+      setStatusDisplayEntryKey(lastOperatorEntry?.entryKey ?? null);
+    }
+  }, [selectedEntryKey, statusDisplayEntryKey, timeline]);
+
+  const latestPendingSlot = useMemo(
+    () =>
+      pendingSlots.reduce<PendingSlot | null>(
+        (latest, slot) =>
+          !latest || slot.submittedAt > latest.submittedAt ? slot : latest,
+        null,
+      ),
+    [pendingSlots],
+  );
+
+  useEffect(() => {
+    if (!latestPendingSlot) {
+      latestSubmissionKeyRef.current = null;
       return;
     }
 
-    if (!timeline.some((entry) => entry.entryKey === selectedEntryKey)) {
-      setSelectedEntryKey(null);
+    const submissionKey = `${latestPendingSlot.localId}:${latestPendingSlot.submittedAt}`;
+
+    if (latestSubmissionKeyRef.current === submissionKey) {
+      return;
     }
-  }, [selectedEntryKey, timeline]);
+
+    latestSubmissionKeyRef.current = submissionKey;
+    setStatusDisplayEntryKey(`pending:${latestPendingSlot.localId}`);
+  }, [latestPendingSlot]);
 
   const handleEntrySelect = (entryKey: string) => {
-    setSelectedEntryKey((current) => (current === entryKey ? null : entryKey));
+    if (selectedEntryKey === entryKey && statusDisplayEntryKey === entryKey) {
+      setSelectedEntryKey(null);
+      setStatusDisplayEntryKey(null);
+      return;
+    }
+
+    setSelectedEntryKey(entryKey);
+    setStatusDisplayEntryKey(entryKey);
   };
 
   const timestampClasses = (isSelected: boolean) =>
@@ -540,242 +704,348 @@ export const ConversationIdView = ({
   }
 
   return (
-    <div className="flex flex-col h-full max-h-screen bg-muted">
-      {/* Mobile view*/}
-      <header className="md:hidden flex items-center gap-2 border-b bg-transparent px-2 py-1.5 shrink-0">
-        <Button variant="ghost" size="icon" asChild className="size-8 shrink-0">
-          <Link href="/conversations" aria-label="Back to conversations">
-            <ChevronLeftIcon className="size-5" strokeWidth={2} />
-          </Link>
-        </Button>
-        <Sheet>
-          <SheetTrigger asChild>
-            <button
-              type="button"
-              className="flex-1 px-1 min-w-0 font-semibold text-center truncate transition-opacity hover:opacity-70"
-            >
-              {contactName}
-            </button>
-          </SheetTrigger>
-          <SheetContent side="right" className="flex flex-col p-0 w-80">
-            <SheetHeader className="px-4 py-3 border-b shrink-0">
-              <SheetTitle className="font-semibold">
-                Contact Information
-              </SheetTitle>
-            </SheetHeader>
-            <div className="overflow-y-auto flex-1 min-h-0">
-              <ContactPanel />
-            </div>
-          </SheetContent>
-        </Sheet>
-        <ConversationStatusButton
-          disabled={updatingStatus}
-          status={conversation.status}
-          onClick={handleToggleStatus}
-          iconOnly
-        />
-      </header>
-      {/* Desktop view */}
-      <header className="hidden md:flex relative items-center justify-between border-b bg-background p-2.5 shrink-0">
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-label="Open conversation actions"
-        >
-          <MoreHorizontalIcon />
-        </Button>
-        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 px-1 min-w-0 max-w-[60%] font-semibold text-center truncate">
-          {contactName}
-        </div>
-        <ConversationStatusButton
-          disabled={updatingStatus}
-          status={conversation.status}
-          onClick={handleToggleStatus}
-        />
-      </header>
-
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="flex overflow-y-auto flex-col gap-0 px-4 pt-4 pb-4 h-full scrollbar-themed md:pb-8 md:pt-6"
-        style={{ maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT }}
-      >
-        <div>
-          {isLoadingMore && (
-            <div className="flex justify-center py-2">
-              <Loader2Icon className="animate-spin size-4 text-muted-foreground" />
-            </div>
-          )}
-          {canLoadMore && !isLoadingMore && (
-            <button
-              type="button"
-              onClick={handleLoadMore}
-              className="py-1 w-full text-xs text-center transition-colors text-muted-foreground hover:text-foreground"
-            >
-              Load earlier messages
-            </button>
-          )}
-
-          <div ref={topElementRef} className="h-px" />
-        </div>
-
-        {groupedTimeline.map((entry) => {
-          const isSelected = selectedEntryKey === entry.entryKey;
-          const messageWrapperClassName = cn(
-            entry.isGroupedWithPrevious ? "mt-1" : "mt-4",
-            "space-y-1.5 transition-[margin] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
-          );
-          const messageClassName = "max-w-4/5 md:max-w-1/2";
-
-          if (entry.type === "status") {
-            return (
-              <div
-                key={entry.entryKey}
-                className="flex justify-center px-2 mt-4"
+    <>
+      <div className="flex flex-col h-full max-h-screen">
+        {/* Mobile view*/}
+        <header className="md:hidden flex items-center gap-2 border-b bg-transparent px-2 py-1.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            className="size-8 shrink-0"
+          >
+            <Link href="/conversations" aria-label="Back to conversations">
+              <ChevronLeftIcon className="size-5" strokeWidth={2} />
+            </Link>
+          </Button>
+          <SidebarTrigger className="size-8 shrink-0" />
+          <Sheet>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                className="flex-1 px-1 min-w-0 font-semibold text-center truncate transition-opacity hover:opacity-70"
               >
-                <p className="text-xs font-medium tracking-wide text-center text-muted-foreground/80 md:text-[13px]">
-                  {entry.text}
-                </p>
+                {contactName}
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="flex flex-col p-0 w-80">
+              <SheetHeader className="px-4 py-3 border-b shrink-0">
+                <SheetTitle className="font-semibold">
+                  Contact Information
+                </SheetTitle>
+              </SheetHeader>
+              <div className="overflow-y-auto flex-1 min-h-0">
+                <ContactPanel />
               </div>
-            );
-          }
+            </SheetContent>
+          </Sheet>
+          <ConversationStatusButton
+            disabled={updatingStatus}
+            status={conversation.status}
+            onClick={handleToggleStatus}
+            iconOnly
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0"
+                aria-label="Conversation actions"
+              >
+                <MoreHorizontalIcon className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <ConversationActionsMenuContent
+                isContactBlocked={isContactBlocked}
+                onBlockToggle={handleBlockToggle}
+                onShowBlockDialog={() => setShowBlockDialog(true)}
+                onShowDeleteDialog={() => setShowDeleteDialog(true)}
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+        {/* Desktop view */}
+        <header className="hidden md:flex relative items-center justify-between border-b p-2.5 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Conversation actions"
+              >
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <ConversationActionsMenuContent
+                isContactBlocked={isContactBlocked}
+                onBlockToggle={handleBlockToggle}
+                onShowBlockDialog={() => setShowBlockDialog(true)}
+                onShowDeleteDialog={() => setShowDeleteDialog(true)}
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 px-1 min-w-0 max-w-[60%] font-semibold text-center truncate">
+            {contactName}
+          </div>
+          <ConversationStatusButton
+            disabled={updatingStatus}
+            status={conversation.status}
+            onClick={handleToggleStatus}
+          />
+        </header>
 
-          if (entry.type === "confirmed") {
-            const message = entry.data;
-            const isFromClient = message.role === "user";
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex overflow-y-auto flex-col gap-0 px-4 pt-4 pb-4 h-full scrollbar-themed md:pb-8 md:pt-6"
+          style={{ maxHeight: MESSAGE_CONTAINER_MAX_HEIGHT }}
+        >
+          <div>
+            {isLoadingMore && (
+              <div className="flex justify-center py-2">
+                <Loader2Icon className="animate-spin size-4 text-muted-foreground" />
+              </div>
+            )}
+            {canLoadMore && !isLoadingMore && (
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                className="py-1 w-full text-xs text-center transition-colors text-muted-foreground hover:text-foreground"
+              >
+                Load earlier messages
+              </button>
+            )}
+
+            <div ref={topElementRef} className="h-px" />
+          </div>
+
+          {groupedTimeline.map((entry) => {
+            const isSelected = selectedEntryKey === entry.entryKey;
+            const messageWrapperClassName = cn(
+              entry.isGroupedWithPrevious ? "mt-1" : "mt-4",
+              "space-y-1.5 transition-[margin] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
+            );
+            const messageClassName = "max-w-4/5 md:max-w-1/2";
+
+            if (entry.type === "status") {
+              return (
+                <div
+                  key={entry.entryKey}
+                  className="flex justify-center px-2 mt-4"
+                >
+                  <p className="text-xs font-medium tracking-wide text-center text-muted-foreground/80 md:text-[13px]">
+                    {entry.text}
+                  </p>
+                </div>
+              );
+            }
+
+            if (entry.type === "confirmed") {
+              const message = entry.data;
+              const isFromClient = message.role === "user";
+              return (
+                <div key={entry.entryKey} className={messageWrapperClassName}>
+                  {renderSelectedTimestamp(isSelected, entry.timestamp)}
+                  <Message
+                    from={isFromClient ? "assistant" : "user"}
+                    className={messageClassName}
+                  >
+                    <ChatBubble
+                      text={message.text ?? ""}
+                      variant={isFromClient ? "agent" : "user"}
+                      avatarSeed={
+                        isFromClient ? conversation.contactSessionId : undefined
+                      }
+                      status={
+                        isFromClient
+                          ? undefined
+                          : message._creationTime <= contactReadReceiptCutoff
+                            ? "seen"
+                            : "sent"
+                      }
+                      onClick={() => handleEntrySelect(entry.entryKey)}
+                      showStatus={
+                        !isFromClient &&
+                        entry.entryKey === statusDisplayEntryKey
+                      }
+                      groupPosition={entry.groupPosition}
+                      showAvatar={isFromClient && entry.isLastInGroup}
+                    />
+                  </Message>
+                </div>
+              );
+            }
+
+            const slot = entry.data;
             return (
               <div key={entry.entryKey} className={messageWrapperClassName}>
                 {renderSelectedTimestamp(isSelected, entry.timestamp)}
-                <Message
-                  from={isFromClient ? "assistant" : "user"}
-                  className={messageClassName}
-                >
+                <Message from="user" className={messageClassName}>
                   <ChatBubble
-                    text={message.text ?? ""}
-                    variant={isFromClient ? "agent" : "user"}
-                    avatarSeed={
-                      isFromClient ? conversation.contactSessionId : undefined
-                    }
-                    status={
-                      isFromClient
-                        ? undefined
-                        : message._creationTime <= contactReadReceiptCutoff
-                          ? "seen"
-                          : "sent"
+                    text={slot.text}
+                    variant="user"
+                    status={slot.status}
+                    error={slot.status === "failed" ? slot.error : undefined}
+                    onRetry={
+                      slot.status === "failed" && slot.retryable
+                        ? () => handleRetry(slot.localId)
+                        : undefined
                     }
                     onClick={() => handleEntrySelect(entry.entryKey)}
-                    showStatus={
-                      !isFromClient && entry.entryKey === selectedEntryKey
-                    }
+                    showStatus={entry.entryKey === statusDisplayEntryKey}
                     groupPosition={entry.groupPosition}
-                    showAvatar={isFromClient && entry.isLastInGroup}
                   />
                 </Message>
               </div>
             );
-          }
+          })}
+        </div>
 
-          const slot = entry.data;
-          return (
-            <div key={entry.entryKey} className={messageWrapperClassName}>
-              {renderSelectedTimestamp(isSelected, entry.timestamp)}
-              <Message from="user" className={messageClassName}>
-                <ChatBubble
-                  text={slot.text}
-                  variant="user"
-                  status={slot.status}
-                  error={slot.status === "failed" ? slot.error : undefined}
-                  onRetry={
-                    slot.status === "failed" && slot.retryable
-                      ? () => handleRetry(slot.localId)
-                      : undefined
-                  }
-                  onClick={() => handleEntrySelect(entry.entryKey)}
-                  showStatus={entry.entryKey === selectedEntryKey}
-                  groupPosition={entry.groupPosition}
-                />
-              </Message>
+        {!isResolved && !isContactBlocked && (
+          <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent md:px-16 shrink-0">
+            <div className="mx-auto max-w-full">
+              <Form {...form}>
+                <PromptBox
+                  onSubmit={handleSubmit}
+                  className={cn(
+                    "bg-transparent backdrop-blur-sm",
+                    "rounded-lg border border-border/60",
+                    "shadow-lg shadow-black/6",
+                    "focus-within:shadow-xl focus-within:shadow-black/10",
+                    "focus-within:border-border",
+                    "transition-all duration-200",
+                  )}
+                >
+                  <PromptInputAttachmentsDisplay />
+                  <PromptInputBody>
+                    <FormField
+                      name="message"
+                      control={form.control}
+                      render={({ field }) => (
+                        <PromptInputTextarea
+                          disabled={isEnhancing}
+                          placeholder="Response to your client..."
+                          className="mt-2 text-sm placeholder:text-muted-foreground/50 disabled:cursor-default"
+                          onChange={field.onChange}
+                          value={field.value}
+                        />
+                      )}
+                    />
+                  </PromptInputBody>
+                  <PromptInputFooter>
+                    <PromptBoxDefaultTools
+                      tools={{ enhance: true, modelSelector: false }}
+                      enhanceDisabled={
+                        isSending ||
+                        isEnhancing ||
+                        !form.formState.isValid ||
+                        !hasPremiumAccess
+                      }
+                      enhanceText={
+                        !hasPremiumAccess
+                          ? "Upgrade to Pro to enhance responses"
+                          : isEnhancing
+                            ? "Enhancing..."
+                            : "Enhance"
+                      }
+                      onEnhance={handleEnhanceResponse}
+                    />
+                    <PromptInputSubmit
+                      disabled={submitDisabled}
+                      status={isSending ? "submitted" : "ready"}
+                      type="submit"
+                    />
+                  </PromptInputFooter>
+                </PromptBox>
+              </Form>
             </div>
-          );
-        })}
+          </div>
+        )}
+
+        {isResolved && (
+          <div className="flex flex-1 justify-center items-center cursor-default shrink-0">
+            <p className="text-sm text-muted-foreground/80">
+              This conversation has been resolved
+            </p>
+          </div>
+        )}
+
+        {!isResolved && isContactBlocked && (
+          <div className="flex flex-1 gap-2 justify-center items-center cursor-default shrink-0">
+            <BanIcon className="size-4 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground/80">
+              You blocked this user
+            </p>
+          </div>
+        )}
       </div>
 
-      {!isResolved && (
-        <div className="relative z-10 px-4 pt-2 pb-4 w-full bg-transparent md:px-16 shrink-0">
-          <div className="mx-auto max-w-full">
-            <Form {...form}>
-              <PromptBox
-                onSubmit={handleSubmit}
-                className={cn(
-                  "bg-transparent backdrop-blur-sm",
-                  "rounded-lg border border-border/60",
-                  "shadow-lg shadow-black/6",
-                  "focus-within:shadow-xl focus-within:shadow-black/10",
-                  "focus-within:border-border",
-                  "transition-all duration-200",
-                )}
-              >
-                {/** TODO: implement file sending */}
-                <PromptInputAttachmentsDisplay />
-                <PromptInputBody>
-                  <FormField
-                    name="message"
-                    control={form.control}
-                    render={({ field }) => (
-                      <PromptInputTextarea
-                        disabled={isEnhancing}
-                        placeholder="Response to your client..."
-                        className="mt-2 text-sm placeholder:text-muted-foreground/50 disabled:cursor-default"
-                        onChange={field.onChange}
-                        value={field.value}
-                      />
-                    )}
-                  />
-                </PromptInputBody>
-                <PromptInputFooter>
-                  <PromptBoxDefaultTools
-                    tools={{ enhance: true, modelSelector: false }}
-                    enhanceDisabled={
-                      isSending ||
-                      isEnhancing ||
-                      !form.formState.isValid ||
-                      !hasPremiumAccess
-                    }
-                    enhanceText={
-                      !hasPremiumAccess
-                        ? "Upgrade to Pro to enhance responses"
-                        : isEnhancing
-                          ? "Enhancing..."
-                          : "Enhance"
-                    }
-                    onEnhance={handleEnhanceResponse}
-                  />
-                  <PromptInputSubmit
-                    disabled={submitDisabled}
-                    status={isSending ? "submitted" : "ready"}
-                    type="submit"
-                  />
-                </PromptInputFooter>
-              </PromptBox>
-            </Form>
-          </div>
-        </div>
-      )}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete conversation</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this conversation and all its
+              messages. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="danger"
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2Icon className="animate-spin size-4" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {isResolved && (
-        <div className="flex flex-1 justify-center items-center cursor-default shrink-0">
-          <p className="text-sm text-muted-foreground/80">
-            This conversation has been resolved
-          </p>
-        </div>
-      )}
-    </div>
+      <AlertDialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block user</AlertDialogTitle>
+            <AlertDialogDescription>
+              This user will no longer be able to send you messages or start new
+              conversations. You can unblock them at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="danger"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowBlockDialog(false);
+                handleBlockToggle();
+              }}
+            >
+              Block
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
 export const ConversationIdViewSkeleton = () => {
   return (
-    <div className="flex flex-col h-full bg-muted">
+    <div className="flex flex-col h-full">
       {/* Mobile skeleton header */}
       <header className="md:hidden flex items-center gap-2 border-b bg-transparent px-2 py-1.5 shrink-0">
         <Button variant="ghost" size="icon" asChild className="size-8 shrink-0">
@@ -783,11 +1053,12 @@ export const ConversationIdViewSkeleton = () => {
             <ChevronLeftIcon className="size-5" />
           </Link>
         </Button>
+        <SidebarTrigger className="size-8 shrink-0" />
         <Skeleton className="flex-1 mx-auto h-4 max-w-32 bg-slate-300" />
         <Skeleton className="rounded-full size-8 bg-slate-300 shrink-0" />
       </header>
       {/* Desktop skeleton header */}
-      <header className="hidden md:flex items-center justify-between border-b bg-background p-2.5 shrink-0">
+      <header className="hidden md:flex items-center justify-between border-b p-2.5 shrink-0">
         <Button size="sm" variant="ghost" disabled aria-hidden>
           <MoreHorizontalIcon />
         </Button>

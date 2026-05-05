@@ -168,7 +168,7 @@ export const CustomizationForm = ({
   return (
     <Form {...form}>
       <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
-        <Card>
+        <Card className="bg-transparent border-none shadow-none">
           <CardHeader className="mb-4">
             <CardTitle className="flex flex-row gap-x-2 items-center text-lg">
               <BotMessageSquareIcon className="size-5" />
@@ -196,9 +196,8 @@ export const CustomizationForm = ({
                       <Textarea
                         {...field}
                         onKeyDown={handleFillPlaceholder}
-                        rows={3}
                         placeholder="Welcome message shown when conversation starts"
-                        className="mt-2 max-h-28 scrollbar-themed placeholder:text-muted-foreground/50 focus-visible:ring"
+                        className="mt-2 min-h-0 max-h-28 text-sm resize-none scrollbar-themed placeholder:text-muted-foreground/50 focus-visible:ring"
                       />
                     </FormControl>
 
@@ -230,7 +229,7 @@ export const CustomizationForm = ({
                               {...field}
                               onKeyDown={handleFillPlaceholder}
                               placeholder="How do I get started?"
-                              className="placeholder:text-muted-foreground/50 focus-visible:ring"
+                              className="text-sm placeholder:text-muted-foreground/50 focus-visible:ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -250,7 +249,7 @@ export const CustomizationForm = ({
                               {...field}
                               onKeyDown={handleFillPlaceholder}
                               placeholder="What pricing plans does your platform feature?"
-                              className="placeholder:text-muted-foreground/50 focus-visible:ring"
+                              className="text-sm placeholder:text-muted-foreground/50 focus-visible:ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -270,7 +269,7 @@ export const CustomizationForm = ({
                               {...field}
                               onKeyDown={handleFillPlaceholder}
                               placeholder="How do I enable two-factor authentication?"
-                              className="placeholder:text-muted-foreground/50 focus-visible:ring"
+                              className="text-sm placeholder:text-muted-foreground/50 focus-visible:ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -287,7 +286,7 @@ export const CustomizationForm = ({
         </Card>
 
         {hasVapiPlugin && (
-          <Card>
+          <Card className="bg-transparent border-none shadow-none">
             <CardHeader className="mb-4">
               <CardTitle className="flex flex-row gap-x-2 items-center text-lg">
                 <MicIcon className="size-5" />

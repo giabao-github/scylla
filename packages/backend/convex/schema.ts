@@ -37,6 +37,7 @@ export default defineSchema({
     email: v.string(),
     organizationId: v.id("organizations"),
     expiresAt: v.number(),
+    blockedAt: v.optional(v.number()),
     metadata: v.optional(
       v.object({
         userAgent: v.optional(v.string()),

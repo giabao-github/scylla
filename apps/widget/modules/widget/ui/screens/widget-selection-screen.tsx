@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
+  BanIcon,
   ChevronRightIcon,
   MessageCircleIcon,
   MicIcon,
@@ -61,6 +62,7 @@ const buttonOptions = [
 
 export const WidgetSelectionScreen = () => {
   const [isPending, setIsPending] = useState(false);
+  const [localBlocked, setLocalBlocked] = useState(false);
 
   const setScreen = useSetAtom(widgetScreenAtom);
   const setErrorMessage = useSetAtom(errorMessageAtom);
@@ -88,6 +90,18 @@ export const WidgetSelectionScreen = () => {
   const isValidating = !!contactSessionId && validation === undefined;
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
+  const isValidSession = validation?.valid === true;
+  const serverBlockedAt = isValidSession ? validation.contactSession?.blockedAt : undefined;
+
+  const isBlocked =
+    localBlocked ||
+    (isValidSession && !!serverBlockedAt);
+
+  useEffect(() => {
+    if (isValidSession && !serverBlockedAt && localBlocked) {
+      setLocalBlocked(false);
+    }
+  }, [isValidSession, serverBlockedAt, localBlocked]);
 
   const createdAtLabel = useMemo(() => {
     if (organizationProfile?.createdAt == null) {
@@ -104,7 +118,7 @@ export const WidgetSelectionScreen = () => {
     idleAlpha: 0.06,
     hoverAlpha: 0.2,
     glowAlpha: 0.15,
-    disabled: isPending || isNew || isExpired || isValidating,
+    disabled: isPending || isNew || isExpired || isValidating || isBlocked,
   };
 
   const routeToAuthOrError = () => {
@@ -148,6 +162,19 @@ export const WidgetSelectionScreen = () => {
       setConversationId(conversationId);
       setScreen(WIDGET_SCREENS.CHAT);
     } catch (error) {
+      const isBlockedError =
+        error instanceof Error &&
+        "data" in error &&
+        typeof error.data === "object" &&
+        error.data !== null &&
+        "code" in error.data &&
+        error.data.code === "BLOCKED";
+
+      if (isBlockedError) {
+        setLocalBlocked(true);
+        return;
+      }
+
       console.error("Failed to create conversation:", error);
       setErrorMessage("An error has occurred. Please try again.");
       setScreen(WIDGET_SCREENS.ERROR);
@@ -245,6 +272,15 @@ export const WidgetSelectionScreen = () => {
           </section>
 
           <div className="space-y-2.5 md:space-y-3">
+            {isBlocked && (
+              <div className="flex gap-2 items-center px-4 py-3 rounded-2xl border border-rose-200/50 bg-rose-50/40 backdrop-blur-sm">
+                <BanIcon className="text-rose-400 size-4 shrink-0" />
+                <p className="text-[13px] leading-5 text-rose-600 md:text-sm">
+                  You&apos;ve been blocked and can no longer interact with this
+                  organization.
+                </p>
+              </div>
+            )}
             {visibleButtonOptions.map(
               ({ icon: Icon, label, description, mode, accent }) => (
                 <GlassButton

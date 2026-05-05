@@ -6,7 +6,7 @@ import { CustomizationErrorBoundary } from "@/modules/customization/ui/component
 import { CustomizationView } from "@/modules/customization/ui/views/customization-view";
 
 export const metadata: Metadata = {
-  title: "Widget Customization - Scylla",
+  title: "Widget Customization",
   description:
     "Customize your chat widget appearance and behavior for your customers.",
 };

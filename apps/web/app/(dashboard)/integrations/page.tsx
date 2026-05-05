@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import { IntegrationsView } from "@/modules/integrations/ui/views/integrations-view";
 
 export const metadata: Metadata = {
-  title: "Integrations - Scylla",
+  title: "Integrations",
   description: "Manage integrations for your organization.",
 };
 

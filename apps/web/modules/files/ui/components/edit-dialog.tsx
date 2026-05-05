@@ -149,7 +149,7 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
                 }
                 style={file?.type ? { paddingRight: suffixWidth } : undefined}
                 className={cn(
-                  "w-full focus-visible:ring-1 font-medium truncate",
+                  "w-full text-sm focus-visible:ring-1 font-medium truncate",
                   filenameChanged &&
                     "border-emerald-500 focus-visible:border-emerald-500 focus-visible:ring-emerald-500",
                 )}
@@ -178,7 +178,7 @@ export const EditDialog = ({ open, onOpenChange, file }: EditDialogProps) => {
                 setForm((prev) => ({ ...prev, category: e.target.value }))
               }
               className={cn(
-                "w-full focus-visible:ring-1",
+                "w-full text-sm focus-visible:ring-1",
                 categoryChanged &&
                   "border-emerald-500 focus-visible:border-emerald-500 focus-visible:ring-emerald-500",
               )}

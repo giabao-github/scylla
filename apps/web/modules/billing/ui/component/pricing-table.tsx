@@ -7,11 +7,11 @@ import { PricingTable as ClerkPricingTable } from "@clerk/nextjs";
 import "./pricing-table.css";
 
 const MOBILE_BREAKPOINT = 768;
-const SKELETON_FEATURES_HEIGHT = 200;
+const SKELETON_FEATURES_HEIGHT = 180;
 
 const PricingTableSkeleton = () => {
   return (
-    <div className="flex absolute inset-0 justify-center items-start">
+    <div className="flex col-start-1 row-start-1 justify-center items-start w-full">
       <div
         className="flex flex-wrap gap-8 justify-center px-4 py-8 max-w-full w-fit md:flex-nowrap md:gap-20"
         aria-hidden="true"
@@ -20,16 +20,16 @@ const PricingTableSkeleton = () => {
           <div key={card} className="cl-pricingTableCard">
             <div className="cl-pricingTableCardHeader">
               <div className="flex gap-4 justify-between items-start w-full">
-                <div className="w-24 h-9 rounded-2xl animate-pulse bg-slate-200/80" />
+                <div className="w-24 h-7 rounded-2xl animate-pulse bg-slate-200/80" />
                 <div className="w-14 h-7 rounded-md animate-pulse bg-slate-200/65" />
               </div>
 
               <div className="flex gap-2 items-end w-full">
-                <div className="w-24 h-12 rounded-2xl animate-pulse bg-slate-200/80" />
-                <div className="mb-1 w-14 h-4 rounded-full animate-pulse bg-slate-200/70" />
+                <div className="w-24 h-10 rounded-2xl animate-pulse bg-slate-200/80" />
+                <div className="mb-1 w-14 h-3 rounded-full animate-pulse bg-slate-200/70" />
               </div>
 
-              <div className="w-24 h-4 rounded-full animate-pulse bg-slate-200/65" />
+              <div className="w-24 h-3 rounded-full animate-pulse bg-slate-200/65" />
             </div>
 
             <div className="cl-pricingTableCardBody">
@@ -48,7 +48,7 @@ const PricingTableSkeleton = () => {
               </div>
 
               <div>
-                <div className="h-12 w-full rounded-xl animate-pulse bg-linear-to-r from-violet-400/55 to-purple-400/55 shadow-[0_3px_8px_rgba(124,58,237,0.12)]" />
+                <div className="h-14 w-full rounded-xl animate-pulse bg-linear-to-r from-violet-400/55 to-purple-400/55 shadow-[0_3px_8px_rgba(124,58,237,0.12)]" />
               </div>
             </div>
           </div>
@@ -207,12 +207,12 @@ export const PricingTable = () => {
           <div className="absolute inset-0 from-purple-600 via-indigo-500 to-blue-400 rounded-full animate-pulse bg-linear-to-tr" />
         </div>
 
-        <div className="relative">
+        <div className="grid">
           {!hasRenderedCards && <PricingTableSkeleton />}
 
           <div
             ref={tableRef}
-            className={`flex justify-center transition-opacity duration-200 ${
+            className={`col-start-1 row-start-1 flex justify-center transition-opacity duration-200 ${
               hasRenderedCards ? "opacity-100" : "opacity-0"
             }`}
           >

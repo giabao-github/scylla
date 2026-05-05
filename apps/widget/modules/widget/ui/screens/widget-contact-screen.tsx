@@ -44,6 +44,8 @@ export const WidgetContactScreen = () => {
 
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
+  const isContactBlocked =
+    validation?.valid === true && !!validation.contactSession?.blockedAt;
 
   const handleAuthenticate = useCallback(() => {
     setScreen(WIDGET_SCREENS.AUTH);
@@ -66,7 +68,7 @@ export const WidgetContactScreen = () => {
               Call our AI agent directly
             </p>
             <p className="max-w-xs text-[22px] md:text-2xl font-bold tracking-wide leading-5 text-center text-muted-foreground md:leading-6">
-              {phoneNumber ?? "—"}
+              {isContactBlocked ? "Unavailable" : (phoneNumber ?? "—")}
             </p>
           </div>
         </div>
@@ -82,15 +84,27 @@ export const WidgetContactScreen = () => {
                 <div
                   className={cn(
                     "flex items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-xs font-medium shadow-sm md:text-sm",
-                    "border-violet-300/70 bg-violet-50/85 text-violet-700",
+                    isContactBlocked
+                      ? "border-rose-300/70 bg-rose-50/85 text-rose-700"
+                      : "border-violet-300/70 bg-violet-50/85 text-violet-700",
                   )}
                 >
-                  <span className="rounded-full size-2.5 shrink-0 bg-violet-500 animate-pulse" />
-                  <span className="text-center">Available 24/7</span>
+                  <span
+                    className={cn(
+                      "rounded-full size-2.5 shrink-0",
+                      isContactBlocked ? "bg-rose-500" : "bg-violet-500",
+                      "animate-pulse",
+                    )}
+                  />
+                  <span className="text-center">
+                    {isContactBlocked
+                      ? "Your access has been restricted. Please contact support."
+                      : "Available 24/7"}
+                  </span>
                 </div>
 
                 <div className="flex flex-row gap-x-2 items-center md:gap-x-6">
-                  {phoneNumber ? (
+                  {phoneNumber && !isContactBlocked ? (
                     <Button
                       asChild
                       size="lg"
@@ -119,7 +133,9 @@ export const WidgetContactScreen = () => {
                   <Button
                     size="lg"
                     variant="warning"
-                    disabled={!phoneNumber || copyState === "copied"}
+                    disabled={
+                      !phoneNumber || isContactBlocked || copyState === "copied"
+                    }
                     aria-label={ariaLabel}
                     aria-live="polite"
                     onClick={() => {

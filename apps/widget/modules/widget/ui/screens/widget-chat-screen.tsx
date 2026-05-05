@@ -106,6 +106,7 @@ export const WidgetChatScreen = () => {
   const isNew = !contactSessionId;
   const isInvalidConversation = !conversationId || conversation === null;
   const isResolved = conversation?.status === CONVERSATION_STATUS.RESOLVED;
+  const isContactBlocked = !!conversation?.blockedAt;
   const isEscalated = conversation?.status === CONVERSATION_STATUS.ESCALATED;
   const isSessionReady = !!conversation && !!contactSessionId;
 
@@ -226,9 +227,11 @@ export const WidgetChatScreen = () => {
   });
 
   const isSubmitting = isSubmittingMessage || hasActivePendingSlots;
-  const isBlocked = !conversation || isResolved || isSubmitting;
+  const isBlocked =
+    !conversation || isResolved || isContactBlocked || isSubmitting;
   const submitDisabled = isBlocked || !form.formState.isValid;
-  const suggestionsDisabled = !isSessionReady || isResolved || isSubmitting;
+  const suggestionsDisabled =
+    !isSessionReady || isResolved || isContactBlocked || isSubmitting;
   const submitStatus =
     hasActivePendingSlots && !isEscalated
       ? "streaming"
@@ -709,7 +712,7 @@ export const WidgetChatScreen = () => {
             })}
           </div>
 
-          {suggestions.length > 0 && !isResolved && (
+          {suggestions.length > 0 && !isResolved && !isContactBlocked && (
             <Suggestions className="flex flex-row gap-x-2 justify-end items-center px-3 pt-4 pb-2 w-full md:gap-x-4 md:px-4 md:pt-6">
               {suggestions.map(({ id, text }) => (
                 <LiquidGlass
@@ -750,7 +753,7 @@ export const WidgetChatScreen = () => {
             </Suggestions>
           )}
 
-          {!isResolved && (
+          {!isResolved && !isContactBlocked && (
             <div className="relative z-10 px-3 pt-2 pb-3 w-full bg-transparent shrink-0 md:px-4 md:pb-4">
               <div className="mx-auto max-w-4xl">
                 <Form {...form}>
@@ -795,10 +798,18 @@ export const WidgetChatScreen = () => {
             </div>
           )}
 
-          {isResolved && (
+          {isResolved && !isContactBlocked && (
             <div className="flex justify-center items-center px-3 pt-3 pb-8 cursor-default shrink-0 md:px-4 md:pt-4 md:pb-10">
               <p className="text-[13px] text-muted-foreground/80 md:text-sm">
                 This conversation has been resolved
+              </p>
+            </div>
+          )}
+
+          {isContactBlocked && (
+            <div className="flex justify-center items-center px-3 pt-3 pb-8 cursor-default shrink-0 md:px-4 md:pt-4 md:pb-10">
+              <p className="text-[13px] text-muted-foreground/80 md:text-sm">
+                You can no longer send messages in this conversation
               </p>
             </div>
           )}

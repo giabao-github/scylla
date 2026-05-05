@@ -3,7 +3,12 @@ import { ConvexError, v } from "convex/values";
 
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import { mutation, query } from "@workspace/backend/_generated/server";
+import {
+  MAX_BATCHES_PER_PARENT,
+  MESSAGE_REQUEST_BATCH,
+} from "@workspace/backend/constants";
 import { getAuthenticatedOrganization } from "@workspace/backend/private/utils";
+import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import {
   CONVERSATION_STATUS,
   type ConversationStatus,
@@ -52,6 +57,7 @@ export const getOne = query({
       contactSession: {
         _id: contactSession._id,
         name: contactSession.name,
+        blockedAt: contactSession.blockedAt ?? null,
         metadata: contactSession.metadata
           ? {
               countryCode: contactSession.metadata.countryCode ?? null,
@@ -236,10 +242,7 @@ export const markSeen = mutation({
       });
     }
 
-    const maxSeenAt = Math.min(
-      Date.now(),
-      conversation.lastMessageAt ?? Number.POSITIVE_INFINITY,
-    );
+    const maxSeenAt = Date.now();
 
     if (args.seenAt < conversation.createdAt || args.seenAt > maxSeenAt) {
       throw new ConvexError({
@@ -258,5 +261,87 @@ export const markSeen = mutation({
     await ctx.db.patch(args.conversationId, {
       lastSeenByAgentAt: args.seenAt,
     });
+  },
+});
+
+export const deleteOne = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const { organizationId } = await getAuthenticatedOrganization(ctx);
+
+    const conversation = await ctx.db.get(args.conversationId);
+
+    if (!conversation) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Conversation not found",
+      });
+    }
+
+    if (conversation.organizationId !== organizationId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "User is not authorized to delete this conversation",
+      });
+    }
+
+    const contactSession = await ctx.db.get(conversation.contactSessionId);
+    if (!contactSession) {
+      console.warn(
+        `[deleteOne] Missing contact session for conversation [${args.conversationId}]`,
+      );
+    }
+    if (contactSession?.blockedAt) {
+      throw new ConvexError({
+        code: "BLOCKED_CONTACT",
+        message:
+          "Cannot delete a conversation with a blocked user. Unblock them first.",
+      });
+    }
+
+    // Purge associated message requests in capped batches
+    let hasMore = true;
+    let batches = 0;
+
+    while (hasMore && batches < MAX_BATCHES_PER_PARENT) {
+      const requests = await ctx.db
+        .query("messageRequests")
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversationId", args.conversationId),
+        )
+        .order("asc")
+        .take(MESSAGE_REQUEST_BATCH);
+
+      hasMore = requests.length === MESSAGE_REQUEST_BATCH;
+
+      for (const request of requests) {
+        await ctx.db.delete(request._id);
+      }
+
+      batches += 1;
+    }
+
+    if (hasMore) {
+      throw new ConvexError({
+        code: "PURGE_LIMIT_EXCEEDED",
+        message:
+          "Too many message requests to delete in one go. Please try again.",
+      });
+    }
+
+    const { threadId } = conversation;
+    await ctx.db.delete(args.conversationId);
+
+    // Schedule async thread deletion (messages are stored in the agent component)
+    try {
+      await supportAgent.deleteThreadAsync(ctx, { threadId });
+    } catch (err) {
+      console.error(
+        `[deleteOne] Failed to schedule thread deletion for thread [${threadId}]:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   },
 });

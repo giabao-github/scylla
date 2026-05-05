@@ -20,7 +20,10 @@ const fontMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Scylla Web",
+  title: {
+    default: "Scylla",
+    template: "%s - Scylla",
+  },
   description: "Next.js application",
 };
 

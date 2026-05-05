@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { BulkDeleteDialog } from "@/modules/files/ui/components/bulk-delete-dialog";
 import { DeleteDialog } from "@/modules/files/ui/components/delete-dialog";
 import { EditDialog } from "@/modules/files/ui/components/edit-dialog";
+import { FileRowActions } from "@/modules/files/ui/components/file-row-actions";
 import { FileTableBody } from "@/modules/files/ui/components/file-table-body";
 import { UploadDialog } from "@/modules/files/ui/components/upload-dialog";
 import { FILE_TABLE_COLUMNS } from "@/modules/files/ui/lib/constants";
@@ -18,6 +19,7 @@ import { api } from "@workspace/backend/_generated/api";
 import { EntryId, PublicFile } from "@workspace/shared/types/file";
 import { Button } from "@workspace/ui/components/button";
 import { Checkbox } from "@workspace/ui/components/checkbox";
+import { GlassPanel } from "@workspace/ui/components/glass-panel";
 import { InfiniteScrollTrigger } from "@workspace/ui/components/infinite-scroll-trigger";
 import {
   Table,
@@ -27,6 +29,88 @@ import {
 } from "@workspace/ui/components/table";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
+
+interface MobileFileListProps {
+  files: PublicFile[];
+  isLoadingFirstPage: boolean;
+  selectedIds: Set<EntryId>;
+  onToggleSelect: (id: EntryId) => void;
+  onView: (file: PublicFile) => void;
+  onEdit: (file: PublicFile) => void;
+  onDelete: (file: PublicFile) => void;
+}
+
+const MobileFileList = ({
+  files,
+  isLoadingFirstPage,
+  selectedIds,
+  onToggleSelect,
+  onView,
+  onEdit,
+  onDelete,
+}: MobileFileListProps) => {
+  if (isLoadingFirstPage) {
+    return (
+      <div className="px-4 py-10 text-sm text-center text-muted-foreground">
+        Loading files...
+      </div>
+    );
+  }
+
+  if (files.length === 0) {
+    return (
+      <div className="px-4 py-10 text-sm text-center text-muted-foreground/70">
+        No files found
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-white/20">
+      {files.map((file) => {
+        const isSelected = selectedIds.has(file.id);
+
+        return (
+          <div
+            key={file.id}
+            className={cn(
+              "flex gap-4 items-center px-4 py-3 transition-all duration-200",
+              isSelected
+                ? "bg-primary/8"
+                : "hover:bg-white/15 dark:hover:bg-white/6",
+            )}
+          >
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => onToggleSelect(file.id)}
+              aria-label={`Select ${file.name}`}
+              className="shrink-0 border-primary bg-white/20 dark:bg-white/10"
+            />
+            <div className="flex gap-4 justify-between items-center w-full min-w-0">
+              <p className="min-w-0 text-sm font-medium leading-snug truncate">
+                {file.name}
+              </p>
+              <div className="flex gap-4 items-center shrink-0">
+                <span className="inline-flex shrink-0 items-center rounded-full border border-white/40 bg-white/20 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {file.type}
+                </span>
+                <span className="shrink-0 text-[11px] text-muted-foreground">
+                  {file.size}
+                </span>
+              </div>
+            </div>
+            <FileRowActions
+              file={file}
+              onView={onView}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export const FilesView = () => {
   const files = usePaginatedQuery(
@@ -204,88 +288,87 @@ export const FilesView = () => {
           if (!open) setViewingFile(null);
         }}
       />
-      <div className="flex flex-col items-center p-8 min-h-screen text-base bg-white md:p-12">
-        <div className="mx-auto w-full max-w-5xl md:max-w-7xl">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold md:text-4xl">Knowledge Base</h1>
-            <p className="text-muted-foreground">
+
+      {/* Page scroll wrapper — transparent so ambient bg shows through */}
+      <div className="flex overflow-y-auto flex-col flex-1 items-center px-4 py-6 min-h-full text-base sm:px-6 md:p-10 scrollbar-themed">
+        <div className="mx-auto space-y-6 w-full max-w-5xl md:max-w-7xl animate-spring-in">
+          {/* Page header glass card */}
+          <GlassPanel
+            blur="lg"
+            transparency={80}
+            tintColor="rgb(255 255 255)"
+            borderColor="rgb(255 255 255 / 0.60)"
+            className="p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)] transform-gpu relative z-20"
+          >
+            <h1 className="text-2xl font-bold tracking-tight md:text-4xl">
+              Knowledge Base
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">
               Upload and manage documents for your AI assistant
             </p>
-          </div>
-          <div className="mt-8 rounded-lg border bg-muted/10">
-            <div className="flex justify-between items-center px-6 py-4 border-b">
-              {someSelected ? (
-                <div className="flex gap-3 items-center mr-4 shrink-0">
-                  <span className="text-sm text-muted-foreground">
+          </GlassPanel>
+
+          {/* File table wrapped in glass */}
+          <GlassPanel
+            blur="md"
+            transparency={84}
+            tintColor="rgb(255 255 255)"
+            borderColor="rgb(255 255 255 / 0.55)"
+            className="overflow-hidden shadow-[0_22px_70px_rgba(148,163,184,0.18)] transform-gpu relative z-10"
+          >
+            {/* Toolbar */}
+            <div className="flex gap-2 items-center px-4 py-3 border-b border-white/30 bg-white/10 dark:bg-white/5 md:px-6 md:py-4">
+              <div className="flex flex-1 gap-3 items-center">
+                <Checkbox
+                  id="mobile-select-all"
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all files"
+                  className="md:hidden border-primary/50 bg-white/20 dark:bg-white/10"
+                />
+                {someSelected ? (
+                  <span className="text-sm font-medium text-muted-foreground shrink-0">
                     {selectedIds.size} selected
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={toggleSelectAll}
+                ) : (
+                  <label
+                    htmlFor="mobile-select-all"
+                    className="text-sm font-medium cursor-pointer text-muted-foreground shrink-0 md:hidden"
                   >
-                    {allSelected ? "Deselect all" : "Select all"}
-                  </Button>
-                </div>
-              ) : (
-                <div />
-              )}
-              <div className="flex justify-between items-center w-full">
+                    Select all
+                  </label>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                 {someSelected && (
                   <Button
                     disabled={isDeleting}
                     variant="danger"
                     size="sm"
+                    className="px-2 min-w-0 h-8 text-xs md:px-3"
                     onClick={() => setBulkDeleteConfirmOpen(true)}
                   >
-                    <TrashIcon />
-                    Delete {selectedIds.size}
+                    <TrashIcon className="size-3.5 md:size-4" />
+                    <span className="hidden sm:inline">
+                      Delete {selectedIds.size}
+                    </span>
+                    <span className="sm:hidden">{selectedIds.size}</span>
                   </Button>
                 )}
                 <Button
-                  className="ml-auto"
+                  size="sm"
+                  className="px-2 min-w-0 h-8 text-xs md:px-3"
                   onClick={() => setUploadDialogOpen(true)}
                 >
-                  <PlusIcon />
-                  Add
+                  <PlusIcon className="size-3.5 md:size-4" />
+                  <span className="hidden sm:inline">Add</span>
                 </Button>
               </div>
             </div>
 
-            <Table>
-              <TableHeader>
-                <TableRow
-                  className={
-                    files.results.length > 0
-                      ? "hover:bg-muted/50"
-                      : "hover:bg-transparent"
-                  }
-                >
-                  {FILE_TABLE_COLUMNS.map((col) => (
-                    <TableHead
-                      key={col.id}
-                      className={cn(
-                        "px-6 py-4 font-semibold cursor-default",
-                        col.id === "select" && "w-10",
-                      )}
-                    >
-                      {col.id === "select" ? (
-                        <Checkbox
-                          checked={allSelected}
-                          onCheckedChange={toggleSelectAll}
-                          disabled={loadedIds.length === 0}
-                          aria-label="Select all"
-                          className="disabled:cursor-default"
-                        />
-                      ) : (
-                        col.label
-                      )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <FileTableBody
+            {/* Mobile list */}
+            <div className="md:hidden">
+              <MobileFileList
                 files={displayFiles}
                 isLoadingFirstPage={isLoadingFirstPage}
                 selectedIds={selectedIds}
@@ -294,9 +377,50 @@ export const FilesView = () => {
                 onEdit={handleEditClick}
                 onDelete={handleDeleteClick}
               />
-            </Table>
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    {FILE_TABLE_COLUMNS.map((col) => (
+                      <TableHead
+                        key={col.id}
+                        className={cn(
+                          "px-6 py-4 font-semibold cursor-default",
+                          col.id === "select" && "w-10",
+                        )}
+                      >
+                        {col.id === "select" ? (
+                          <Checkbox
+                            checked={allSelected}
+                            onCheckedChange={toggleSelectAll}
+                            disabled={loadedIds.length === 0}
+                            aria-label="Select all"
+                            className="disabled:cursor-default border-primary bg-white/20 dark:bg-white/10"
+                          />
+                        ) : (
+                          col.label
+                        )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <FileTableBody
+                  files={displayFiles}
+                  isLoadingFirstPage={isLoadingFirstPage}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                  onView={setViewingFile}
+                  onEdit={handleEditClick}
+                  onDelete={handleDeleteClick}
+                />
+              </Table>
+            </div>
+
             {!isLoadingFirstPage && files.results.length > 0 && (
-              <div className="w-full border-t">
+              <div className="w-full border-t border-white/30">
                 <InfiniteScrollTrigger
                   ref={topElementRef}
                   canLoadMore={canLoadMore}
@@ -306,7 +430,7 @@ export const FilesView = () => {
                 />
               </div>
             )}
-          </div>
+          </GlassPanel>
         </div>
       </div>
     </>

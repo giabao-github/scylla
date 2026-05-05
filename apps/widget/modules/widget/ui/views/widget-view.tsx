@@ -83,11 +83,16 @@ const getHeaderProps = (screen: WidgetScreen) => {
         color2: "#6D28D9",
         color3: "#7C3AED",
       };
-    case "library":
-      return null;
+
     default: {
       const _exhaustiveCheck: never = screen;
-      return _exhaustiveCheck;
+      console.error(`[getHeaderProps] Unknown screen encountered: ${_exhaustiveCheck}`);
+      return {
+        timeSpeed: 0.9,
+        color1: "#A78BFA",
+        color2: "#8B5CF6",
+        color3: "#7C3AED",
+      };
     }
   }
 };
@@ -153,11 +158,18 @@ const getHeaderContent = ({
           onInbox={onInbox}
         />
       );
-    case "library":
-      return null;
+
     default: {
       const _exhaustiveCheck: never = screen;
-      return _exhaustiveCheck;
+      console.error(`[getHeaderContent] Unknown screen encountered: ${_exhaustiveCheck}`);
+      return (
+        <div className="flex flex-col gap-y-2 justify-between px-4 py-6 font-semibold">
+          <p className="text-2xl md:text-3xl">Something went wrong</p>
+          <p className="text-base md:text-lg">
+            We couldn&apos;t find that screen.
+          </p>
+        </div>
+      );
     }
   }
 };
@@ -180,11 +192,11 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
       return <WidgetChatScreen />;
     case "contact":
       return <WidgetContactScreen />;
-    case "library":
-      return <p>TODO: Library</p>;
+
     default: {
       const _exhaustiveCheck: never = screen;
-      return <p>Unknown screen: {_exhaustiveCheck}</p>;
+      console.error(`[renderScreen] Unknown screen encountered: ${_exhaustiveCheck}`);
+      return <WidgetErrorScreen />;
     }
   }
 };

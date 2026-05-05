@@ -28,8 +28,20 @@ import { cn } from "@workspace/ui/lib/utils";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+
+const SIDEBAR_GLASS_STYLES_MOBILE: React.CSSProperties = {
+  background: "var(--glass-surface-elevated)",
+  backdropFilter: "blur(32px) saturate(2.0)",
+  WebkitBackdropFilter: "blur(32px) saturate(2.0)",
+  borderRight: "1px solid var(--glass-border)",
+};
+
+const SIDEBAR_GLASS_STYLES_DESKTOP: React.CSSProperties = {
+  background: "var(--glass-surface-elevated)",
+  backdropFilter: "blur(28px) saturate(1.9)",
+  WebkitBackdropFilter: "blur(28px) saturate(1.9)",
+};
 const SIDEBAR_WIDTH = "16rem";
-const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
@@ -70,8 +82,6 @@ function SidebarProvider({
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
 
-  // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
@@ -110,8 +120,6 @@ function SidebarProvider({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebar]);
 
-  // We add a state so that we can do data-state="expanded" or "collapsed".
-  // This makes it easier to style the sidebar with Tailwind classes.
   const state = open ? "expanded" : "collapsed";
 
   const contextValue = React.useMemo<SidebarContextProps>(
@@ -188,12 +196,8 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar-accent text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-            } as React.CSSProperties
-          }
+          className="text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          style={SIDEBAR_GLASS_STYLES_MOBILE}
           side={side}
         >
           <SheetHeader className="sr-only">
@@ -245,8 +249,18 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="bg-sidebar-accent group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className="group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          style={SIDEBAR_GLASS_STYLES_DESKTOP}
         >
+          {/* Top-edge specular line for depth — glass catching overhead light */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 z-10 h-px pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(90deg, transparent 0%, var(--glass-specular) 60%, transparent 100%)",
+            }}
+          />
           {children}
         </div>
       </div>
@@ -295,7 +309,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
       onClick={toggleSidebar}
       title={state === "collapsed" ? "Expand Sidebar" : "Collapse Sidebar"}
       className={cn(
-        "absolute inset-y-0 z-20 hidden w-2 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-2 group-data-[side=right]:left-0 bg-sidebar-accent after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:bg-transparent hover:after:bg-transparent sm:flex",
+        "absolute inset-y-0 z-20 hidden w-2 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-2 group-data-[side=right]:left-0 bg-transparent after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:bg-transparent hover:after:bg-glass-border sm:flex",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
         "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
         "hover:group-data-[collapsible=offcanvas]:bg-transparent group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full",

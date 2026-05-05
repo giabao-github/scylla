@@ -23,6 +23,7 @@ declare global {
 
 (function () {
   const MAX_WIDGET_HEIGHT_PX = 2000;
+  const MIN_WIDGET_HEIGHT_PX = 100;
   const OPEN_WIDGET_LABEL = "Open chat widget";
   const CLOSE_WIDGET_LABEL = "Close chat widget";
   const WIDGET_SCRIPT_MARKER = "true";
@@ -382,9 +383,12 @@ declare global {
     const parsedHeight = Number(height);
     if (
       !Number.isFinite(parsedHeight) ||
-      parsedHeight <= 0 ||
+      parsedHeight < MIN_WIDGET_HEIGHT_PX ||
       parsedHeight > MAX_WIDGET_HEIGHT_PX
     ) {
+      console.warn(
+        `Scylla Widget: resize height ${parsedHeight} out of bounds [${MIN_WIDGET_HEIGHT_PX}, ${MAX_WIDGET_HEIGHT_PX}]`,
+      );
       return null;
     }
 

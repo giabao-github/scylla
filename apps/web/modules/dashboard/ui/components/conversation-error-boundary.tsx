@@ -23,12 +23,8 @@ export class ConversationErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error(
-      "ConversationErrorBoundary has caught an error:",
-      error,
-      errorInfo,
-    );
+  componentDidCatch(error: Error) {
+    console.error("ConversationErrorBoundary has caught an error:", error);
   }
 
   private isConvexErrorWithCode(

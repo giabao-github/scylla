@@ -16,12 +16,8 @@ export class CustomizationErrorBoundary extends Component<
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error(
-      "CustomizationErrorBoundary has caught an error:",
-      error,
-      errorInfo,
-    );
+  componentDidCatch(error: Error) {
+    console.error("CustomizationErrorBoundary has caught an error:", error);
   }
 
   render() {

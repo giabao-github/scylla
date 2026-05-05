@@ -16,6 +16,14 @@ export const create = mutation({
   },
   handler: async (ctx, args): Promise<Id<"conversations">> => {
     const session = await validateSession(ctx, args.contactSessionId);
+
+    if (session.blockedAt) {
+      throw new ConvexError({
+        code: "BLOCKED",
+        message: "You have been blocked from this organization",
+      });
+    }
+
     const organizationId = session.organizationId;
     const organization = await ctx.db.get(organizationId);
 
@@ -126,6 +134,7 @@ export const getOne = query({
       createdAt: conversation.createdAt,
       lastSeenByAgentAt: conversation.lastSeenByAgentAt ?? null,
       lastSeenByContactAt: conversation.lastSeenByContactAt ?? null,
+      blockedAt: session.blockedAt ?? null,
     };
   },
 });
@@ -164,11 +173,7 @@ export const markSeenByContact = mutation({
       });
     }
 
-    const maxSeenAt = Math.min(
-      Date.now(),
-      conversation.lastMessageAt ?? Number.POSITIVE_INFINITY,
-    );
-    const clampedSeenAt = Math.min(args.seenAt, maxSeenAt);
+    const clampedSeenAt = Math.min(args.seenAt, Date.now());
 
     if (
       conversation.lastSeenByContactAt &&

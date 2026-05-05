@@ -77,7 +77,7 @@ export const GlassPanel = ({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[calc(var(--radius)+6px)] border-2 text-card-foreground shadow-xl",
+        "relative overflow-hidden isolation-isolate rounded-[calc(var(--radius)+6px)] border-2 text-card-foreground shadow-xl",
         blurClasses[blur],
         className,
       )}
@@ -103,7 +103,7 @@ export const GlassPanel = ({
           )})`,
         }}
       />
-      <div className="relative">{children}</div>
+      <div className="relative z-10">{children}</div>
     </div>
   );
 };
