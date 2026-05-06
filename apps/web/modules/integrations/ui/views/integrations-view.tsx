@@ -282,10 +282,7 @@ export const IntegrationsView = () => {
                     <div className="absolute inset-0 rounded-[1.75rem] bg-linear-to-br from-white/40 via-transparent to-sky-100/30 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
                     {/* Mobile layout: icon + name + arrow in a single row */}
-                    <div
-                      className="flex relative gap-3 items-center w-full sm:hidden"
-                      aria-hidden="true"
-                    >
+                    <div className="flex relative gap-3 items-center w-full sm:hidden">
                       <div className="flex justify-center items-center rounded-2xl border shadow-sm size-11 shrink-0 border-white/80 bg-white/85">
                         <Image
                           alt={integration.name}

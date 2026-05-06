@@ -96,6 +96,18 @@ export const create = mutation({
           `Failed to clean up orphaned thread [${threadId}]:`,
           cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
         );
+        await ctx.runMutation(
+          internal.private.conversations.markPendingThreadDeletion,
+          {
+            threadId,
+            organizationId: session.organizationId,
+          },
+        );
+        await ctx.scheduler.runAfter(
+          0,
+          internal.pendingThreadDeletions.processPendingThreadDeletions,
+          {},
+        );
       }
       throw err;
     }
@@ -112,7 +124,6 @@ export const getOne = query({
 
     const conversation = await ctx.db.get(args.conversationId);
 
-    // Don't throw error, handle in frontend (displays a CTA modal to start a new conversation)
     if (!conversation) {
       return null;
     }

@@ -26,14 +26,20 @@ type PhoneStatus = PhoneNumbers[number]["status"];
 const PhoneStatusBadge = ({ status }: { status: PhoneStatus | undefined }) => (
   <Badge
     variant={
-      status === "active" ? "success" : status === "blocked" ? "danger" : "inactive"
+      status === "active"
+        ? "success"
+        : status === "blocked"
+          ? "danger"
+          : "inactive"
     }
     className="capitalize select-none"
   >
     {status === "active" ? (
       <CheckCircleIcon className="mr-1 size-4" />
-    ) : (
+    ) : status === "blocked" ? (
       <XCircleIcon className="mr-1 size-4" />
+    ) : (
+      <AlertTriangleIcon className="mr-1 size-4" />
     )}
     {status || "Unknown"}
   </Badge>
@@ -143,7 +149,10 @@ const PhoneNumbersCards = ({
         role="status"
         aria-label="Loading phone numbers"
       >
-        <Loader2Icon className="animate-spin text-primary/50" />
+        <Loader2Icon
+          className="animate-spin text-primary/50"
+          aria-hidden="true"
+        />
         <span className="sr-only">Loading phone numbers...</span>
       </div>
     );
@@ -155,7 +164,7 @@ const PhoneNumbersCards = ({
         className="flex gap-2 justify-center items-center px-4 py-8 text-rose-400"
         role="alert"
       >
-        <AlertTriangleIcon className="size-4" />
+        <AlertTriangleIcon className="size-4" aria-hidden="true" />
         <span className="text-xs">Error loading phone numbers</span>
       </div>
     );

@@ -78,7 +78,6 @@ const ActionButtons = ({
           aria-live="polite"
           onClick={() => void handleCopy(content)}
           variant="outline"
-          size="sm"
           className={cls}
         >
           <StateIcon className={cn("size-3", iconClassName)} />
@@ -88,7 +87,6 @@ const ActionButtons = ({
       <Button
         title="Download file"
         variant="outline"
-        size="sm"
         className={cls}
         disabled={isDownloading}
         onClick={handleDownload}
@@ -96,7 +94,7 @@ const ActionButtons = ({
         <DownloadIcon size={12} />
         Download
       </Button>
-      <Button asChild variant="outline" size="sm" className={cls}>
+      <Button asChild variant="outline" className={cls}>
         <a
           href={fileUrl}
           target="_blank"
@@ -177,6 +175,7 @@ const FilePreviewContent = ({
         src={fileUrl!}
         className="w-full h-full min-h-[400px]"
         title={file.name}
+        sandbox="allow-scripts allow-same-origin"
       />
     );
   }
@@ -273,8 +272,9 @@ export const FileView = ({
           setLoading(false);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!controller.signal.aborted) {
+          console.error("Failed to load file content:", err);
           setError(true);
           setLoading(false);
         }

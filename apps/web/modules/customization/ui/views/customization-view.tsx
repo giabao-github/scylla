@@ -39,6 +39,9 @@ export const CustomizationView = ({
       <div className="flex flex-col flex-1 justify-center items-center p-8 min-h-0">
         {/* Glass loading card */}
         <GlassPanel
+          role="status"
+          aria-busy={true}
+          aria-live="polite"
           blur="md"
           transparency={82}
           tintColor="rgb(255 255 255)"

@@ -93,7 +93,7 @@ export const WidgetContactScreen = () => {
                     className={cn(
                       "rounded-full size-2.5 shrink-0",
                       isContactBlocked ? "bg-rose-500" : "bg-violet-500",
-                      "animate-pulse",
+                      !isContactBlocked && "animate-pulse",
                     )}
                   />
                   <span className="text-center">

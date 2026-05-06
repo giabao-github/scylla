@@ -24,6 +24,22 @@ import { Message } from "@workspace/ui/components/ai/message";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
 
+type ConvexErrorWithCode = Error & { data: { code: string } };
+
+const hasErrorCode = (
+  error: unknown,
+  code: string,
+): error is ConvexErrorWithCode => {
+  return (
+    error instanceof Error &&
+    "data" in error &&
+    typeof error.data === "object" &&
+    error.data !== null &&
+    "code" in error.data &&
+    (error.data as { code: unknown }).code === code
+  );
+};
+
 export const WidgetVoiceScreen = () => {
   const [isLoadingSecrets, setIsLoadingSecrets] = useState(false);
   const [localBlocked, setLocalBlocked] = useState(false);
@@ -60,10 +76,11 @@ export const WidgetVoiceScreen = () => {
 
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
-  const serverBlockedAt = isValidSession ? validation.contactSession?.blockedAt : undefined;
+  const serverBlockedAt = isValidSession
+    ? validation.contactSession?.blockedAt
+    : undefined;
   const isContactBlocked =
-    localBlocked ||
-    (isValidSession && !!serverBlockedAt);
+    localBlocked || (isValidSession && !!serverBlockedAt);
 
   useEffect(() => {
     if (isValidSession && !serverBlockedAt && localBlocked) {
@@ -162,15 +179,8 @@ export const WidgetVoiceScreen = () => {
           return;
         }
 
-        const isBlockedError =
-          fetchError instanceof Error &&
-          "data" in fetchError &&
-          typeof fetchError.data === "object" &&
-          fetchError.data !== null &&
-          "code" in fetchError.data &&
-          fetchError.data.code === "BLOCKED";
-
-        if (isBlockedError) {
+        if (hasErrorCode(fetchError, "BLOCKED")) {
+          console.warn("User blocked from using voice call");
           setLocalBlocked(true);
           setVapiSecrets(null);
           setSecretError(null);

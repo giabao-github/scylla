@@ -227,9 +227,9 @@ export const WidgetChatScreen = () => {
   });
 
   const isSubmitting = isSubmittingMessage || hasActivePendingSlots;
-  const isBlocked =
+  const isSubmissionDisabled =
     !conversation || isResolved || isContactBlocked || isSubmitting;
-  const submitDisabled = isBlocked || !form.formState.isValid;
+  const submitDisabled = isSubmissionDisabled || !form.formState.isValid;
   const suggestionsDisabled =
     !isSessionReady || isResolved || isContactBlocked || isSubmitting;
   const submitStatus =

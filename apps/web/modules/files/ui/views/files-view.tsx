@@ -321,7 +321,9 @@ export const FilesView = () => {
               <div className="flex flex-1 gap-3 items-center">
                 <Checkbox
                   id="mobile-select-all"
-                  checked={allSelected}
+                  checked={
+                    allSelected ? true : someSelected ? "indeterminate" : false
+                  }
                   onCheckedChange={toggleSelectAll}
                   aria-label="Select all files"
                   className="md:hidden border-primary/50 bg-white/20 dark:bg-white/10"
@@ -394,7 +396,13 @@ export const FilesView = () => {
                       >
                         {col.id === "select" ? (
                           <Checkbox
-                            checked={allSelected}
+                            checked={
+                              allSelected
+                                ? true
+                                : someSelected
+                                  ? "indeterminate"
+                                  : false
+                            }
                             onCheckedChange={toggleSelectAll}
                             disabled={loadedIds.length === 0}
                             aria-label="Select all"

@@ -608,12 +608,10 @@ export const ConversationIdView = ({
     }
 
     if (statusDisplayEntryKey && !entryKeys.has(statusDisplayEntryKey)) {
-      const lastOperatorEntry = [...timeline]
-        .reverse()
-        .find(
-          (entry) =>
-            entry.type === "confirmed" && entry.data.role === "assistant",
-        );
+      const lastOperatorEntry = timeline.findLast(
+        (entry) =>
+          entry.type === "confirmed" && entry.data.role === "assistant",
+      );
       setStatusDisplayEntryKey(lastOperatorEntry?.entryKey ?? null);
     }
   }, [selectedEntryKey, statusDisplayEntryKey, timeline]);

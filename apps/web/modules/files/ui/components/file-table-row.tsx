@@ -27,7 +27,8 @@ export const FileTableRow = ({
   <TableRow
     className={cn(
       "hover:bg-white/10 dark:hover:bg-white/5 transition-colors duration-200",
-      isSelected && "bg-primary/10 dark:bg-primary/20",
+      isSelected &&
+        "bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30",
     )}
   >
     <TableCell className="px-6 py-4">

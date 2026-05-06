@@ -1,9 +1,16 @@
 import { PaginationResult, paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
+import { internal } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
-import { mutation, query } from "@workspace/backend/_generated/server";
 import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "@workspace/backend/_generated/server";
+import {
+  DELETION_BATCH_SIZE,
   MAX_BATCHES_PER_PARENT,
   MESSAGE_REQUEST_BATCH,
 } from "@workspace/backend/constants";
@@ -19,6 +26,157 @@ const statusValidator = v.union(
   v.literal(CONVERSATION_STATUS.ESCALATED),
   v.literal(CONVERSATION_STATUS.RESOLVED),
 );
+
+const STALE_THREAD_DELETION_CLAIM_MS = 5 * 60 * 1000;
+
+export const listPendingThreadDeletions = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args): Promise<Doc<"pendingThreadDeletions">[]> => {
+    const effectiveLimit = Math.max(
+      1,
+      Math.min(args.limit ?? DELETION_BATCH_SIZE, 1000),
+    );
+    const now = Date.now();
+    const staleThreshold = now - STALE_THREAD_DELETION_CLAIM_MS;
+
+    const result: Doc<"pendingThreadDeletions">[] = [];
+    let cursor: string | null = null;
+    const batchSize = effectiveLimit * 2;
+    const maxScans = 5;
+    let scans = 0;
+
+    while (result.length < effectiveLimit && scans < maxScans) {
+      const batch = await ctx.db
+        .query("pendingThreadDeletions")
+        .withIndex("by_scheduled_at", (q) => q.lte("scheduledAt", now))
+        .paginate({ cursor, numItems: batchSize });
+
+      for (const row of batch.page) {
+        const isNotClaimed =
+          row.claimedAt === undefined || row.claimedAt < staleThreshold;
+        if (isNotClaimed) {
+          result.push(row);
+          if (result.length >= effectiveLimit) break;
+        }
+      }
+
+      if (batch.isDone) break;
+      cursor = batch.continueCursor;
+      scans++;
+    }
+
+    if (scans >= maxScans && result.length < effectiveLimit) {
+      console.warn(
+        `listPendingThreadDeletions hit maxScans (${maxScans}). ` +
+          `Returned ${result.length}/${effectiveLimit} requested.`,
+      );
+    }
+
+    return result;
+  },
+});
+
+export const markPendingThreadDeletion = internalMutation({
+  args: {
+    threadId: v.string(),
+    organizationId: v.id("organizations"),
+    conversationId: v.optional(v.id("conversations")),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("pendingThreadDeletions")
+      .withIndex("by_thread_id", (q) => q.eq("threadId", args.threadId))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        organizationId: args.organizationId,
+        conversationId: args.conversationId,
+        scheduledAt: Date.now(),
+        claimedAt: undefined,
+      });
+      return { queued: false };
+    }
+
+    await ctx.db.insert("pendingThreadDeletions", {
+      threadId: args.threadId,
+      organizationId: args.organizationId,
+      conversationId: args.conversationId,
+      scheduledAt: Date.now(),
+    });
+
+    return { queued: true };
+  },
+});
+
+export const claimPendingThreadDeletion = internalMutation({
+  args: { id: v.id("pendingThreadDeletions") },
+  handler: async (ctx, { id }) => {
+    const row = await ctx.db.get(id);
+    if (!row) return { claimed: false };
+
+    const now = Date.now();
+    const isAlreadyClaimed =
+      row.claimedAt !== undefined &&
+      now - row.claimedAt < STALE_THREAD_DELETION_CLAIM_MS;
+
+    if (isAlreadyClaimed) return { claimed: false };
+
+    await ctx.db.patch(id, {
+      claimedAt: now,
+      scheduledAt: now + STALE_THREAD_DELETION_CLAIM_MS,
+    });
+
+    return { claimed: true };
+  },
+});
+
+export const removePendingThreadDeletion = internalMutation({
+  args: { id: v.id("pendingThreadDeletions") },
+  handler: async (ctx, { id }) => {
+    await ctx.db.delete(id);
+  },
+});
+
+export const incrementPendingThreadDeletionRetryCount = internalMutation({
+  args: { id: v.id("pendingThreadDeletions") },
+  handler: async (ctx, { id }) => {
+    const row = await ctx.db.get(id);
+    if (!row) return;
+
+    const nextRetryCount = (row.retryCount ?? 0) + 1;
+    const backoffMs = Math.min(1000 * 2 ** nextRetryCount, 60 * 60 * 1000);
+    const retryAfter = Date.now() + backoffMs;
+
+    await ctx.db.patch(id, {
+      retryCount: nextRetryCount,
+      retryAfter,
+      scheduledAt: retryAfter,
+      claimedAt: undefined,
+    });
+  },
+});
+
+export const movePendingThreadDeletionToDeadLetterQueue = internalMutation({
+  args: {
+    id: v.id("pendingThreadDeletions"),
+    error: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const pending = await ctx.db.get(args.id);
+    if (!pending) return;
+
+    await ctx.db.insert("failedThreadDeletions", {
+      threadId: pending.threadId,
+      organizationId: pending.organizationId,
+      conversationId: pending.conversationId,
+      error: args.error,
+      failedAt: Date.now(),
+    });
+
+    await ctx.db.delete(args.id);
+  },
+});
 
 export const getOne = query({
   args: {
@@ -342,6 +500,26 @@ export const deleteOne = mutation({
         `[deleteOne] Failed to schedule thread deletion for thread [${threadId}]:`,
         err instanceof Error ? err.message : err,
       );
+      try {
+        await ctx.runMutation(
+          internal.private.conversations.markPendingThreadDeletion,
+          {
+            threadId,
+            organizationId,
+            conversationId: args.conversationId,
+          },
+        );
+        await ctx.scheduler.runAfter(
+          0,
+          internal.pendingThreadDeletions.processPendingThreadDeletions,
+          {},
+        );
+      } catch (fallbackErr) {
+        console.error(
+          `[deleteOne] Fallback failed for thread [${threadId}]. Manual cleanup required.`,
+          fallbackErr instanceof Error ? fallbackErr.message : fallbackErr,
+        );
+      }
     }
   },
 });

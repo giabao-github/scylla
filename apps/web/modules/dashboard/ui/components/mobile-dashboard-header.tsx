@@ -5,23 +5,23 @@ import { usePathname } from "next/navigation";
 import { SidebarTrigger } from "@workspace/ui/components/sidebar";
 
 const mobilePageTitles: Array<{ match: string; title: string }> = [
-  { match: "/files", title: "Knowledge Base" },
   { match: "/customization", title: "Widget Customization" },
-  { match: "/integrations", title: "Integrations" },
   { match: "/plugins/vapi", title: "Vapi Plugin" },
+  { match: "/integrations", title: "Integrations" },
   { match: "/billing", title: "Plan & Billing" },
+  { match: "/files", title: "Knowledge Base" },
 ];
 
 export const MobileDashboardHeader = () => {
   const pathname = usePathname();
 
-  const title =
-    mobilePageTitles.find(({ match }) => pathname.startsWith(match))?.title ??
-    "Scylla";
-
   if (pathname.startsWith("/conversations")) {
     return null;
   }
+
+  const title =
+    mobilePageTitles.find(({ match }) => pathname.startsWith(match))?.title ??
+    "Scylla";
 
   return (
     <header

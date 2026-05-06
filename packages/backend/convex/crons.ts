@@ -33,6 +33,13 @@ crons.cron(
 );
 
 crons.cron(
+  "Cleanup pending thread deletions",
+  "*/15 * * * *",
+  internal.pendingThreadDeletions.processPendingThreadDeletions,
+  {},
+);
+
+crons.cron(
   "Cleanup stale orphans",
   "0 * * * *",
   internal.orphanCleanup.cleanupStaleOrphans,

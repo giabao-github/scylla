@@ -60,6 +60,22 @@ const buttonOptions = [
   },
 ];
 
+type ConvexErrorWithCode = Error & { data: { code: string } };
+
+const hasErrorCode = (
+  error: unknown,
+  code: string,
+): error is ConvexErrorWithCode => {
+  return (
+    error instanceof Error &&
+    "data" in error &&
+    typeof error.data === "object" &&
+    error.data !== null &&
+    "code" in error.data &&
+    (error.data as { code: unknown }).code === code
+  );
+};
+
 export const WidgetSelectionScreen = () => {
   const [isPending, setIsPending] = useState(false);
   const [localBlocked, setLocalBlocked] = useState(false);
@@ -91,11 +107,11 @@ export const WidgetSelectionScreen = () => {
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
   const isValidSession = validation?.valid === true;
-  const serverBlockedAt = isValidSession ? validation.contactSession?.blockedAt : undefined;
+  const serverBlockedAt = isValidSession
+    ? validation.contactSession?.blockedAt
+    : undefined;
 
-  const isBlocked =
-    localBlocked ||
-    (isValidSession && !!serverBlockedAt);
+  const isBlocked = localBlocked || (isValidSession && !!serverBlockedAt);
 
   useEffect(() => {
     if (isValidSession && !serverBlockedAt && localBlocked) {
@@ -162,15 +178,8 @@ export const WidgetSelectionScreen = () => {
       setConversationId(conversationId);
       setScreen(WIDGET_SCREENS.CHAT);
     } catch (error) {
-      const isBlockedError =
-        error instanceof Error &&
-        "data" in error &&
-        typeof error.data === "object" &&
-        error.data !== null &&
-        "code" in error.data &&
-        error.data.code === "BLOCKED";
-
-      if (isBlockedError) {
+      if (hasErrorCode(error, "BLOCKED")) {
+        console.warn("User blocked from creating conversation");
         setLocalBlocked(true);
         return;
       }
@@ -273,7 +282,10 @@ export const WidgetSelectionScreen = () => {
 
           <div className="space-y-2.5 md:space-y-3">
             {isBlocked && (
-              <div className="flex gap-2 items-center px-4 py-3 rounded-2xl border border-rose-200/50 bg-rose-50/40 backdrop-blur-sm">
+              <div
+                role="alert"
+                className="flex gap-2 items-center px-4 py-3 rounded-2xl border backdrop-blur-sm border-rose-200/50 bg-rose-50/40"
+              >
                 <BanIcon className="text-rose-400 size-4 shrink-0" />
                 <p className="text-[13px] leading-5 text-rose-600 md:text-sm">
                   You&apos;ve been blocked and can no longer interact with this

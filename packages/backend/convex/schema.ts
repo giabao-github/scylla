@@ -152,6 +152,28 @@ export default defineSchema({
     .index("by_org_id", ["organizationId"])
     .index("by_entry_id", ["entryId"])
     .index("by_failed_at", ["failedAt"]),
+  pendingThreadDeletions: defineTable({
+    threadId: v.string(),
+    organizationId: v.id("organizations"),
+    conversationId: v.optional(v.id("conversations")),
+    retryCount: v.optional(v.number()),
+    retryAfter: v.optional(v.number()),
+    scheduledAt: v.number(),
+    claimedAt: v.optional(v.number()),
+  })
+    .index("by_thread_id", ["threadId"])
+    .index("by_org_id", ["organizationId"])
+    .index("by_scheduled_at", ["scheduledAt"]),
+  failedThreadDeletions: defineTable({
+    threadId: v.string(),
+    organizationId: v.id("organizations"),
+    conversationId: v.optional(v.id("conversations")),
+    error: v.string(),
+    failedAt: v.number(),
+  })
+    .index("by_thread_id", ["threadId"])
+    .index("by_org_id", ["organizationId"])
+    .index("by_failed_at", ["failedAt"]),
   fileNameIndex: defineTable({
     organizationId: v.string(),
     filename: v.string(),
