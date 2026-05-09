@@ -175,7 +175,7 @@ const FilePreviewContent = ({
         src={fileUrl!}
         className="w-full h-full min-h-[400px]"
         title={file.name}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox=""
       />
     );
   }
@@ -232,7 +232,7 @@ export const FileView = ({
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.warn("Download failed, opening in new tab:", err);
-      window.open(fileUrl, "_blank");
+      window.open(fileUrl, "_blank", "noopener,noreferrer");
     } finally {
       if (mountedRef.current) setIsDownloading(false);
     }
@@ -248,7 +248,6 @@ export const FileView = ({
   }, [open, reset]);
 
   useEffect(() => {
-    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };

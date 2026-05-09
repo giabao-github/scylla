@@ -77,7 +77,7 @@ export const GlassPanel = ({
   return (
     <div
       className={cn(
-        "relative overflow-hidden isolation-isolate rounded-[calc(var(--radius)+6px)] border-2 text-card-foreground shadow-xl",
+        "relative overflow-hidden isolate rounded-[calc(var(--radius)+6px)] border-2 text-card-foreground shadow-xl",
         blurClasses[blur],
         className,
       )}
@@ -89,13 +89,13 @@ export const GlassPanel = ({
       {...props}
     >
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none -z-10"
         style={{
           backgroundImage: `linear-gradient(135deg, rgb(${resolvedHighlightColor} / ${sheenOpacity}), rgb(${resolvedHighlightColor} / ${Math.max(sheenOpacity * 0.28, 0.04)}) 38%, transparent 72%)`,
         }}
       />
       <div
-        className="absolute inset-x-0 top-0 h-px pointer-events-none"
+        className="absolute inset-x-0 top-0 h-px pointer-events-none -z-10"
         style={{
           backgroundColor: `rgb(${resolvedHighlightColor} / ${Math.max(
             sheenOpacity * 0.8,
@@ -103,7 +103,7 @@ export const GlassPanel = ({
           )})`,
         }}
       />
-      <div className="relative z-10">{children}</div>
+      {children}
     </div>
   );
 };

@@ -8,8 +8,10 @@ import {
   MAX_REQUEST_IDS,
   STALE_TIMEOUT_MS,
 } from "@workspace/backend/constants";
-
-import { getMessageRequest, requireMessageRequest } from "./utils";
+import {
+  getMessageRequest,
+  requireMessageRequest,
+} from "@workspace/backend/system/utils";
 
 type ClaimResult =
   | { status: "already_done"; userMessageId: string | null }
@@ -144,6 +146,21 @@ export const claimAndSaveUserMessage = internalMutation({
     ctx,
     { requestId, contactSessionId },
   ): Promise<ClaimResult> => {
+    const contactSession = await ctx.db.get(contactSessionId);
+    if (!contactSession) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Contact session not found",
+      });
+    }
+
+    if (contactSession.blockedAt) {
+      throw new ConvexError({
+        code: "BLOCKED",
+        message: "You have been blocked from this organization",
+      });
+    }
+
     const existing = await getMessageRequest(ctx, requestId);
     const now = Date.now();
 

@@ -85,8 +85,8 @@ const getHeaderProps = (screen: WidgetScreen) => {
       };
 
     default: {
+      // Exhaustiveness check: TypeScript ensures all WidgetScreen cases are handled
       const _exhaustiveCheck: never = screen;
-      console.error(`[getHeaderProps] Unknown screen encountered: ${_exhaustiveCheck}`);
       return {
         timeSpeed: 0.9,
         color1: "#A78BFA",
@@ -160,13 +160,13 @@ const getHeaderContent = ({
       );
 
     default: {
+      // Exhaustiveness check: TypeScript ensures all WidgetScreen cases are handled
       const _exhaustiveCheck: never = screen;
-      console.error(`[getHeaderContent] Unknown screen encountered: ${_exhaustiveCheck}`);
       return (
         <div className="flex flex-col gap-y-2 justify-between px-4 py-6 font-semibold">
-          <p className="text-2xl md:text-3xl">Something went wrong</p>
+          <p className="text-2xl md:text-3xl">Oops!</p>
           <p className="text-base md:text-lg">
-            We couldn&apos;t find that screen.
+            Please refresh the page or try again.
           </p>
         </div>
       );
@@ -194,8 +194,8 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
       return <WidgetContactScreen />;
 
     default: {
+      // Exhaustiveness check: TypeScript ensures all WidgetScreen cases are handled
       const _exhaustiveCheck: never = screen;
-      console.error(`[renderScreen] Unknown screen encountered: ${_exhaustiveCheck}`);
       return <WidgetErrorScreen />;
     }
   }
@@ -290,11 +290,9 @@ export const WidgetView = ({ organizationId }: WidgetViewProps) => {
 
   return (
     <main className="flex overflow-hidden relative flex-col w-full rounded-none border h-svh md:h-dvh md:rounded-sm bg-muted">
-      {headerProps && (
-        <WidgetHeader {...headerProps} className="relative z-50 shrink-0">
-          {headerContent}
-        </WidgetHeader>
-      )}
+      <WidgetHeader {...headerProps} className="relative z-50 shrink-0">
+        {headerContent}
+      </WidgetHeader>
       <div className="flex relative flex-col flex-1 min-h-0">
         {renderScreen(screen, organizationId)}
       </div>

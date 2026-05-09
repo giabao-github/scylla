@@ -14,11 +14,13 @@ export async function generateMetadata({
   params: Promise<{ conversationId: string }>;
 }): Promise<Metadata> {
   const { conversationId } = await params;
-  let title = `Chat - ${conversationId}`;
+  let title = "Chat";
 
   try {
     const { getToken } = await auth();
-    const token = (await getToken({ template: "convex" })) ?? undefined;
+    const token = await getToken({ template: "convex" });
+
+    if (!token) throw new Error("No auth token available");
 
     const conversation = await fetchQuery(
       api.private.conversations.getOne,

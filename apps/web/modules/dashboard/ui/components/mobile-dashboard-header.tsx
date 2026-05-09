@@ -2,26 +2,22 @@
 
 import { usePathname } from "next/navigation";
 
+import { ALL_DASHBOARD_ITEMS } from "@/modules/dashboard/constants/navigation";
 import { SidebarTrigger } from "@workspace/ui/components/sidebar";
 
-const mobilePageTitles: Array<{ match: string; title: string }> = [
-  { match: "/customization", title: "Widget Customization" },
-  { match: "/plugins/vapi", title: "Vapi Plugin" },
-  { match: "/integrations", title: "Integrations" },
-  { match: "/billing", title: "Plan & Billing" },
-  { match: "/files", title: "Knowledge Base" },
-];
+const DEFAULT_HEADER_TITLE = "Scylla";
 
 export const MobileDashboardHeader = () => {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/conversations")) {
+  if (pathname === "/conversations" || pathname.startsWith("/conversations/")) {
     return null;
   }
 
   const title =
-    mobilePageTitles.find(({ match }) => pathname.startsWith(match))?.title ??
-    "Scylla";
+    ALL_DASHBOARD_ITEMS.find(
+      ({ url }) => pathname === url || pathname.startsWith(url + "/"),
+    )?.title ?? DEFAULT_HEADER_TITLE;
 
   return (
     <header

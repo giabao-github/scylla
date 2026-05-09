@@ -44,3 +44,6 @@ npm-debug.log*
 # Misc
 .DS_Store
 *.pem
+
+# Kiro specs (development artifacts)
+.kiro/

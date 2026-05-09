@@ -26,9 +26,9 @@ export const FileTableRow = ({
 }: FileTableRowProps) => (
   <TableRow
     className={cn(
-      "hover:bg-white/10 dark:hover:bg-white/5 transition-colors duration-200",
+      "hover:bg-primary/20 dark:hover:bg-white/20 transition-colors duration-200",
       isSelected &&
-        "bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30",
+        "bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20",
     )}
   >
     <TableCell className="px-6 py-4">

@@ -79,6 +79,11 @@
   --glass-border-subtle: rgba(255, 255, 255, 0.3);
   /* Specular: top-edge highlight line on panels */
   --glass-specular: rgba(255, 255, 255, 0.85);
+  /* Glass panel tint and border colors for GlassPanel component */
+  --glass-panel-tint: rgb(255 255 255);
+  --glass-panel-border: rgb(255 255 255 / 0.55);
+  --glass-panel-border-strong: rgb(255 255 255 / 0.6);
+  --glass-panel-border-stronger: rgb(255 255 255 / 0.7);
   /* Ambient page background — the canvas that makes glass visible */
   --glass-bg-from: oklch(0.93 0.035 290);
   --glass-bg-via: oklch(0.95 0.018 305);
@@ -87,12 +92,12 @@
   --glass-orb-1: oklch(0.8 0.1 290 / 0.22);
   --glass-orb-2: oklch(0.76 0.12 270 / 0.18);
   --glass-orb-3: oklch(0.85 0.08 320 / 0.15);
-  /* Spring easing for elastic interactions */
   --sidebar-active-start: var(--primary);
   --sidebar-active-end: oklch(0.6 0.22 293);
   --sidebar-active-shadow:
     0 2px 12px -2px oklch(0.709 0.1592 293.5412 / 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  /* Spring easing for elastic interactions */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -161,6 +166,11 @@
   --glass-border: rgba(180, 160, 255, 0.18);
   --glass-border-subtle: rgba(180, 160, 255, 0.1);
   --glass-specular: rgba(200, 180, 255, 0.55);
+  /* Glass panel tint and border colors for GlassPanel component - dark mode */
+  --glass-panel-tint: rgb(35 25 60);
+  --glass-panel-border: rgb(180 160 255 / 0.18);
+  --glass-panel-border-strong: rgb(180 160 255 / 0.22);
+  --glass-panel-border-stronger: rgb(180 160 255 / 0.28);
   /* Dark ambient canvas — deep indigo with violet undertones */
   --glass-bg-from: oklch(0.14 0.06 285);
   --glass-bg-via: oklch(0.12 0.04 295);
@@ -315,6 +325,7 @@
       var(--glass-bg-to)
     );
     position: relative;
+    isolation: isolate;
   }
 
   .glass-ambient-bg::before {
@@ -339,6 +350,24 @@
         var(--glass-orb-3),
         transparent 70%
       );
+  }
+
+  /* Active conversation indicator pill with oklch() fallback */
+  .active-pill {
+    /* Fallback for browsers without oklch() support */
+    background: linear-gradient(180deg, #a78bfa, #7c3aed);
+    box-shadow: 0 0 8px 0 rgba(124, 58, 237, 0.5);
+  }
+
+  @supports (color: oklch(0% 0 0)) {
+    .active-pill {
+      background: linear-gradient(
+        180deg,
+        oklch(0.8 0.12 290),
+        oklch(0.65 0.18 275)
+      );
+      box-shadow: 0 0 8px 0 oklch(0.709 0.1592 293.5412 / 0.5);
+    }
   }
 
   /* Markdown content styles */

@@ -31,8 +31,8 @@ const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 const SIDEBAR_GLASS_STYLES_MOBILE: React.CSSProperties = {
   background: "var(--glass-surface-elevated)",
-  backdropFilter: "blur(32px) saturate(2.0)",
-  WebkitBackdropFilter: "blur(32px) saturate(2.0)",
+  backdropFilter: "blur(16px) saturate(1.8)",
+  WebkitBackdropFilter: "blur(16px) saturate(1.8)",
   borderRight: "1px solid var(--glass-border)",
 };
 
@@ -249,13 +249,13 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className="group-data-[variant=floating]:border-sidebar-border relative flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
           style={SIDEBAR_GLASS_STYLES_DESKTOP}
         >
           {/* Top-edge specular line for depth — glass catching overhead light */}
           <div
             aria-hidden="true"
-            className="absolute inset-x-0 top-0 z-10 h-px pointer-events-none"
+            className="absolute inset-x-0 top-0 h-px pointer-events-none z-1"
             style={{
               background:
                 "linear-gradient(90deg, transparent 0%, var(--glass-specular) 60%, transparent 100%)",

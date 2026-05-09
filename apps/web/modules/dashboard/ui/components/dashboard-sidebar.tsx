@@ -3,17 +3,15 @@
 import { useCallback } from "react";
 
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
-import {
-  CreditCardIcon,
-  InboxIcon,
-  LayoutDashboardIcon,
-  LibraryBigIcon,
-  Mic,
-  PaletteIcon,
-} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import {
+  ACCOUNT_ITEMS,
+  CONFIGURATION_ITEMS,
+  CUSTOMER_SUPPORT_ITEMS,
+  type DashboardNavItem,
+} from "@/modules/dashboard/constants/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -30,52 +28,13 @@ import {
 } from "@workspace/ui/components/sidebar";
 import { cn } from "@workspace/ui/lib/utils";
 
-const customerSupportItems = [
-  {
-    title: "Conversations",
-    url: "/conversations",
-    icon: InboxIcon,
-  },
-  {
-    title: "Knowledge Base",
-    url: "/files",
-    icon: LibraryBigIcon,
-  },
-];
-
-const configurationItems = [
-  {
-    title: "Widget Customization",
-    url: "/customization",
-    icon: PaletteIcon,
-  },
-  {
-    title: "Integrations",
-    url: "/integrations",
-    icon: LayoutDashboardIcon,
-  },
-  {
-    title: "Voice Assistant",
-    url: "/plugins/vapi",
-    icon: Mic,
-  },
-];
-
-const accountItems = [
-  {
-    title: "Plan & Billing",
-    url: "/billing",
-    icon: CreditCardIcon,
-  },
-];
-
 const SidebarNavGroup = ({
   label,
   items,
   isActive,
 }: {
   label: string;
-  items: typeof customerSupportItems;
+  items: DashboardNavItem[];
   isActive: (url: string) => boolean;
 }) => {
   const { setOpenMobile, isMobile } = useSidebar();
@@ -95,20 +54,18 @@ const SidebarNavGroup = ({
                   asChild
                   isActive={active}
                   className={cn(
-                    // Base: subtle transition
                     "transition-all duration-200 ease-out",
-                    // Active: glass pill with primary tint
                     active && [
-                      "text-sidebar-primary-foreground! font-semibold",
+                      "text-sidebar-primary-foreground! font-semibold!",
                     ],
                   )}
                   style={
                     active
-                        ? {
-                            background:
-                              "linear-gradient(135deg, var(--sidebar-active-start) 0%, var(--sidebar-active-end) 100%)",
-                            boxShadow: "var(--sidebar-active-shadow)",
-                          }
+                      ? {
+                          background:
+                            "linear-gradient(135deg, var(--sidebar-active-start) 0%, var(--sidebar-active-end) 100%)",
+                          boxShadow: "var(--sidebar-active-shadow)",
+                        }
                       : undefined
                   }
                   tooltip={item.title}
@@ -177,19 +134,19 @@ export const DashboardSidebar = () => {
         {/* Customer Support */}
         <SidebarNavGroup
           label="Customer Support"
-          items={customerSupportItems}
+          items={CUSTOMER_SUPPORT_ITEMS}
           isActive={isActive}
         />
         {/* Configuration */}
         <SidebarNavGroup
           label="Configuration"
-          items={configurationItems}
+          items={CONFIGURATION_ITEMS}
           isActive={isActive}
         />
         {/* Account */}
         <SidebarNavGroup
           label="Account"
-          items={accountItems}
+          items={ACCOUNT_ITEMS}
           isActive={isActive}
         />
       </SidebarContent>

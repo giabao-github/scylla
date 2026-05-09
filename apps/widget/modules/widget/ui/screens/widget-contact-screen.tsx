@@ -47,6 +47,8 @@ export const WidgetContactScreen = () => {
   const isContactBlocked =
     validation?.valid === true && !!validation.contactSession?.blockedAt;
 
+  const statusPillId = "contact-status-pill";
+
   const handleAuthenticate = useCallback(() => {
     setScreen(WIDGET_SCREENS.AUTH);
   }, [setScreen]);
@@ -96,7 +98,7 @@ export const WidgetContactScreen = () => {
                       !isContactBlocked && "animate-pulse",
                     )}
                   />
-                  <span className="text-center">
+                  <span id={statusPillId} className="text-center">
                     {isContactBlocked
                       ? "Your access has been restricted. Please contact support."
                       : "Available 24/7"}
@@ -104,13 +106,18 @@ export const WidgetContactScreen = () => {
                 </div>
 
                 <div className="flex flex-row gap-x-2 items-center md:gap-x-6">
-                  {phoneNumber && !isContactBlocked ? (
-                    <Button
-                      asChild
-                      size="lg"
-                      variant="success"
-                      className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
-                    >
+                  <Button
+                    asChild={!!(phoneNumber && !isContactBlocked)}
+                    size="lg"
+                    variant="success"
+                    disabled={!phoneNumber || isContactBlocked}
+                    aria-disabled={!phoneNumber || isContactBlocked}
+                    aria-describedby={
+                      isContactBlocked ? statusPillId : undefined
+                    }
+                    className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
+                  >
+                    {phoneNumber && !isContactBlocked ? (
                       <a
                         href={`tel:${phoneNumber}`}
                         aria-label="Call phone number"
@@ -118,18 +125,13 @@ export const WidgetContactScreen = () => {
                         <PhoneIcon />
                         Call now
                       </a>
-                    </Button>
-                  ) : (
-                    <Button
-                      size="lg"
-                      variant="success"
-                      disabled
-                      className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
-                    >
-                      <PhoneIcon />
-                      Call now
-                    </Button>
-                  )}
+                    ) : (
+                      <>
+                        <PhoneIcon />
+                        Call now
+                      </>
+                    )}
+                  </Button>
                   <Button
                     size="lg"
                     variant="warning"

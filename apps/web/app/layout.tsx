@@ -24,7 +24,20 @@ export const metadata: Metadata = {
     default: "Scylla",
     template: "%s - Scylla",
   },
-  description: "Next.js application",
+  description:
+    "AI-powered customer support platform with embeddable chat widgets, voice calls, and intelligent automated responses for your website.",
+  openGraph: {
+    title: "Scylla",
+    description:
+      "AI-powered customer support platform with embeddable chat widgets, voice calls, and intelligent automated responses for your website.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Scylla",
+    description:
+      "AI-powered customer support platform with embeddable chat widgets, voice calls, and intelligent automated responses for your website.",
+  },
 };
 
 export default function RootLayout({

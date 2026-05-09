@@ -132,6 +132,7 @@ export const WidgetChatScreen = () => {
     visibleMessages,
     isSessionReady,
     isResolved,
+    isContactBlocked,
     conversationId,
   });
 
@@ -798,21 +799,21 @@ export const WidgetChatScreen = () => {
             </div>
           )}
 
-          {isResolved && !isContactBlocked && (
-            <div className="flex justify-center items-center px-3 pt-3 pb-8 cursor-default shrink-0 md:px-4 md:pt-4 md:pb-10">
+          <div
+            role="status"
+            className="flex justify-center items-center px-3 pt-3 pb-8 cursor-default shrink-0 md:px-4 md:pt-4 md:pb-10"
+            style={{
+              display: isResolved || isContactBlocked ? undefined : "none",
+            }}
+          >
+            {(isResolved || isContactBlocked) && (
               <p className="text-[13px] text-muted-foreground/80 md:text-sm">
-                This conversation has been resolved
+                {isContactBlocked
+                  ? "You can no longer send messages in this conversation"
+                  : "This conversation has been resolved"}
               </p>
-            </div>
-          )}
-
-          {isContactBlocked && (
-            <div className="flex justify-center items-center px-3 pt-3 pb-8 cursor-default shrink-0 md:px-4 md:pt-4 md:pb-10">
-              <p className="text-[13px] text-muted-foreground/80 md:text-sm">
-                You can no longer send messages in this conversation
-              </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </WidgetSessionGuard>
     </>

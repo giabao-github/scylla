@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { PlusIcon, TrashIcon } from "lucide-react";
@@ -122,7 +122,7 @@ export const FilesView = () => {
   const deleteFiles = useMutation(api.private.files.deleteFiles);
 
   const {
-    topElementRef,
+    topElementRef: scrollTriggerRef,
     handleLoadMore,
     canLoadMore,
     isLoadingFirstPage,
@@ -147,13 +147,17 @@ export const FilesView = () => {
     new Set(),
   );
 
-  const displayFiles = files.results.filter(
-    (f) => !optimisticHiddenIds.has(f.id),
+  const displayFiles = useMemo(
+    () => files.results.filter((f) => !optimisticHiddenIds.has(f.id)),
+    [files.results, optimisticHiddenIds],
   );
-  const loadedIds = displayFiles.map((f) => f.id);
+  const loadedIds = useMemo(
+    () => displayFiles.map((f) => f.id),
+    [displayFiles],
+  );
   const allSelected =
     loadedIds.length > 0 && loadedIds.every((id) => selectedIds.has(id));
-  const someSelected = selectedIds.size > 0;
+  const someSelected = loadedIds.some((id) => selectedIds.has(id));
 
   const toggleSelect = (id: EntryId) => {
     setSelectedIds((prev) => {
@@ -251,7 +255,7 @@ export const FilesView = () => {
       <BulkDeleteDialog
         open={bulkDeleteConfirmOpen}
         selectedIds={selectedIds}
-        files={files.results}
+        files={displayFiles}
         onOpenChange={setBulkDeleteConfirmOpen}
         onDelete={handleBulkDelete}
       />
@@ -289,7 +293,7 @@ export const FilesView = () => {
         }}
       />
 
-      {/* Page scroll wrapper — transparent so ambient bg shows through */}
+      {/* Page scroll wrapper */}
       <div className="flex overflow-y-auto flex-col flex-1 items-center px-4 py-6 min-h-full text-base sm:px-6 md:p-10 scrollbar-themed">
         <div className="mx-auto space-y-6 w-full max-w-5xl md:max-w-7xl animate-spring-in">
           {/* Page header glass card */}
@@ -325,6 +329,7 @@ export const FilesView = () => {
                     allSelected ? true : someSelected ? "indeterminate" : false
                   }
                   onCheckedChange={toggleSelectAll}
+                  disabled={loadedIds.length === 0}
                   aria-label="Select all files"
                   className="md:hidden border-primary/50 bg-white/20 dark:bg-white/10"
                 />
@@ -349,20 +354,27 @@ export const FilesView = () => {
                     size="sm"
                     className="px-2 min-w-0 h-8 text-xs md:px-3"
                     onClick={() => setBulkDeleteConfirmOpen(true)}
+                    aria-label={`Delete ${selectedIds.size} selected file${selectedIds.size === 1 ? "" : "s"}`}
                   >
-                    <TrashIcon className="size-3.5 md:size-4" />
+                    <TrashIcon
+                      className="size-3.5 md:size-4"
+                      aria-hidden="true"
+                    />
                     <span className="hidden sm:inline">
                       Delete {selectedIds.size}
                     </span>
-                    <span className="sm:hidden">{selectedIds.size}</span>
+                    <span className="sm:hidden" aria-hidden="true">
+                      {selectedIds.size}
+                    </span>
                   </Button>
                 )}
                 <Button
                   size="sm"
                   className="px-2 min-w-0 h-8 text-xs md:px-3"
                   onClick={() => setUploadDialogOpen(true)}
+                  aria-label="Add files"
                 >
-                  <PlusIcon className="size-3.5 md:size-4" />
+                  <PlusIcon className="size-3.5 md:size-4" aria-hidden="true" />
                   <span className="hidden sm:inline">Add</span>
                 </Button>
               </div>
@@ -427,10 +439,10 @@ export const FilesView = () => {
               </Table>
             </div>
 
-            {!isLoadingFirstPage && files.results.length > 0 && (
+            {!isLoadingFirstPage && displayFiles.length > 0 && (
               <div className="w-full border-t border-white/30">
                 <InfiniteScrollTrigger
-                  ref={topElementRef}
+                  ref={scrollTriggerRef}
                   canLoadMore={canLoadMore}
                   isLoadingMore={isLoadingMore}
                   noMoreText="No more files"

@@ -277,8 +277,8 @@ export const VapiView = ({
         <GlassPanel
           blur="md"
           transparency={82}
-          tintColor="rgb(255 255 255)"
-          borderColor="rgb(255 255 255 / 0.55)"
+          tintColor="var(--glass-panel-tint, rgb(255 255 255))"
+          borderColor="var(--glass-panel-border, rgb(255 255 255 / 0.55))"
           className="p-10"
         >
           <div
@@ -306,9 +306,9 @@ export const VapiView = ({
           <GlassPanel
             blur="lg"
             transparency={80}
-            tintColor="rgb(255 255 255)"
-            borderColor="rgb(255 255 255 / 0.60)"
-            className="p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)]"
+            tintColor="var(--glass-panel-tint, rgb(255 255 255))"
+            borderColor="var(--glass-panel-border-strong, rgb(255 255 255 / 0.6))"
+            className="p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
           >
             <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">
               Vapi Plugin
@@ -323,9 +323,9 @@ export const VapiView = ({
           <GlassPanel
             blur="md"
             transparency={84}
-            tintColor="rgb(255 255 255)"
-            borderColor="rgb(255 255 255 / 0.55)"
-            className="p-6 shadow-[0_20px_60px_rgba(148,163,184,0.14)]"
+            tintColor="var(--glass-panel-tint, rgb(255 255 255))"
+            borderColor="var(--glass-panel-border, rgb(255 255 255 / 0.55))"
+            className="p-6 shadow-[0_20px_60px_rgba(148,163,184,0.14)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
           >
             {vapiPlugin ? (
               <VapiConnectedView

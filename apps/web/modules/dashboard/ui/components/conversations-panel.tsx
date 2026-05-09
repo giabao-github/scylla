@@ -145,7 +145,7 @@ export const ConversationsPanel = () => {
               if (isValidStatusFilter(value)) setStatusFilter(value);
             }}
           >
-            <SelectTrigger className="h-8 min-w-0 border-none px-1.5 shadow-none ring-0 hover:bg-accent hover:text-accent-foreground focus-visible:ring-0">
+            <SelectTrigger className="h-8 min-w-0 border-none px-1.5 shadow-none ring-0 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1">
               <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
@@ -234,18 +234,8 @@ export const ConversationsPanel = () => {
                   className={cn(
                     "absolute left-0 top-1/2 w-1 h-2/3 rounded-r-full transition-all duration-300",
                     "-translate-y-1/2",
-                    isActive ? "opacity-100" : "opacity-0",
+                    isActive ? "opacity-100 active-pill" : "opacity-0",
                   )}
-                  style={
-                    isActive
-                      ? {
-                          background:
-                            "linear-gradient(180deg, oklch(0.80 0.12 290), oklch(0.65 0.18 275))",
-                          boxShadow:
-                            "0 0 8px 0 oklch(0.709 0.1592 293.5412 / 0.5)",
-                        }
-                      : undefined
-                  }
                 />
 
                 <DicebearAvatar

@@ -98,7 +98,10 @@ export const BillingView = ({ initialStatus }: BillingViewProps) => {
         </div>
 
         {/* Pricing table — wrapped in a glass container */}
-        <div className="mx-auto w-full max-w-6xl">
+        <div
+          className="mx-auto w-full max-w-6xl animate-spring-in"
+          style={{ animationDelay: "60ms" }}
+        >
           <GlassPanel
             blur="md"
             transparency={85}
@@ -113,8 +116,8 @@ export const BillingView = ({ initialStatus }: BillingViewProps) => {
                   <Skeleton className="w-40 h-8 rounded-lg" />
                   {/* Plan cards */}
                   <div className="grid gap-4 w-full sm:grid-cols-2">
-                    <Skeleton className="h-64 w-full rounded-2xl" />
-                    <Skeleton className="h-64 w-full rounded-2xl" />
+                    <Skeleton className="w-full h-64 rounded-2xl" />
+                    <Skeleton className="w-full h-64 rounded-2xl" />
                   </div>
                   {/* Guarantee pill */}
                   <Skeleton className="w-72 h-8 rounded-full" />

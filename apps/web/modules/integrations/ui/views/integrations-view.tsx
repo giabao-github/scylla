@@ -285,10 +285,12 @@ export const IntegrationsView = () => {
                     <div className="flex relative gap-3 items-center w-full sm:hidden">
                       <div className="flex justify-center items-center rounded-2xl border shadow-sm size-11 shrink-0 border-white/80 bg-white/85">
                         <Image
-                          alt={integration.name}
-                          width={28}
-                          height={28}
+                          alt=""
+                          width={32}
+                          height={32}
                           src={integration.icon}
+                          sizes="28px"
+                          className="size-7"
                         />
                       </div>
                       <p className="flex-1 text-base font-semibold text-slate-950">
@@ -307,10 +309,12 @@ export const IntegrationsView = () => {
                       <div className="flex gap-4 justify-between items-start">
                         <div className="flex size-14 items-center justify-center rounded-[1.25rem] border border-white/80 bg-white/85 shadow-sm">
                           <Image
-                            alt={integration.name}
+                            alt=""
                             width={32}
                             height={32}
                             src={integration.icon}
+                            sizes="32px"
+                            className="size-8"
                           />
                         </div>
                         <div className="flex justify-center items-center rounded-full border transition-colors size-9 border-slate-200/80 bg-white/80 text-slate-500 group-hover:border-sky-200 group-hover:text-sky-700">
@@ -373,7 +377,7 @@ export const IntegrationDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="overflow-hidden max-h-[90dvh] flex flex-col border-white/60 bg-white/78 p-0 shadow-[0_36px_120px_rgba(15,23,42,0.22)] backdrop-blur-2xl sm:max-w-3xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.9),rgba(240,249,255,0.75)_46%,transparent_100%)]" />
-        <div className="overflow-y-auto relative scrollbar-themed">
+        <div className="overflow-y-auto relative flex-1 min-h-0 scrollbar-themed">
           <DialogHeader className="px-6 py-6 border-b border-white/60">
             <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-white/75 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 shadow-sm">
               <SparklesIcon

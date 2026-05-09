@@ -113,18 +113,18 @@ const MESSAGE_CONTAINER_MAX_HEIGHT = "calc(100vh - 190px)";
 
 const ConversationActionsMenuContent = ({
   isContactBlocked,
-  onBlockToggle,
+  onShowUnblockDialog,
   onShowBlockDialog,
   onShowDeleteDialog,
 }: {
   isContactBlocked: boolean;
-  onBlockToggle: () => void;
+  onShowUnblockDialog: () => void;
   onShowBlockDialog: () => void;
   onShowDeleteDialog: () => void;
 }) => (
   <>
     {isContactBlocked ? (
-      <DropdownMenuItem onClick={onBlockToggle}>
+      <DropdownMenuItem onClick={onShowUnblockDialog}>
         <ShieldCheckIcon />
         Unblock user
       </DropdownMenuItem>
@@ -161,7 +161,9 @@ export const ConversationIdView = ({
   const [isTogglingBlock, setIsTogglingBlock] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
+  const [showUnblockDialog, setShowUnblockDialog] = useState(false);
   const latestSubmissionKeyRef = useRef<string | null>(null);
+  const isDeletingIntentRef = useRef(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLastMessageIdRef = useRef<string | undefined>(undefined);
@@ -316,8 +318,13 @@ export const ConversationIdView = ({
       return;
     }
 
-    router.replace("/conversations");
+    isDeletingIntentRef.current = true;
+    setShowDeleteDialog(false);
+
+    router.push("/conversations");
+
     setIsDeleting(true);
+    let mounted = true;
     try {
       await deleteConversation({
         conversationId: conversationId as Id<"conversations">,
@@ -326,8 +333,12 @@ export const ConversationIdView = ({
     } catch (error) {
       console.error("Failed to delete conversation:", error);
       toast.error("Failed to delete conversation. Please try again.");
+      router.push(`/conversations/${conversationId}`);
     } finally {
-      setIsDeleting(false);
+      if (mounted) {
+        setIsDeleting(false);
+      }
+      isDeletingIntentRef.current = false;
     }
   };
 
@@ -340,11 +351,13 @@ export const ConversationIdView = ({
           conversationId: conversationId as Id<"conversations">,
         });
         toast.success("User unblocked");
+        setShowUnblockDialog(false);
       } else {
         await blockContact({
           conversationId: conversationId as Id<"conversations">,
         });
         toast.success("User blocked");
+        setShowBlockDialog(false);
       }
     } catch (error) {
       console.error("Failed to update block status:", error);
@@ -677,6 +690,11 @@ export const ConversationIdView = ({
   }
 
   if (!conversation) {
+    // Don't show error if we're intentionally deleting and navigating away
+    if (isDeletingIntentRef.current) {
+      return <ConversationIdViewSkeleton />;
+    }
+
     return (
       <div
         className="flex flex-col gap-y-16 justify-center items-center h-full"
@@ -757,7 +775,7 @@ export const ConversationIdView = ({
             <DropdownMenuContent align="end">
               <ConversationActionsMenuContent
                 isContactBlocked={isContactBlocked}
-                onBlockToggle={handleBlockToggle}
+                onShowUnblockDialog={() => setShowUnblockDialog(true)}
                 onShowBlockDialog={() => setShowBlockDialog(true)}
                 onShowDeleteDialog={() => setShowDeleteDialog(true)}
               />
@@ -779,7 +797,7 @@ export const ConversationIdView = ({
             <DropdownMenuContent align="start">
               <ConversationActionsMenuContent
                 isContactBlocked={isContactBlocked}
-                onBlockToggle={handleBlockToggle}
+                onShowUnblockDialog={() => setShowUnblockDialog(true)}
                 onShowBlockDialog={() => setShowBlockDialog(true)}
                 onShowDeleteDialog={() => setShowDeleteDialog(true)}
               />
@@ -1023,16 +1041,62 @@ export const ConversationIdView = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isTogglingBlock}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="danger"
+              disabled={isTogglingBlock}
               onClick={(e) => {
                 e.preventDefault();
-                setShowBlockDialog(false);
-                handleBlockToggle();
+                if (!isContactBlocked) {
+                  handleBlockToggle();
+                }
               }}
             >
-              Block
+              {isTogglingBlock ? (
+                <>
+                  <Loader2Icon className="animate-spin size-4" />
+                  Blocking...
+                </>
+              ) : (
+                "Block"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showUnblockDialog} onOpenChange={setShowUnblockDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unblock user</AlertDialogTitle>
+            <AlertDialogDescription>
+              This user will be able to send you messages and start new
+              conversations again. You can block them again at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isTogglingBlock}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isTogglingBlock}
+              onClick={(e) => {
+                e.preventDefault();
+                if (isContactBlocked) {
+                  handleBlockToggle();
+                }
+              }}
+            >
+              {isTogglingBlock ? (
+                <>
+                  <Loader2Icon className="animate-spin size-4" />
+                  Unblocking...
+                </>
+              ) : (
+                "Unblock"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

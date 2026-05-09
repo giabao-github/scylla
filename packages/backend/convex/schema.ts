@@ -59,6 +59,7 @@ export default defineSchema({
   })
     .index("by_org_id", ["organizationId"])
     .index("by_expires_at", ["expiresAt"])
+    .index("by_org_id_and_blocked_at", ["organizationId", "blockedAt"])
     .index("by_email", ["email"]),
   conversations: defineTable({
     threadId: v.string(),
@@ -163,7 +164,9 @@ export default defineSchema({
   })
     .index("by_thread_id", ["threadId"])
     .index("by_org_id", ["organizationId"])
-    .index("by_scheduled_at", ["scheduledAt"]),
+    .index("by_conversation_id", ["conversationId"])
+    .index("by_scheduled_at", ["scheduledAt"])
+    .index("by_retry_after", ["retryAfter"]),
   failedThreadDeletions: defineTable({
     threadId: v.string(),
     organizationId: v.id("organizations"),
@@ -173,6 +176,7 @@ export default defineSchema({
   })
     .index("by_thread_id", ["threadId"])
     .index("by_org_id", ["organizationId"])
+    .index("by_conversation_id", ["conversationId"])
     .index("by_failed_at", ["failedAt"]),
   fileNameIndex: defineTable({
     organizationId: v.string(),

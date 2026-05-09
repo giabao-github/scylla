@@ -67,6 +67,9 @@ const normalizeFormValue = (value: unknown): unknown => {
   return value;
 };
 
+const suggestionInputClassName =
+  "text-sm placeholder:text-muted-foreground/50 focus-visible:ring";
+
 const UpgradePrompt = ({ message }: { message: string }) => {
   const router = useRouter();
 
@@ -229,7 +232,7 @@ export const CustomizationForm = ({
                               {...field}
                               onKeyDown={handleFillPlaceholder}
                               placeholder="How do I get started?"
-                              className="text-sm placeholder:text-muted-foreground/50 focus-visible:ring"
+                              className={suggestionInputClassName}
                             />
                           </FormControl>
                           <FormMessage />
@@ -249,7 +252,7 @@ export const CustomizationForm = ({
                               {...field}
                               onKeyDown={handleFillPlaceholder}
                               placeholder="What pricing plans does your platform feature?"
-                              className="text-sm placeholder:text-muted-foreground/50 focus-visible:ring"
+                              className={suggestionInputClassName}
                             />
                           </FormControl>
                           <FormMessage />
@@ -269,7 +272,7 @@ export const CustomizationForm = ({
                               {...field}
                               onKeyDown={handleFillPlaceholder}
                               placeholder="How do I enable two-factor authentication?"
-                              className="text-sm placeholder:text-muted-foreground/50 focus-visible:ring"
+                              className={suggestionInputClassName}
                             />
                           </FormControl>
                           <FormMessage />

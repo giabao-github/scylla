@@ -13,50 +13,80 @@ export const processPendingThreadDeletions = internalAction({
 
     if (pending.length === 0) return;
 
-    for (const row of pending) {
-      const { claimed } = await ctx.runMutation(
-        internal.private.conversations.claimPendingThreadDeletion,
-        { id: row._id },
-      );
+    let succeeded = 0;
+    let deletionFailures = 0;
+    let skipped = 0;
 
-      if (!claimed) {
-        console.info(
-          `Skipping already-claimed thread deletion [${row.threadId}]`,
-        );
-        continue;
-      }
-
-      try {
-        await supportAgent.deleteThreadAsync(ctx, { threadId: row.threadId });
-        await ctx.runMutation(
-          internal.private.conversations.removePendingThreadDeletion,
+    const results = await Promise.allSettled(
+      pending.map(async (row) => {
+        const { claimed } = await ctx.runMutation(
+          internal.private.conversations.claimPendingThreadDeletion,
           { id: row._id },
         );
-      } catch (error) {
-        console.error(
-          `Failed to schedule cleanup for thread [${row.threadId}], will retry:`,
-          error,
-        );
 
-        const nextRetryCount = (row.retryCount ?? 0) + 1;
-
-        if (nextRetryCount > MAX_RETRIES) {
-          await ctx.runMutation(
-            internal.private.conversations
-              .movePendingThreadDeletionToDeadLetterQueue,
-            {
-              id: row._id,
-              error: error instanceof Error ? error.message : "Unknown error",
-            },
+        if (!claimed) {
+          console.info(
+            `Skipping already-claimed thread deletion [${row.threadId}]`,
           );
-        } else {
+          skipped++;
+          return;
+        }
+
+        try {
+          await supportAgent.deleteThreadAsync(ctx, {
+            threadId: row.threadId,
+          });
           await ctx.runMutation(
-            internal.private.conversations
-              .incrementPendingThreadDeletionRetryCount,
+            internal.private.conversations.removePendingThreadDeletion,
             { id: row._id },
           );
+          succeeded++;
+        } catch (error) {
+          deletionFailures++;
+          const currentRetryCount = row.retryCount ?? 0;
+          const nextRetryCount = currentRetryCount + 1;
+
+          console.error(
+            `Failed to delete thread [${row.threadId}] (id=${row._id}, retry=${currentRetryCount}/${MAX_RETRIES}):`,
+            error,
+          );
+
+          try {
+            if (nextRetryCount > MAX_RETRIES) {
+              await ctx.runMutation(
+                internal.private.conversations
+                  .movePendingThreadDeletionToDeadLetterQueue,
+                {
+                  id: row._id,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+              );
+            } else {
+              await ctx.runMutation(
+                internal.private.conversations
+                  .incrementPendingThreadDeletionRetryCount,
+                { id: row._id },
+              );
+            }
+          } catch (mutationError) {
+            console.error(
+              `Failed to update deletion state for thread [${row.threadId}] (id=${row._id}):`,
+              mutationError,
+            );
+            throw mutationError;
+          }
         }
-      }
+      }),
+    );
+
+    const infrastructureFailures = results.filter(
+      (r) => r.status === "rejected",
+    ).length;
+    if (deletionFailures > 0 || infrastructureFailures > 0) {
+      console.warn(
+        `Thread deletion batch: ${pending.length} total, ${skipped} skipped, ${succeeded} succeeded, ` +
+          `${deletionFailures} deletion failures, ${infrastructureFailures} infrastructure failures`,
+      );
     }
 
     if (pending.length === DELETION_BATCH_SIZE) {

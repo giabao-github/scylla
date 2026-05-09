@@ -44,8 +44,8 @@ export const CustomizationView = ({
           aria-live="polite"
           blur="md"
           transparency={82}
-          tintColor="rgb(255 255 255)"
-          borderColor="rgb(255 255 255 / 0.55)"
+          tintColor="var(--glass-panel-tint)"
+          borderColor="var(--glass-panel-border)"
           className="p-10"
         >
           <div
@@ -67,8 +67,8 @@ export const CustomizationView = ({
         <GlassPanel
           blur="lg"
           transparency={80}
-          tintColor="rgb(255 255 255)"
-          borderColor="rgb(255 255 255 / 0.60)"
+          tintColor="var(--glass-panel-tint)"
+          borderColor="var(--glass-panel-border-strong)"
           className="p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)]"
         >
           <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">
@@ -84,8 +84,8 @@ export const CustomizationView = ({
         <GlassPanel
           blur="md"
           transparency={84}
-          tintColor="rgb(255 255 255)"
-          borderColor="rgb(255 255 255 / 0.55)"
+          tintColor="var(--glass-panel-tint)"
+          borderColor="var(--glass-panel-border)"
           className="p-6 shadow-[0_20px_60px_rgba(148,163,184,0.14)]"
         >
           <CustomizationForm

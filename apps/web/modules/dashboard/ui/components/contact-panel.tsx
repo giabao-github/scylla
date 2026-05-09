@@ -336,7 +336,7 @@ export const ContactPanel = () => {
               value={section.id}
               className="rounded-none outline-none has-focus-visible:z-10 has-focus-visible:border-ring has-focus-visible:ring has-focus-visible:ring-ring/50"
             >
-              <AccordionTrigger className="flex flex-1 gap-4 justify-between items-start px-5 py-4 w-full text-sm font-medium text-left rounded-none transition-all outline-none hover:bg-white/10 dark:hover:bg-white/6 hover:no-underline disabled:pointer-events-none disabled:opacity-50">
+              <AccordionTrigger className="flex flex-1 gap-4 justify-between items-start px-5 py-4 w-full text-sm font-medium text-left rounded-none transition-all outline-none hover:bg-muted dark:hover:bg-white hover:no-underline disabled:pointer-events-none disabled:opacity-50">
                 <div className="flex gap-4 items-center">
                   <section.icon className="mr-2 w-4 h-4" />
                   <span>{section.title}</span>

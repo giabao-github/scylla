@@ -2,14 +2,14 @@ import { ConvexError, v } from "convex/values";
 
 import { Id } from "@workspace/backend/_generated/dataModel";
 import {
-  MutationCtx,
+  QueryCtx,
   mutation,
   query,
 } from "@workspace/backend/_generated/server";
 import { getAuthenticatedOrganization } from "@workspace/backend/convex/private/utils";
 
 const getAuthorizedContactSession = async (
-  ctx: MutationCtx,
+  ctx: QueryCtx,
   conversationId: Id<"conversations">,
 ) => {
   const { organizationId } = await getAuthenticatedOrganization(ctx);
@@ -54,38 +54,24 @@ export const getOneByConversationId = query({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await getAuthenticatedOrganization(ctx);
+    try {
+      return await getAuthorizedContactSession(ctx, args.conversationId);
+    } catch (error) {
+      if (!(error instanceof ConvexError)) {
+        throw error;
+      }
 
-    const conversation = await ctx.db.get(args.conversationId);
-
-    if (!conversation) {
+      if (error.data?.code === "NOT_FOUND") {
+        console.warn(
+          `Contact session or conversation not found for conversation [${args.conversationId}]`,
+        );
+      } else if (error.data?.code === "UNAUTHORIZED") {
+        console.warn(
+          `Authorization mismatch for conversation [${args.conversationId}]`,
+        );
+      }
       return null;
     }
-
-    if (conversation.organizationId !== organizationId) {
-      console.warn(
-        `Conversation org mismatch for conversation [${args.conversationId}] expected [${organizationId}] got [${conversation.organizationId}]`,
-      );
-      return null;
-    }
-
-    const contactSession = await ctx.db.get(conversation.contactSessionId);
-
-    if (!contactSession) {
-      console.warn(
-        `Contact session [${conversation.contactSessionId}] not found for conversation [${args.conversationId}]`,
-      );
-      return null;
-    }
-
-    if (contactSession.organizationId !== organizationId) {
-      console.warn(
-        `Contact session org mismatch for conversation [${args.conversationId}] session [${contactSession._id}] expected [${organizationId}] got [${contactSession.organizationId}]`,
-      );
-      return null;
-    }
-
-    return contactSession;
   },
 });
 

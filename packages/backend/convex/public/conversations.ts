@@ -96,18 +96,25 @@ export const create = mutation({
           `Failed to clean up orphaned thread [${threadId}]:`,
           cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
         );
-        await ctx.runMutation(
-          internal.private.conversations.markPendingThreadDeletion,
-          {
-            threadId,
-            organizationId: session.organizationId,
-          },
-        );
-        await ctx.scheduler.runAfter(
-          0,
-          internal.pendingThreadDeletions.processPendingThreadDeletions,
-          {},
-        );
+        try {
+          await ctx.runMutation(
+            internal.private.conversations.markPendingThreadDeletion,
+            {
+              threadId,
+              organizationId: session.organizationId,
+            },
+          );
+          await ctx.scheduler.runAfter(
+            0,
+            internal.pendingThreadDeletions.processPendingThreadDeletions,
+            {},
+          );
+        } catch (markErr) {
+          console.error(
+            `Failed to schedule pending thread deletion for [${threadId}]:`,
+            markErr instanceof Error ? markErr.message : markErr,
+          );
+        }
       }
       throw err;
     }

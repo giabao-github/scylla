@@ -19,26 +19,11 @@ import {
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { hasErrorCode } from "@workspace/shared/lib/convex-error";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-
-type ConvexErrorWithCode = Error & { data: { code: string } };
-
-const hasErrorCode = (
-  error: unknown,
-  code: string,
-): error is ConvexErrorWithCode => {
-  return (
-    error instanceof Error &&
-    "data" in error &&
-    typeof error.data === "object" &&
-    error.data !== null &&
-    "code" in error.data &&
-    (error.data as { code: unknown }).code === code
-  );
-};
 
 export const WidgetVoiceScreen = () => {
   const [isLoadingSecrets, setIsLoadingSecrets] = useState(false);
@@ -83,10 +68,11 @@ export const WidgetVoiceScreen = () => {
     localBlocked || (isValidSession && !!serverBlockedAt);
 
   useEffect(() => {
-    if (isValidSession && !serverBlockedAt && localBlocked) {
+    if (isValidSession && !serverBlockedAt) {
       setLocalBlocked(false);
     }
-  }, [isValidSession, serverBlockedAt, localBlocked]);
+  }, [isValidSession, serverBlockedAt]);
+  
   const isSessionBlocked =
     isNew ||
     isExpired ||
@@ -193,7 +179,7 @@ export const WidgetVoiceScreen = () => {
         );
         setVapiSecrets(null);
         setSecretError("Voice is unavailable right now.");
-      })
+      }) 
       .finally(() => {
         if (!cancelled) {
           setIsLoadingSecrets(false);

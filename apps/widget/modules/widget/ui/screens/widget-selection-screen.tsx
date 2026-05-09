@@ -31,6 +31,7 @@ import {
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { hasErrorCode } from "@workspace/shared/lib/convex-error";
 import { DicebearAvatar } from "@workspace/ui/components/dicebear-avatar";
 import { GlassButton } from "@workspace/ui/components/glass/glass-button";
 import { cn } from "@workspace/ui/lib/utils";
@@ -59,22 +60,6 @@ const buttonOptions = [
     accent: "from-amber-500/20 via-orange-400/10 to-transparent",
   },
 ];
-
-type ConvexErrorWithCode = Error & { data: { code: string } };
-
-const hasErrorCode = (
-  error: unknown,
-  code: string,
-): error is ConvexErrorWithCode => {
-  return (
-    error instanceof Error &&
-    "data" in error &&
-    typeof error.data === "object" &&
-    error.data !== null &&
-    "code" in error.data &&
-    (error.data as { code: unknown }).code === code
-  );
-};
 
 export const WidgetSelectionScreen = () => {
   const [isPending, setIsPending] = useState(false);
@@ -106,18 +91,18 @@ export const WidgetSelectionScreen = () => {
   const isValidating = !!contactSessionId && validation === undefined;
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
-  const isValidSession = validation?.valid === true;
-  const serverBlockedAt = isValidSession
-    ? validation.contactSession?.blockedAt
-    : undefined;
+  const serverBlockedAt =
+    validation?.valid === true
+      ? validation.contactSession?.blockedAt
+      : undefined;
 
-  const isBlocked = localBlocked || (isValidSession && !!serverBlockedAt);
+  const isBlocked = localBlocked || !!serverBlockedAt;
 
   useEffect(() => {
-    if (isValidSession && !serverBlockedAt && localBlocked) {
+    if (validation?.valid === true && !serverBlockedAt) {
       setLocalBlocked(false);
     }
-  }, [isValidSession, serverBlockedAt, localBlocked]);
+  }, [serverBlockedAt, validation?.valid]);
 
   const createdAtLabel = useMemo(() => {
     if (organizationProfile?.createdAt == null) {
@@ -147,6 +132,10 @@ export const WidgetSelectionScreen = () => {
   };
 
   const handleNewConversation = async (mode: "chat" | "voice" | "audio") => {
+    if (isBlocked) {
+      return;
+    }
+
     if (!organizationId) {
       setErrorMessage("Widget configuration error. Please try again later.");
       setScreen(WIDGET_SCREENS.ERROR);
@@ -286,7 +275,10 @@ export const WidgetSelectionScreen = () => {
                 role="alert"
                 className="flex gap-2 items-center px-4 py-3 rounded-2xl border backdrop-blur-sm border-rose-200/50 bg-rose-50/40"
               >
-                <BanIcon className="text-rose-400 size-4 shrink-0" />
+                <BanIcon
+                  aria-hidden="true"
+                  className="text-rose-400 size-4 shrink-0"
+                />
                 <p className="text-[13px] leading-5 text-rose-600 md:text-sm">
                   You&apos;ve been blocked and can no longer interact with this
                   organization.

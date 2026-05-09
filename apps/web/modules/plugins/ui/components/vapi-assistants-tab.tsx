@@ -124,7 +124,7 @@ const AssistantsCards = ({
         role="status"
         aria-label="Loading assistants"
       >
-        <Loader2Icon className="animate-spin text-primary/50" />
+         <Loader2Icon className="animate-spin text-primary/50" aria-hidden="true" />
         <span className="sr-only">Loading assistants...</span>
       </div>
     );
