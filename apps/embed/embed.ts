@@ -5,6 +5,7 @@ import {
   WIDGET_DEFAULT_POSITION,
   type WidgetPosition,
 } from "@workspace/shared/constants/widget";
+import { getResizeHeight } from "@/resize-validation";
 
 declare global {
   interface Window {
@@ -22,7 +23,6 @@ declare global {
 }
 
 (function () {
-  const MAX_WIDGET_HEIGHT_PX = 2000;
   const OPEN_WIDGET_LABEL = "Open chat widget";
   const CLOSE_WIDGET_LABEL = "Close chat widget";
   const WIDGET_SCRIPT_MARKER = "true";
@@ -361,34 +361,6 @@ declare global {
     const url = new URL(widgetUrl.toString());
     url.searchParams.set("organizationId", organizationId);
     return url.toString();
-  }
-
-  function getResizeHeight(payload: unknown): number | null {
-    if (
-      typeof payload !== "object" ||
-      payload === null ||
-      !("height" in payload)
-    ) {
-      console.warn("Scylla Widget: invalid resize message payload");
-      return null;
-    }
-
-    const { height } = payload as { height: unknown };
-    if (typeof height !== "number" && typeof height !== "string") {
-      console.warn("Scylla Widget: invalid resize height type");
-      return null;
-    }
-
-    const parsedHeight = Number(height);
-    if (
-      !Number.isFinite(parsedHeight) ||
-      parsedHeight <= 0 ||
-      parsedHeight > MAX_WIDGET_HEIGHT_PX
-    ) {
-      return null;
-    }
-
-    return parsedHeight;
   }
 
   function handleMessage(event: MessageEvent) {

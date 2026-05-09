@@ -16,6 +16,14 @@ export const create = mutation({
   },
   handler: async (ctx, args): Promise<Id<"conversations">> => {
     const session = await validateSession(ctx, args.contactSessionId);
+
+    if (session.blockedAt) {
+      throw new ConvexError({
+        code: "BLOCKED",
+        message: "You have been blocked from this organization",
+      });
+    }
+
     const organizationId = session.organizationId;
     const organization = await ctx.db.get(organizationId);
 
@@ -88,6 +96,25 @@ export const create = mutation({
           `Failed to clean up orphaned thread [${threadId}]:`,
           cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
         );
+        try {
+          await ctx.runMutation(
+            internal.private.conversations.markPendingThreadDeletion,
+            {
+              threadId,
+              organizationId: session.organizationId,
+            },
+          );
+          await ctx.scheduler.runAfter(
+            0,
+            internal.pendingThreadDeletions.processPendingThreadDeletions,
+            {},
+          );
+        } catch (markErr) {
+          console.error(
+            `Failed to schedule pending thread deletion for [${threadId}]:`,
+            markErr instanceof Error ? markErr.message : markErr,
+          );
+        }
       }
       throw err;
     }
@@ -104,7 +131,6 @@ export const getOne = query({
 
     const conversation = await ctx.db.get(args.conversationId);
 
-    // Don't throw error, handle in frontend (displays a CTA modal to start a new conversation)
     if (!conversation) {
       return null;
     }
@@ -126,6 +152,7 @@ export const getOne = query({
       createdAt: conversation.createdAt,
       lastSeenByAgentAt: conversation.lastSeenByAgentAt ?? null,
       lastSeenByContactAt: conversation.lastSeenByContactAt ?? null,
+      blockedAt: session.blockedAt ?? null,
     };
   },
 });
@@ -164,11 +191,7 @@ export const markSeenByContact = mutation({
       });
     }
 
-    const maxSeenAt = Math.min(
-      Date.now(),
-      conversation.lastMessageAt ?? Number.POSITIVE_INFINITY,
-    );
-    const clampedSeenAt = Math.min(args.seenAt, maxSeenAt);
+    const clampedSeenAt = Math.min(args.seenAt, Date.now());
 
     if (
       conversation.lastSeenByContactAt &&

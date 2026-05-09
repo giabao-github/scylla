@@ -15,6 +15,7 @@
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@workspace/typescript-config": "workspace:*",
+    "convex": "^1.35.1",
     "typescript": "^6.0.3"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "jotai-family": "^1.0.1"
   },
   "peerDependencies": {
+    "convex": "^1.35.1",
     "lucide-react": "^1.8.0",
     "react": "^19.2.4"
   }

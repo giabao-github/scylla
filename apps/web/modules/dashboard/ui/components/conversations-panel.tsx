@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import { Skeleton } from "@workspace/ui/components/skeleton";
+import { SidebarTrigger } from "@workspace/ui/components/sidebar";
 import { useInfiniteScroll } from "@workspace/ui/hooks/use-infinite-scroll";
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -118,44 +118,65 @@ export const ConversationsPanel = () => {
         backgroundImage: "url(/panel-background.jpg)",
       }}
     >
-      <div className="flex flex-row justify-between items-center p-2 border-b backdrop-blur-sm bg-white/10">
-        <Select
-          value={safeStatusFilter}
-          onValueChange={(value) => {
-            if (isValidStatusFilter(value)) setStatusFilter(value);
+      {/* Glass header bar with filter controls */}
+      <div
+        className="flex relative flex-row gap-2 justify-between items-center p-2"
+        style={{
+          background: "var(--glass-surface-elevated)",
+          backdropFilter: "blur(20px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+          borderBottom: "1px solid var(--glass-border)",
+        }}
+      >
+        {/* Specular top highlight */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-px pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 5%, var(--glass-specular) 50%, transparent 95%)",
           }}
-        >
-          <SelectTrigger className="h-8 border-none px-1.5 shadow-none ring-0 hover:bg-accent hover:text-accent-foreground focus-visible:ring-0">
-            <SelectValue placeholder="Filter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              <div className="flex gap-2 items-center">
-                <ListIcon className="size-4" />
-                <span>All</span>
-              </div>
-            </SelectItem>
-            <SelectItem value={CONVERSATION_STATUS.UNRESOLVED}>
-              <div className="flex gap-2 items-center">
-                <ClockIcon className="size-4" />
-                <span>Unresolved</span>
-              </div>
-            </SelectItem>
-            <SelectItem value={CONVERSATION_STATUS.ESCALATED}>
-              <div className="flex gap-2 items-center">
-                <ArrowUpIcon className="size-4" />
-                <span>Escalated</span>
-              </div>
-            </SelectItem>
-            <SelectItem value={CONVERSATION_STATUS.RESOLVED}>
-              <div className="flex gap-2 items-center">
-                <CheckIcon className="size-4" />
-                <span>Resolved</span>
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="px-4 text-xs">
+        />
+        <div className="flex gap-1 items-center min-w-0">
+          <SidebarTrigger className="size-8 shrink-0 md:hidden" />
+          <Select
+            value={safeStatusFilter}
+            onValueChange={(value) => {
+              if (isValidStatusFilter(value)) setStatusFilter(value);
+            }}
+          >
+            <SelectTrigger className="h-8 min-w-0 border-none px-1.5 shadow-none ring-0 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                <div className="flex gap-2 items-center">
+                  <ListIcon className="size-4" />
+                  <span>All</span>
+                </div>
+              </SelectItem>
+              <SelectItem value={CONVERSATION_STATUS.UNRESOLVED}>
+                <div className="flex gap-2 items-center">
+                  <ClockIcon className="size-4" />
+                  <span>Unresolved</span>
+                </div>
+              </SelectItem>
+              <SelectItem value={CONVERSATION_STATUS.ESCALATED}>
+                <div className="flex gap-2 items-center">
+                  <ArrowUpIcon className="size-4" />
+                  <span>Escalated</span>
+                </div>
+              </SelectItem>
+              <SelectItem value={CONVERSATION_STATUS.RESOLVED}>
+                <div className="flex gap-2 items-center">
+                  <CheckIcon className="size-4" />
+                  <span>Resolved</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="px-2 text-xs shrink-0 sm:px-4">
           {`${filteredCount} conversation${filteredCount !== 1 ? "s" : ""}`}
           {canLoadMore && "+"}
         </div>
@@ -195,21 +216,25 @@ export const ConversationsPanel = () => {
               <Link
                 href={`/conversations/${conversation._id}`}
                 className={cn(
-                  "flex relative gap-3 items-center px-4 py-2 text-sm leading-tight border-b cursor-pointer group",
-                  (isActive || isSelected) && "bg-black/5",
+                  "flex relative gap-3 items-center px-3 py-2 text-sm leading-tight cursor-pointer group sm:px-4",
+                  "transition-all duration-200",
+                  (isActive || isSelected) && "bg-white/10 dark:bg-white/6",
                 )}
               >
+                {/* Hover glass shimmer */}
                 <div
                   className={cn(
-                    "absolute inset-0 transition-colors duration-200 bg-white/0",
-                    "group-hover:backdrop-blur-xs",
+                    "absolute inset-0 transition-all duration-200 pointer-events-none",
+                    "group-hover:bg-black/8 dark:group-hover:bg-white/8",
                   )}
                 />
 
+                {/* Active indicator — glass pill instead of hard bar */}
                 <div
                   className={cn(
-                    "absolute left-0 top-1/2 w-2 h-full bg-violet-300 rounded-full transition-opacity duration-200 -translate-y-1/2",
-                    isActive ? "opacity-100" : "opacity-0",
+                    "absolute left-0 top-1/2 w-1 h-2/3 rounded-r-full transition-all duration-300",
+                    "-translate-y-1/2",
+                    isActive ? "opacity-100 active-pill" : "opacity-0",
                   )}
                 />
 
@@ -220,9 +245,9 @@ export const ConversationsPanel = () => {
                   className="relative shrink-0"
                 />
 
-                <div className="relative flex-1 space-y-2">
+                <div className="relative flex-1 space-y-2 min-w-0">
                   <div className="flex gap-2 items-center w-full">
-                    <span className="font-bold truncate">
+                    <span className="min-w-0 font-bold truncate">
                       {conversation.contactSession.name}
                     </span>
                     <span className="ml-auto text-xs shrink-0 text-slate-600">
@@ -261,18 +286,22 @@ export const ConversationsPanel = () => {
 
 export const SkeletonConversations = () => {
   return (
-    <div className="flex overflow-auto flex-col flex-1 min-h-0">
+    <div className="flex overflow-auto flex-col flex-1 min-h-0 scrollbar-themed">
       {Array.from({ length: 13 }).map((_, index) => (
-        <div key={index} className="flex gap-3 items-start px-4 py-2 border-b">
-          <Skeleton className="h-[50px] w-[50px] shrink-0 rounded-full bg-slate-300" />
+        <div
+          key={index}
+          className="flex gap-3 items-start px-4 py-2"
+          style={{ borderBottom: "1px solid var(--glass-border-subtle)" }}
+        >
+          <div className="h-[50px] w-[50px] shrink-0 rounded-full bg-black/10 dark:bg-white/10 animate-pulse" />
           <div className="flex-1 space-y-2 min-w-0">
             <div className="flex gap-2 items-center w-full">
-              <Skeleton className="w-24 h-4 bg-slate-300" />
-              <Skeleton className="ml-auto w-12 h-3 shrink-0 bg-slate-300" />
+              <div className="w-24 h-4 rounded-sm animate-pulse bg-black/10 dark:bg-white/10" />
+              <div className="ml-auto w-12 h-3 rounded-sm animate-pulse shrink-0 bg-black/10 dark:bg-white/10" />
             </div>
             <div className="flex justify-between items-center">
-              <Skeleton className="w-3/4 h-3 bg-slate-300" />
-              <Skeleton className="w-4 h-4 rounded-full shrink-0 bg-slate-300" />
+              <div className="w-3/4 h-3 rounded-sm animate-pulse bg-black/10 dark:bg-white/10" />
+              <div className="w-4 h-4 rounded-full animate-pulse shrink-0 bg-black/10 dark:bg-white/10" />
             </div>
           </div>
         </div>

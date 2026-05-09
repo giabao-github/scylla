@@ -37,6 +37,7 @@ export default defineSchema({
     email: v.string(),
     organizationId: v.id("organizations"),
     expiresAt: v.number(),
+    blockedAt: v.optional(v.number()),
     metadata: v.optional(
       v.object({
         userAgent: v.optional(v.string()),
@@ -58,6 +59,7 @@ export default defineSchema({
   })
     .index("by_org_id", ["organizationId"])
     .index("by_expires_at", ["expiresAt"])
+    .index("by_org_id_and_blocked_at", ["organizationId", "blockedAt"])
     .index("by_email", ["email"]),
   conversations: defineTable({
     threadId: v.string(),
@@ -150,6 +152,33 @@ export default defineSchema({
   })
     .index("by_org_id", ["organizationId"])
     .index("by_entry_id", ["entryId"])
+    .index("by_failed_at", ["failedAt"]),
+  pendingThreadDeletions: defineTable({
+    threadId: v.string(),
+    organizationId: v.id("organizations"),
+    conversationId: v.optional(v.id("conversations")),
+    retryCount: v.optional(v.number()),
+    retryAfter: v.optional(v.number()),
+    scheduledAt: v.number(),
+    claimedAt: v.optional(v.number()),
+  })
+    .index("by_thread_id", ["threadId"])
+    .index("by_org_id", ["organizationId"])
+    .index("by_conversation_id", ["conversationId"])
+    .index("by_scheduled_at", ["scheduledAt"])
+    .index("by_scheduled_at_and_claimed_at", ["scheduledAt", "claimedAt"])
+    .index("by_retry_after", ["retryAfter"])
+    .index("by_retry_after_and_claimed_at", ["retryAfter", "claimedAt"]),
+  failedThreadDeletions: defineTable({
+    threadId: v.string(),
+    organizationId: v.id("organizations"),
+    conversationId: v.optional(v.id("conversations")),
+    error: v.string(),
+    failedAt: v.number(),
+  })
+    .index("by_thread_id", ["threadId"])
+    .index("by_org_id", ["organizationId"])
+    .index("by_conversation_id", ["conversationId"])
     .index("by_failed_at", ["failedAt"]),
   fileNameIndex: defineTable({
     organizationId: v.string(),

@@ -83,11 +83,16 @@ const getHeaderProps = (screen: WidgetScreen) => {
         color2: "#6D28D9",
         color3: "#7C3AED",
       };
-    case "library":
-      return null;
+
     default: {
+      // Exhaustiveness check: TypeScript ensures all WidgetScreen cases are handled
       const _exhaustiveCheck: never = screen;
-      return _exhaustiveCheck;
+      return {
+        timeSpeed: 0.9,
+        color1: "#A78BFA",
+        color2: "#8B5CF6",
+        color3: "#7C3AED",
+      };
     }
   }
 };
@@ -153,11 +158,18 @@ const getHeaderContent = ({
           onInbox={onInbox}
         />
       );
-    case "library":
-      return null;
+
     default: {
+      // Exhaustiveness check: TypeScript ensures all WidgetScreen cases are handled
       const _exhaustiveCheck: never = screen;
-      return _exhaustiveCheck;
+      return (
+        <div className="flex flex-col gap-y-2 justify-between px-4 py-6 font-semibold">
+          <p className="text-2xl md:text-3xl">Oops!</p>
+          <p className="text-base md:text-lg">
+            Please refresh the page or try again.
+          </p>
+        </div>
+      );
     }
   }
 };
@@ -180,11 +192,11 @@ const renderScreen = (screen: WidgetScreen, organizationId: string) => {
       return <WidgetChatScreen />;
     case "contact":
       return <WidgetContactScreen />;
-    case "library":
-      return <p>TODO: Library</p>;
+
     default: {
+      // Exhaustiveness check: TypeScript ensures all WidgetScreen cases are handled
       const _exhaustiveCheck: never = screen;
-      return <p>Unknown screen: {_exhaustiveCheck}</p>;
+      return <WidgetErrorScreen />;
     }
   }
 };
@@ -278,11 +290,9 @@ export const WidgetView = ({ organizationId }: WidgetViewProps) => {
 
   return (
     <main className="flex overflow-hidden relative flex-col w-full rounded-none border h-svh md:h-dvh md:rounded-sm bg-muted">
-      {headerProps && (
-        <WidgetHeader {...headerProps} className="relative z-50 shrink-0">
-          {headerContent}
-        </WidgetHeader>
-      )}
+      <WidgetHeader {...headerProps} className="relative z-50 shrink-0">
+        {headerContent}
+      </WidgetHeader>
       <div className="flex relative flex-col flex-1 min-h-0">
         {renderScreen(screen, organizationId)}
       </div>

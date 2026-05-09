@@ -120,6 +120,13 @@ export const create = action({
       });
     }
 
+    if (contactSession.blockedAt) {
+      throw new ConvexError({
+        code: "BLOCKED",
+        message: "You have been blocked from this organization",
+      });
+    }
+
     const conversation = await ctx.runQuery(
       internal.system.conversations.getByThreadId,
       { threadId },

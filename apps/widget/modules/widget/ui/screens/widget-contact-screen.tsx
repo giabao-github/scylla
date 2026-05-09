@@ -44,6 +44,10 @@ export const WidgetContactScreen = () => {
 
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
+  const isContactBlocked =
+    validation?.valid === true && !!validation.contactSession?.blockedAt;
+
+  const statusPillId = "contact-status-pill";
 
   const handleAuthenticate = useCallback(() => {
     setScreen(WIDGET_SCREENS.AUTH);
@@ -66,7 +70,7 @@ export const WidgetContactScreen = () => {
               Call our AI agent directly
             </p>
             <p className="max-w-xs text-[22px] md:text-2xl font-bold tracking-wide leading-5 text-center text-muted-foreground md:leading-6">
-              {phoneNumber ?? "—"}
+              {isContactBlocked ? "Unavailable" : (phoneNumber ?? "—")}
             </p>
           </div>
         </div>
@@ -82,21 +86,38 @@ export const WidgetContactScreen = () => {
                 <div
                   className={cn(
                     "flex items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-xs font-medium shadow-sm md:text-sm",
-                    "border-violet-300/70 bg-violet-50/85 text-violet-700",
+                    isContactBlocked
+                      ? "border-rose-300/70 bg-rose-50/85 text-rose-700"
+                      : "border-violet-300/70 bg-violet-50/85 text-violet-700",
                   )}
                 >
-                  <span className="rounded-full size-2.5 shrink-0 bg-violet-500 animate-pulse" />
-                  <span className="text-center">Available 24/7</span>
+                  <span
+                    className={cn(
+                      "rounded-full size-2.5 shrink-0",
+                      isContactBlocked ? "bg-rose-500" : "bg-violet-500",
+                      !isContactBlocked && "animate-pulse",
+                    )}
+                  />
+                  <span id={statusPillId} className="text-center">
+                    {isContactBlocked
+                      ? "Your access has been restricted. Please contact support."
+                      : "Available 24/7"}
+                  </span>
                 </div>
 
                 <div className="flex flex-row gap-x-2 items-center md:gap-x-6">
-                  {phoneNumber ? (
-                    <Button
-                      asChild
-                      size="lg"
-                      variant="success"
-                      className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
-                    >
+                  <Button
+                    asChild={!!(phoneNumber && !isContactBlocked)}
+                    size="lg"
+                    variant="success"
+                    disabled={!phoneNumber || isContactBlocked}
+                    aria-disabled={!phoneNumber || isContactBlocked}
+                    aria-describedby={
+                      isContactBlocked ? statusPillId : undefined
+                    }
+                    className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
+                  >
+                    {phoneNumber && !isContactBlocked ? (
                       <a
                         href={`tel:${phoneNumber}`}
                         aria-label="Call phone number"
@@ -104,22 +125,19 @@ export const WidgetContactScreen = () => {
                         <PhoneIcon />
                         Call now
                       </a>
-                    </Button>
-                  ) : (
-                    <Button
-                      size="lg"
-                      variant="success"
-                      disabled
-                      className="rounded-full shadow-lg min-w-[150px] md:min-w-40 shadow-emerald-500/20"
-                    >
-                      <PhoneIcon />
-                      Call now
-                    </Button>
-                  )}
+                    ) : (
+                      <>
+                        <PhoneIcon />
+                        Call now
+                      </>
+                    )}
+                  </Button>
                   <Button
                     size="lg"
                     variant="warning"
-                    disabled={!phoneNumber || copyState === "copied"}
+                    disabled={
+                      !phoneNumber || isContactBlocked || copyState === "copied"
+                    }
                     aria-label={ariaLabel}
                     aria-live="polite"
                     onClick={() => {

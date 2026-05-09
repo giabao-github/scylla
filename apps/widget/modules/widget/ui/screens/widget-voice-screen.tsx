@@ -19,6 +19,7 @@ import {
   widgetSettingsAtom,
 } from "@workspace/shared/atoms/atoms";
 import { WIDGET_SCREENS } from "@workspace/shared/constants/screens";
+import { hasErrorCode } from "@workspace/shared/lib/convex-error";
 import { ChatBubble } from "@workspace/ui/components/ai/chat-bubble";
 import { Message } from "@workspace/ui/components/ai/message";
 import { Button } from "@workspace/ui/components/button";
@@ -26,6 +27,7 @@ import { cn } from "@workspace/ui/lib/utils";
 
 export const WidgetVoiceScreen = () => {
   const [isLoadingSecrets, setIsLoadingSecrets] = useState(false);
+  const [localBlocked, setLocalBlocked] = useState(false);
   const [secretError, setSecretError] = useState<string | null>(null);
 
   const conversationId = useAtomValue(conversationIdAtom);
@@ -59,8 +61,24 @@ export const WidgetVoiceScreen = () => {
 
   const isExpired = validation?.valid === false;
   const isNew = !contactSessionId;
+  const serverBlockedAt = isValidSession
+    ? validation.contactSession?.blockedAt
+    : undefined;
+  const isContactBlocked =
+    localBlocked || (isValidSession && !!serverBlockedAt);
+
+  useEffect(() => {
+    if (isValidSession && !serverBlockedAt) {
+      setLocalBlocked(false);
+    }
+  }, [isValidSession, serverBlockedAt]);
+  
   const isSessionBlocked =
-    isNew || isExpired || isSessionValidating || !isValidSession;
+    isNew ||
+    isExpired ||
+    isSessionValidating ||
+    !isValidSession ||
+    isContactBlocked;
   const assistantId = widgetSettings?.vapiSettings?.assistantId;
 
   const transcriptMessages = useMemo(
@@ -147,13 +165,21 @@ export const WidgetVoiceScreen = () => {
           return;
         }
 
+        if (hasErrorCode(fetchError, "BLOCKED")) {
+          console.warn("User blocked from using voice call");
+          setLocalBlocked(true);
+          setVapiSecrets(null);
+          setSecretError(null);
+          return;
+        }
+
         console.error(
           "Failed to load Vapi secrets:",
           fetchError instanceof Error ? fetchError.message : "Unknown error",
         );
         setVapiSecrets(null);
         setSecretError("Voice is unavailable right now.");
-      })
+      }) 
       .finally(() => {
         if (!cancelled) {
           setIsLoadingSecrets(false);
@@ -286,7 +312,12 @@ export const WidgetVoiceScreen = () => {
                   )}
                 </div>
 
-                {(secretError || error) && (
+                {isContactBlocked && (
+                  <p className="max-w-sm text-[13px] text-center text-destructive md:text-sm">
+                    Your access has been restricted. Please contact support.
+                  </p>
+                )}
+                {!isContactBlocked && (secretError || error) && (
                   <p className="max-w-sm text-[13px] text-center text-destructive md:text-sm">
                     {secretError ?? error}
                   </p>

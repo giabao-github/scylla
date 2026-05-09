@@ -8,8 +8,10 @@ import {
   MAX_REQUEST_IDS,
   STALE_TIMEOUT_MS,
 } from "@workspace/backend/constants";
-
-import { getMessageRequest, requireMessageRequest } from "./utils";
+import {
+  getMessageRequest,
+  requireMessageRequest,
+} from "@workspace/backend/system/utils";
 
 type ClaimResult =
   | { status: "already_done"; userMessageId: string | null }
@@ -145,15 +147,44 @@ export const claimAndSaveUserMessage = internalMutation({
     { requestId, contactSessionId },
   ): Promise<ClaimResult> => {
     const existing = await getMessageRequest(ctx, requestId);
+    if (existing?.status === "completed") {
+      if (existing.contactSessionId !== contactSessionId) {
+        throw new ConvexError({
+          code: "FORBIDDEN",
+          message: "Request does not belong to this contact session",
+        });
+      }
+      return {
+        status: "already_done",
+        userMessageId: existing.userMessageId ?? null,
+      };
+    }
+
+    const contactSession = await ctx.db.get(contactSessionId);
+    if (!contactSession) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Contact session not found",
+      });
+    }
+
+    if (contactSession.blockedAt) {
+      throw new ConvexError({
+        code: "BLOCKED",
+        message: "You have been blocked from this organization",
+      });
+    }
+
     const now = Date.now();
 
     if (existing) {
-      if (existing.status === "completed") {
-        return {
-          status: "already_done",
-          userMessageId: existing.userMessageId ?? null,
-        };
+      if (existing.contactSessionId !== contactSessionId) {
+        throw new ConvexError({
+          code: "FORBIDDEN",
+          message: "Request does not belong to this contact session",
+        });
       }
+
       if (
         existing.status === "processing" &&
         typeof existing.updatedAt === "number" &&

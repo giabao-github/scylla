@@ -39,6 +39,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form";
+import { GlassPanel } from "@workspace/ui/components/glass-panel";
 import { Input } from "@workspace/ui/components/input";
 
 const vapiFeatures: Feature[] = [
@@ -268,12 +269,26 @@ export const VapiView = ({
   if (isLoading) {
     return (
       <div
-        className="flex flex-col gap-4 justify-center items-center min-h-screen"
+        className="flex flex-col flex-1 gap-4 justify-center items-center p-8 min-h-0"
         role="status"
         aria-live="polite"
       >
-        <div className="loader" aria-hidden="true" />
-        Loading plugin status...
+        {/* Glass loading card */}
+        <GlassPanel
+          blur="md"
+          transparency={82}
+          tintColor="var(--glass-panel-tint, rgb(255 255 255))"
+          borderColor="var(--glass-panel-border, rgb(255 255 255 / 0.55))"
+          className="p-10"
+        >
+          <div
+            className="loader [--loader-size:30px] mx-auto mb-4"
+            aria-hidden="true"
+          />
+          <span className="text-sm text-muted-foreground">
+            Loading plugin status...
+          </span>
+        </GlassPanel>
       </div>
     );
   }
@@ -285,17 +300,33 @@ export const VapiView = ({
         open={disconnectOpen}
         setOpen={setDisconnectOpen}
       />
-      <div className="flex flex-col p-8 min-h-screen bg-white">
-        <div className="mx-auto w-full max-w-3xl">
-          <div className="space-y-4">
-            <h1 className="text-2xl md:text-4xl">Vapi Plugin</h1>
-            <p className="text-muted-foreground">
+      <div className="flex overflow-y-auto flex-col flex-1 px-4 py-6 min-h-0 sm:px-6 md:p-8 scrollbar-themed">
+        <div className="mx-auto space-y-8 w-full max-w-3xl animate-spring-in">
+          {/* Page header glass card */}
+          <GlassPanel
+            blur="lg"
+            transparency={80}
+            tintColor="var(--glass-panel-tint, rgb(255 255 255))"
+            borderColor="var(--glass-panel-border-strong, rgb(255 255 255 / 0.6))"
+            className="p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
+          >
+            <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">
+              Vapi Plugin
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
               Connect your Vapi assistant to Scylla to enable AI-powered voice
               interactions with your customers.
             </p>
-          </div>
+          </GlassPanel>
 
-          <div className="mt-12">
+          {/* Plugin card wrapped in glass */}
+          <GlassPanel
+            blur="md"
+            transparency={84}
+            tintColor="var(--glass-panel-tint, rgb(255 255 255))"
+            borderColor="var(--glass-panel-border, rgb(255 255 255 / 0.55))"
+            className="p-6 shadow-[0_20px_60px_rgba(148,163,184,0.14)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
+          >
             {vapiPlugin ? (
               <VapiConnectedView
                 initialStatus={initialStatus}
@@ -309,7 +340,7 @@ export const VapiView = ({
                 onConnect={() => setConnectOpen(true)}
               />
             )}
-          </div>
+          </GlassPanel>
         </div>
       </div>
     </>

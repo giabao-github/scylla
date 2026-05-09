@@ -7,7 +7,6 @@ export const WIDGET_SCREENS = {
   SELECTION: "selection",
   CHAT: "chat",
   CONTACT: "contact",
-  LIBRARY: "library",
 } as const;
 
 export type WidgetScreen = (typeof WIDGET_SCREENS)[keyof typeof WIDGET_SCREENS];

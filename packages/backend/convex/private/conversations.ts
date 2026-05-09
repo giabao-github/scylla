@@ -1,9 +1,21 @@
 import { PaginationResult, paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { Doc } from "@workspace/backend/_generated/dataModel";
-import { mutation, query } from "@workspace/backend/_generated/server";
+import { Doc, Id } from "@workspace/backend/_generated/dataModel";
+import {
+  MutationCtx,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "@workspace/backend/_generated/server";
+import {
+  DELETION_BATCH_SIZE,
+  MAX_BATCHES_PER_PARENT,
+  MESSAGE_REQUEST_BATCH,
+} from "@workspace/backend/constants";
 import { getAuthenticatedOrganization } from "@workspace/backend/private/utils";
+import { supportAgent } from "@workspace/backend/system/ai/agents/supportAgent";
 import {
   CONVERSATION_STATUS,
   type ConversationStatus,
@@ -14,6 +26,176 @@ const statusValidator = v.union(
   v.literal(CONVERSATION_STATUS.ESCALATED),
   v.literal(CONVERSATION_STATUS.RESOLVED),
 );
+
+const STALE_THREAD_DELETION_CLAIM_MS = 5 * 60 * 1000;
+
+async function upsertPendingThreadDeletion(
+  ctx: MutationCtx,
+  args: {
+    threadId: string;
+    organizationId: Id<"organizations">;
+    conversationId?: Id<"conversations">;
+  },
+) {
+  const existing = await ctx.db
+    .query("pendingThreadDeletions")
+    .withIndex("by_thread_id", (q) => q.eq("threadId", args.threadId))
+    .unique();
+
+  if (!existing) {
+    await ctx.db.insert("pendingThreadDeletions", {
+      threadId: args.threadId,
+      organizationId: args.organizationId,
+      conversationId: args.conversationId,
+      scheduledAt: Date.now(),
+    });
+    return { existed: false };
+  }
+
+  await ctx.db.patch(existing._id, {
+    organizationId: args.organizationId,
+    ...(args.conversationId !== undefined
+      ? { conversationId: args.conversationId }
+      : {}),
+    scheduledAt: Date.now(),
+    claimedAt: undefined,
+    retryCount: undefined,
+    retryAfter: undefined,
+  });
+  return { existed: true };
+}
+
+export const listPendingThreadDeletions = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args): Promise<Doc<"pendingThreadDeletions">[]> => {
+    const effectiveLimit = Math.max(
+      1,
+      Math.min(args.limit ?? DELETION_BATCH_SIZE, 1000),
+    );
+    const now = Date.now();
+    const staleThreshold = now - STALE_THREAD_DELETION_CLAIM_MS;
+
+    const result: Doc<"pendingThreadDeletions">[] = [];
+    let cursor: string | null = null;
+    const batchSize = effectiveLimit * 2;
+    const maxScans = 5;
+    let scans = 0;
+
+    while (result.length < effectiveLimit && scans < maxScans) {
+      const batch = await ctx.db
+        .query("pendingThreadDeletions")
+        .withIndex("by_scheduled_at", (q) =>
+          q.lte("scheduledAt", now + STALE_THREAD_DELETION_CLAIM_MS),
+        )
+        .paginate({ cursor, numItems: batchSize });
+
+      for (const row of batch.page) {
+        const isNotClaimed =
+          row.claimedAt === undefined || row.claimedAt < staleThreshold;
+        const isRetryReady =
+          row.retryAfter === undefined || row.retryAfter <= now;
+        if (isNotClaimed && isRetryReady) {
+          result.push(row);
+          if (result.length >= effectiveLimit) break;
+        }
+      }
+
+      if (batch.isDone) break;
+      cursor = batch.continueCursor;
+      scans++;
+    }
+
+    if (scans >= maxScans && result.length < effectiveLimit) {
+      console.warn(
+        `listPendingThreadDeletions hit maxScans (${maxScans}). ` +
+          `Returned ${result.length}/${effectiveLimit} requested.`,
+      );
+    }
+
+    return result;
+  },
+});
+
+export const markPendingThreadDeletion = internalMutation({
+  args: {
+    threadId: v.string(),
+    organizationId: v.id("organizations"),
+    conversationId: v.optional(v.id("conversations")),
+  },
+  handler: async (ctx, args) => {
+    const { existed } = await upsertPendingThreadDeletion(ctx, args);
+    return { newlyQueued: !existed };
+  },
+});
+
+export const claimPendingThreadDeletion = internalMutation({
+  args: { id: v.id("pendingThreadDeletions") },
+  handler: async (ctx, { id }) => {
+    const row = await ctx.db.get(id);
+    if (!row) return { claimed: false };
+
+    const now = Date.now();
+    const isAlreadyClaimed =
+      row.claimedAt !== undefined &&
+      now - row.claimedAt < STALE_THREAD_DELETION_CLAIM_MS;
+
+    if (isAlreadyClaimed) return { claimed: false };
+
+    await ctx.db.patch(id, {
+      claimedAt: now,
+      scheduledAt: now + STALE_THREAD_DELETION_CLAIM_MS,
+    });
+
+    return { claimed: true };
+  },
+});
+
+export const removePendingThreadDeletion = internalMutation({
+  args: { id: v.id("pendingThreadDeletions") },
+  handler: async (ctx, { id }) => {
+    await ctx.db.delete(id);
+  },
+});
+
+export const incrementPendingThreadDeletionRetryCount = internalMutation({
+  args: { id: v.id("pendingThreadDeletions") },
+  handler: async (ctx, { id }) => {
+    const row = await ctx.db.get(id);
+    if (!row) return;
+
+    const nextRetryCount = (row.retryCount ?? 0) + 1;
+    const backoffMs = Math.min(1000 * 2 ** nextRetryCount, 60 * 60 * 1000);
+    const retryAfter = Date.now() + backoffMs;
+
+    await ctx.db.patch(id, {
+      retryCount: nextRetryCount,
+      retryAfter,
+      scheduledAt: retryAfter,
+      claimedAt: undefined,
+    });
+  },
+});
+
+export const movePendingThreadDeletionToDeadLetterQueue = internalMutation({
+  args: {
+    id: v.id("pendingThreadDeletions"),
+    error: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const pending = await ctx.db.get(args.id);
+    if (!pending) return;
+
+    await ctx.db.insert("failedThreadDeletions", {
+      threadId: pending.threadId,
+      organizationId: pending.organizationId,
+      conversationId: pending.conversationId,
+      error: args.error,
+      failedAt: Date.now(),
+    });
+
+    await ctx.db.delete(args.id);
+  },
+});
 
 export const getOne = query({
   args: {
@@ -52,6 +234,7 @@ export const getOne = query({
       contactSession: {
         _id: contactSession._id,
         name: contactSession.name,
+        blockedAt: contactSession.blockedAt ?? null,
         metadata: contactSession.metadata
           ? {
               countryCode: contactSession.metadata.countryCode ?? null,
@@ -110,6 +293,7 @@ export const getMany = query({
           contactSession: {
             _id: contactSession._id,
             name: contactSession.name,
+            blockedAt: contactSession.blockedAt ?? null,
             metadata: contactSession.metadata
               ? {
                   countryCode: contactSession.metadata.countryCode ?? null,
@@ -236,10 +420,7 @@ export const markSeen = mutation({
       });
     }
 
-    const maxSeenAt = Math.min(
-      Date.now(),
-      conversation.lastMessageAt ?? Number.POSITIVE_INFINITY,
-    );
+    const maxSeenAt = Date.now();
 
     if (args.seenAt < conversation.createdAt || args.seenAt > maxSeenAt) {
       throw new ConvexError({
@@ -258,5 +439,127 @@ export const markSeen = mutation({
     await ctx.db.patch(args.conversationId, {
       lastSeenByAgentAt: args.seenAt,
     });
+  },
+});
+
+export const deleteOne = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const { organizationId } = await getAuthenticatedOrganization(ctx);
+
+    const conversation = await ctx.db.get(args.conversationId);
+
+    if (!conversation) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Conversation not found",
+      });
+    }
+
+    if (conversation.organizationId !== organizationId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "User is not authorized to delete this conversation",
+      });
+    }
+
+    const contactSession = await ctx.db.get(conversation.contactSessionId);
+    if (!contactSession) {
+      console.warn(
+        `[deleteOne] Missing contact session for conversation [${args.conversationId}]`,
+      );
+    }
+    if (contactSession?.blockedAt) {
+      throw new ConvexError({
+        code: "BLOCKED_CONTACT",
+        message:
+          "Cannot delete a conversation with a blocked user. Unblock them first.",
+      });
+    }
+
+    // Purge associated message requests in capped batches
+    let hasMore = true;
+    let batches = 0;
+
+    while (hasMore && batches < MAX_BATCHES_PER_PARENT) {
+      const requests = await ctx.db
+        .query("messageRequests")
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversationId", args.conversationId),
+        )
+        .order("asc")
+        .take(MESSAGE_REQUEST_BATCH);
+
+      hasMore = requests.length === MESSAGE_REQUEST_BATCH;
+
+      for (const request of requests) {
+        await ctx.db.delete(request._id);
+      }
+
+      batches += 1;
+    }
+
+    // Verify there are actually remaining records before throwing
+    if (hasMore) {
+      const remaining = await ctx.db
+        .query("messageRequests")
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversationId", args.conversationId),
+        )
+        .take(1);
+      hasMore = remaining.length > 0;
+    }
+
+    if (hasMore) {
+      throw new ConvexError({
+        code: "PURGE_LIMIT_EXCEEDED",
+        message:
+          "Too many message requests to delete in one go. Please try again.",
+      });
+    }
+
+    const { threadId } = conversation;
+
+    try {
+      await supportAgent.deleteThreadAsync(ctx, { threadId });
+    } catch (err) {
+      console.error(
+        `[deleteOne] Failed to schedule thread deletion for thread [${threadId}]:`,
+        err instanceof Error ? err.message : err,
+      );
+      try {
+        await upsertPendingThreadDeletion(ctx, {
+          threadId,
+          organizationId,
+          conversationId: args.conversationId,
+        });
+        console.info(
+          `[deleteOne] Queued thread [${threadId}] for background deletion`,
+        );
+      } catch (fallbackErr) {
+        console.error(
+          `[deleteOne] CRITICAL: Both thread deletion methods failed for thread [${threadId}]. ` +
+            `Conversation [${args.conversationId}] will NOT be deleted to prevent orphaned thread.`,
+          {
+            threadId,
+            conversationId: args.conversationId,
+            primaryError: err instanceof Error ? err.message : String(err),
+            fallbackError:
+              fallbackErr instanceof Error
+                ? fallbackErr.message
+                : String(fallbackErr),
+          },
+        );
+        throw new ConvexError({
+          code: "THREAD_CLEANUP_FAILED",
+          message:
+            "Unable to schedule thread cleanup. Please try again or contact support.",
+        });
+      }
+    }
+
+    await ctx.db.delete(args.conversationId);
   },
 });

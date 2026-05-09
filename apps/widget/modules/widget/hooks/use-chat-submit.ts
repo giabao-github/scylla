@@ -67,6 +67,7 @@ interface UseChatSubmitParams {
   visibleMessages: UIMessage[];
   isSessionReady: boolean;
   isResolved: boolean;
+  isContactBlocked: boolean;
   conversationId: Id<"conversations"> | null | undefined;
 }
 
@@ -77,6 +78,7 @@ export const useChatSubmit = ({
   visibleMessages,
   isSessionReady,
   isResolved,
+  isContactBlocked,
   conversationId,
 }: UseChatSubmitParams) => {
   const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
@@ -138,11 +140,17 @@ export const useChatSubmit = ({
     promptText: string,
     submissionToken: number,
   ) => {
-    if (!isSessionReady) {
+    if (!isSessionReady || isContactBlocked) {
       setPendingSlots((prev) =>
         prev.map((s) =>
           s.localId === localId
-            ? { ...s, status: "failed" as const, error: "Session unavailable." }
+            ? {
+                ...s,
+                status: "failed" as const,
+                error: isContactBlocked
+                  ? "You have been blocked from this organization."
+                  : "Session unavailable.",
+              }
             : s,
         ),
       );
@@ -210,6 +218,7 @@ export const useChatSubmit = ({
     if (
       !isSessionReady ||
       isResolved ||
+      isContactBlocked ||
       submitLockRef.current ||
       !text ||
       !conversation ||
@@ -247,6 +256,8 @@ export const useChatSubmit = ({
       !slot ||
       isGenerating ||
       !isSessionReady ||
+      isResolved ||
+      isContactBlocked ||
       submitLockRef.current ||
       !conversation ||
       !contactSessionId

@@ -68,7 +68,7 @@ export const VapiConnectedView = ({
   }, [router]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <GlassPanel
         blur="sm"
         transparency={90}
@@ -76,9 +76,9 @@ export const VapiConnectedView = ({
         borderColor="rgb(102 255 155 / 0.1)"
       >
         <Card className="bg-transparent border-none">
-          <CardHeader className="flex items-center">
-            <div className="flex justify-between items-center w-full">
-              <div className="flex gap-4 items-center">
+          <CardHeader className="flex items-center p-4 sm:p-6">
+            <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 gap-4 items-center">
                 <Image
                   alt="Vapi"
                   src="/vapi.svg"
@@ -86,14 +86,18 @@ export const VapiConnectedView = ({
                   height={48}
                   className="rounded-lg object-contain bg-[#000714]"
                 />
-                <div className="flex flex-col gap-y-1.5">
+                <div className="flex min-w-0 flex-col gap-y-1.5">
                   <CardTitle>Vapi Integration</CardTitle>
                   <CardDescription>
                     Manage your phone numbers and AI assistants
                   </CardDescription>
                 </div>
               </div>
-              <Button variant="danger" onClick={onDisconnect}>
+              <Button
+                variant="danger"
+                onClick={onDisconnect}
+                className="w-full sm:w-auto"
+              >
                 <div className="flex gap-2 items-center">
                   <UnplugIcon />
                   <span>Disconnect</span>
@@ -110,13 +114,13 @@ export const VapiConnectedView = ({
         borderColor="rgb(0 0 0 / 0.05)"
       >
         <Card className="bg-transparent border-none">
-          <CardHeader className="flex items-center">
-            <div className="flex justify-between items-center w-full">
-              <div className="flex gap-4 items-center">
+          <CardHeader className="flex items-center p-4 sm:p-6">
+            <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 gap-4 items-center">
                 <div className="flex justify-center items-center rounded-lg size-12 bg-muted">
                   <SettingsIcon className="size-6 text-muted-foreground" />
                 </div>
-                <div className="flex flex-col gap-y-1.5">
+                <div className="flex min-w-0 flex-col gap-y-1.5">
                   <CardTitle>Widget Configuration</CardTitle>
                   <CardDescription>
                     Set up voice calls for chat widget
@@ -128,6 +132,7 @@ export const VapiConnectedView = ({
                   startTransition(() => router.push("/customization"))
                 }
                 disabled={isLoadingCustomization}
+                className="w-full sm:w-auto"
               >
                 <div className="flex gap-2 items-center">
                   {isLoadingCustomization ? (
@@ -160,14 +165,14 @@ export const VapiConnectedView = ({
           <TabsList className="grid grid-cols-2 p-0 w-full rounded-none min-h-10 bg-muted/30">
             <TabsTrigger
               value="phone-numbers"
-              className="h-full rounded-none data-[state=active]:bg-primary/80 data-[state=active]:text-white"
+              className="h-full min-w-0 rounded-none text-xs data-[state=active]:bg-primary/80 data-[state=active]:text-white sm:text-sm"
             >
               <PhoneIcon />
               Phone Numbers
             </TabsTrigger>
             <TabsTrigger
               value="assistants"
-              className="h-full rounded-none data-[state=active]:bg-primary/80 data-[state=active]:text-white"
+              className="h-full min-w-0 rounded-none text-xs data-[state=active]:bg-primary/80 data-[state=active]:text-white sm:text-sm"
             >
               <BotIcon />
               AI Assistants

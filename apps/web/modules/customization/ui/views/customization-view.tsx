@@ -7,6 +7,7 @@ import { useQuery } from "convex/react";
 import { CustomizationForm } from "@/modules/customization/ui/components/customization-form";
 import { api } from "@workspace/backend/_generated/api";
 import type { InitialSubscriptionStatus } from "@workspace/shared/types/subscription";
+import { GlassPanel } from "@workspace/ui/components/glass-panel";
 
 export const CustomizationView = ({
   initialStatus,
@@ -35,33 +36,64 @@ export const CustomizationView = ({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col flex-1 gap-y-4 justify-center items-center p-8 min-h-0 bg-white">
-        <div className="loader [--loader-size:30px]" />
-        <p className="text-sm text-muted-foreground">
-          Loading widget settings...
-        </p>
+      <div className="flex flex-col flex-1 justify-center items-center p-8 min-h-0">
+        {/* Glass loading card */}
+        <GlassPanel
+          role="status"
+          aria-busy={true}
+          aria-live="polite"
+          blur="md"
+          transparency={82}
+          tintColor="var(--glass-panel-tint)"
+          borderColor="var(--glass-panel-border)"
+          className="p-10"
+        >
+          <div
+            className="loader [--loader-size:30px] mx-auto mb-4"
+            aria-hidden="true"
+          />
+          <p className="text-sm text-muted-foreground">
+            Loading widget settings...
+          </p>
+        </GlassPanel>
       </div>
     );
   }
 
   return (
-    <div className="flex overflow-y-auto flex-col flex-1 p-8 min-h-0 bg-white scrollbar-themed">
-      <div className="mx-auto w-full max-w-3xl">
-        <div className="space-y-4">
-          <h1 className="text-2xl md:text-4xl">Widget Customization</h1>
-          <p className="text-muted-foreground">
+    <div className="flex overflow-y-auto flex-col flex-1 p-6 min-h-0 md:p-8 scrollbar-themed">
+      <div className="mx-auto space-y-8 w-full max-w-3xl animate-spring-in">
+        {/* Page header glass card */}
+        <GlassPanel
+          blur="lg"
+          transparency={80}
+          tintColor="var(--glass-panel-tint)"
+          borderColor="var(--glass-panel-border-strong)"
+          className="p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)]"
+        >
+          <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">
+            Widget Customization
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             Customize your chat widget appearance and behavior for your
             customers.
           </p>
-        </div>
+        </GlassPanel>
 
-        <div className="mt-12">
+        {/* Form container */}
+        <GlassPanel
+          blur="md"
+          transparency={84}
+          tintColor="var(--glass-panel-tint)"
+          borderColor="var(--glass-panel-border)"
+          className="p-6 shadow-[0_20px_60px_rgba(148,163,184,0.14)]"
+        >
           <CustomizationForm
             initialData={widgetSettings}
             hasVapiPlugin={!!vapiPlugin}
             initialStatus={initialStatus}
           />
-        </div>
+        </GlassPanel>
       </div>
     </div>
   );
