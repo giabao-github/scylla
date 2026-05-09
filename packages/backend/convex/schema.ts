@@ -166,7 +166,9 @@ export default defineSchema({
     .index("by_org_id", ["organizationId"])
     .index("by_conversation_id", ["conversationId"])
     .index("by_scheduled_at", ["scheduledAt"])
-    .index("by_retry_after", ["retryAfter"]),
+    .index("by_scheduled_at_and_claimed_at", ["scheduledAt", "claimedAt"])
+    .index("by_retry_after", ["retryAfter"])
+    .index("by_retry_after_and_claimed_at", ["retryAfter", "claimedAt"]),
   failedThreadDeletions: defineTable({
     threadId: v.string(),
     organizationId: v.id("organizations"),

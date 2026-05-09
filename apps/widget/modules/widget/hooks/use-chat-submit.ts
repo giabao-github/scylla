@@ -148,7 +148,7 @@ export const useChatSubmit = ({
                 ...s,
                 status: "failed" as const,
                 error: isContactBlocked
-                  ? "Contact is blocked."
+                  ? "You have been blocked from this organization."
                   : "Session unavailable.",
               }
             : s,

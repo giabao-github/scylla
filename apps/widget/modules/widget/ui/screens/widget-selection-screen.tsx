@@ -99,10 +99,11 @@ export const WidgetSelectionScreen = () => {
   const isBlocked = localBlocked || !!serverBlockedAt;
 
   useEffect(() => {
-    if (validation?.valid === true && !serverBlockedAt) {
+    if (!localBlocked) return;
+    if (validation?.valid === true && !validation.contactSession?.blockedAt) {
       setLocalBlocked(false);
     }
-  }, [serverBlockedAt, validation?.valid]);
+  }, [localBlocked, validation]);
 
   const createdAtLabel = useMemo(() => {
     if (organizationProfile?.createdAt == null) {

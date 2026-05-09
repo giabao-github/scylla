@@ -146,6 +146,20 @@ export const claimAndSaveUserMessage = internalMutation({
     ctx,
     { requestId, contactSessionId },
   ): Promise<ClaimResult> => {
+    const existing = await getMessageRequest(ctx, requestId);
+    if (existing?.status === "completed") {
+      if (existing.contactSessionId !== contactSessionId) {
+        throw new ConvexError({
+          code: "FORBIDDEN",
+          message: "Request does not belong to this contact session",
+        });
+      }
+      return {
+        status: "already_done",
+        userMessageId: existing.userMessageId ?? null,
+      };
+    }
+
     const contactSession = await ctx.db.get(contactSessionId);
     if (!contactSession) {
       throw new ConvexError({
@@ -161,16 +175,16 @@ export const claimAndSaveUserMessage = internalMutation({
       });
     }
 
-    const existing = await getMessageRequest(ctx, requestId);
     const now = Date.now();
 
     if (existing) {
-      if (existing.status === "completed") {
-        return {
-          status: "already_done",
-          userMessageId: existing.userMessageId ?? null,
-        };
+      if (existing.contactSessionId !== contactSessionId) {
+        throw new ConvexError({
+          code: "FORBIDDEN",
+          message: "Request does not belong to this contact session",
+        });
       }
+
       if (
         existing.status === "processing" &&
         typeof existing.updatedAt === "number" &&

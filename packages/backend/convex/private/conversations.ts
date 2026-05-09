@@ -29,14 +29,6 @@ const statusValidator = v.union(
 
 const STALE_THREAD_DELETION_CLAIM_MS = 5 * 60 * 1000;
 
-/**
- * Shared helper to upsert a pending thread deletion record.
- * If a record already exists for the threadId, it resets the record
- * (clearing retry state and claim) and optionally updates the conversationId.
- * Otherwise, it creates a new one.
- *
- * @returns { existed: boolean } - true if an existing record was updated, false if a new one was created
- */
 async function upsertPendingThreadDeletion(
   ctx: MutationCtx,
   args: {
